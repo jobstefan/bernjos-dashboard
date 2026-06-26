@@ -11,12 +11,16 @@ datasource db {
   provider = "postgresql"
 }
 
-// Define your models below. Example:
-//
-// model User {
-//   id        String   @id @default(cuid())
-//   email     String   @unique
-//   name      String?
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-// }
+/// Application user, linked 1:1 to a Clerk user via `clerkId`.
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}

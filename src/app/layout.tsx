@@ -19,13 +19,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="en" className={cn("font-sans", geist.variable)}>
-        <body>
+    <html lang="en" className={cn("font-sans", geist.variable)}>
+      <body>
+        <ClerkProvider>
           {children}
           <Toaster />
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }
