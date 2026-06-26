@@ -1,0 +1,8 @@
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - prisma
+  - protobufjs
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver

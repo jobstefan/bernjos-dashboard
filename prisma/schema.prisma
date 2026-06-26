@@ -1,0 +1,22 @@
+// Prisma schema — https://pris.ly/d/prisma-schema
+// Prisma 7: the connection URL lives in prisma.config.ts (for the CLI/Migrate),
+// and the runtime PrismaClient connects through a driver adapter (see src/lib/db.ts).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Define your models below. Example:
+//
+// model User {
+//   id        String   @id @default(cuid())
+//   email     String   @unique
+//   name      String?
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+// }
