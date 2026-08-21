@@ -4,7 +4,7 @@ export interface NavItem {
   label: string;
   href: string;
   /** Lucide icon name resolved in the sidebar. */
-  icon: "dashboard" | "payroll" | "employees" | "payslip";
+  icon: "dashboard" | "payroll" | "employees" | "payslip" | "cashAdvance";
   roles: Role[];
 }
 
@@ -25,6 +25,18 @@ export const NAV_ITEMS: NavItem[] = [
     label: "My Payslips",
     href: "/payroll/payslips",
     icon: "payslip",
+    roles: ["employee"],
+  },
+  {
+    label: "Cash Advances",
+    href: "/cash-advances",
+    icon: "cashAdvance",
+    roles: ["super_admin", "admin", "manager"],
+  },
+  {
+    label: "My Advances",
+    href: "/cash-advances/mine",
+    icon: "cashAdvance",
     roles: ["employee"],
   },
   {

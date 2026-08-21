@@ -9,6 +9,7 @@ import {
   Wallet,
   Users,
   FileText,
+  HandCoins,
   Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,7 @@ const ICONS = {
   payroll: Wallet,
   employees: Users,
   payslip: FileText,
+  cashAdvance: HandCoins,
 } as const;
 
 function isActive(pathname: string, href: string): boolean {

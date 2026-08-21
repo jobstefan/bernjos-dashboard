@@ -42,10 +42,8 @@ export interface EmployeeRow {
   email: string;
   position: string;
   department: string;
-  employmentType: string;
   employmentStatus: string;
   basicSalary: number;
-  tin: string | null;
 }
 
 const ALL = "__all__";
@@ -70,7 +68,6 @@ export function EmployeesTable({
   const [search, setSearch] = React.useState("");
   const [department, setDepartment] = React.useState(ALL);
   const [status, setStatus] = React.useState(ALL);
-  const [type, setType] = React.useState(ALL);
   const [toDeactivate, setToDeactivate] = React.useState<EmployeeRow | null>(null);
   const [pending, startTransition] = React.useTransition();
 
@@ -79,7 +76,6 @@ export function EmployeesTable({
     return rows.filter((r) => {
       if (department !== ALL && r.department !== department) return false;
       if (status !== ALL && r.employmentStatus !== status) return false;
-      if (type !== ALL && r.employmentType !== type) return false;
       if (
         q &&
         ![r.fullName, r.employeeCode, r.email, r.position]
@@ -90,7 +86,7 @@ export function EmployeesTable({
         return false;
       return true;
     });
-  }, [rows, search, department, status, type]);
+  }, [rows, search, department, status]);
 
   function confirmDeactivate() {
     if (!toDeactivate) return;
@@ -124,18 +120,8 @@ export function EmployeesTable({
       { accessorKey: "position", header: "Position" },
       { accessorKey: "department", header: "Department" },
       {
-        accessorKey: "employmentType",
-        header: "Type",
-        enableSorting: false,
-        cell: ({ row }) => (
-          <span className="capitalize">
-            {row.original.employmentType.replace("_", " ")}
-          </span>
-        ),
-      },
-      {
         accessorKey: "basicSalary",
-        header: "Basic Salary",
+        header: "Daily Rate",
         cell: ({ row }) => (
           <span className="font-mono">{formatPeso(row.original.basicSalary)}</span>
         ),
@@ -234,17 +220,6 @@ export function EmployeesTable({
             ["inactive", "Inactive"],
             ["resigned", "Resigned"],
             ["terminated", "Terminated"],
-          ]}
-        />
-        <FilterSelect
-          value={type}
-          onChange={setType}
-          placeholder="Type"
-          options={[
-            ["regular", "Regular"],
-            ["probationary", "Probationary"],
-            ["contractual", "Contractual"],
-            ["part_time", "Part-time"],
           ]}
         />
       </div>

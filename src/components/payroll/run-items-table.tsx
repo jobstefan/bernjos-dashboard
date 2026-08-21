@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { AlertTriangle } from "lucide-react";
 import { DataTable } from "@/components/payroll/data-table";
 import {
   Sheet,
@@ -23,13 +22,10 @@ export interface RunItemRow {
   employeeCode: string;
   position: string;
   department: string;
-  tin: string | null;
   basicSalary: number;
   grossPay: number;
   sssEmployee: number;
   philhealthEmployee: number;
-  pagibigEmployee: number;
-  birWithholding: number;
   otherDeductions: number;
   otherEarnings: number;
   totalDeductions: number;
@@ -57,17 +53,7 @@ export function RunItemsTable({
         header: "Employee",
         cell: ({ row }) => (
           <div>
-            <div className="flex items-center gap-1.5 font-medium">
-              {row.original.employeeName}
-              {!row.original.tin ? (
-                <span
-                  title="Missing TIN"
-                  className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700"
-                >
-                  <AlertTriangle className="mr-0.5 size-2.5" /> TIN
-                </span>
-              ) : null}
-            </div>
+            <div className="font-medium">{row.original.employeeName}</div>
             <div className="text-xs text-muted-foreground">
               {row.original.employeeCode}
             </div>
@@ -77,7 +63,7 @@ export function RunItemsTable({
       { accessorKey: "position", header: "Position", enableSorting: false },
       {
         accessorKey: "basicSalary",
-        header: "Basic",
+        header: "Daily Rate",
         cell: ({ row }) => money(row.original.basicSalary),
       },
       {
@@ -94,16 +80,6 @@ export function RunItemsTable({
         accessorKey: "philhealthEmployee",
         header: "PhilHealth",
         cell: ({ row }) => money(row.original.philhealthEmployee),
-      },
-      {
-        accessorKey: "pagibigEmployee",
-        header: "Pag-IBIG",
-        cell: ({ row }) => money(row.original.pagibigEmployee),
-      },
-      {
-        accessorKey: "birWithholding",
-        header: "BIR Tax",
-        cell: ({ row }) => money(row.original.birWithholding),
       },
       {
         accessorKey: "otherDeductions",

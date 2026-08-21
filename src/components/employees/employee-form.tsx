@@ -29,18 +29,13 @@ export interface EmployeeFormValues {
   email: string;
   position: string;
   department: string;
-  employmentType: string;
   employmentStatus: string;
   dateHired: string;
-  dateRegularized: string;
   basicSalary: string;
   payFrequency: string;
-  taxStatus: string;
   clerkUserId: string;
   sssNumber: string;
   philhealthNumber: string;
-  pagibigNumber: string;
-  tin: string;
   bankName: string;
   bankAccountNumber: string;
 }
@@ -53,23 +48,16 @@ const EMPTY: EmployeeFormValues = {
   email: "",
   position: "",
   department: "",
-  employmentType: "regular",
   employmentStatus: "active",
   dateHired: "",
-  dateRegularized: "",
   basicSalary: "",
   payFrequency: "semi_monthly",
-  taxStatus: "S",
   clerkUserId: "",
   sssNumber: "",
   philhealthNumber: "",
-  pagibigNumber: "",
-  tin: "",
   bankName: "",
   bankAccountNumber: "",
 };
-
-const TAX_STATUSES = ["S", "S1", "S2", "S3", "S4", "ME", "ME1", "ME2", "ME3", "ME4"];
 
 export function EmployeeForm({
   mode,
@@ -84,10 +72,8 @@ export function EmployeeForm({
   const [formError, setFormError] = React.useState<string | null>(null);
 
   const [selects, setSelects] = React.useState({
-    employmentType: initial?.employmentType ?? EMPTY.employmentType,
     employmentStatus: initial?.employmentStatus ?? EMPTY.employmentStatus,
     payFrequency: initial?.payFrequency ?? EMPTY.payFrequency,
-    taxStatus: initial?.taxStatus ?? EMPTY.taxStatus,
   });
 
   const v = { ...EMPTY, ...initial };
@@ -108,18 +94,13 @@ export function EmployeeForm({
       email: get("email"),
       position: get("position"),
       department: get("department"),
-      employmentType: selects.employmentType,
       employmentStatus: selects.employmentStatus,
       dateHired: get("dateHired"),
-      dateRegularized: get("dateRegularized"),
       basicSalary: get("basicSalary"),
       payFrequency: selects.payFrequency,
-      taxStatus: selects.taxStatus,
       clerkUserId: get("clerkUserId"),
       sssNumber: get("sssNumber"),
       philhealthNumber: get("philhealthNumber"),
-      pagibigNumber: get("pagibigNumber"),
-      tin: get("tin"),
       bankName: get("bankName"),
       bankAccountNumber: get("bankAccountNumber"),
     };
@@ -172,17 +153,6 @@ export function EmployeeForm({
         <TextField name="position" label="Position" defaultValue={v.position} error={errors.position} />
         <TextField name="department" label="Department" defaultValue={v.department} error={errors.department} />
         <SelectField
-          label="Employment type"
-          value={selects.employmentType}
-          onChange={(val) => setSelects((s) => ({ ...s, employmentType: val }))}
-          options={[
-            ["regular", "Regular"],
-            ["probationary", "Probationary"],
-            ["contractual", "Contractual"],
-            ["part_time", "Part-time"],
-          ]}
-        />
-        <SelectField
           label="Employment status"
           value={selects.employmentStatus}
           onChange={(val) => setSelects((s) => ({ ...s, employmentStatus: val }))}
@@ -194,11 +164,10 @@ export function EmployeeForm({
           ]}
         />
         <TextField name="dateHired" label="Date hired" type="date" defaultValue={v.dateHired} error={errors.dateHired} />
-        <TextField name="dateRegularized" label="Date regularized" type="date" defaultValue={v.dateRegularized} error={errors.dateRegularized} />
       </Section>
 
       <Section title="Compensation">
-        <TextField name="basicSalary" label="Basic salary (monthly)" type="number" defaultValue={v.basicSalary} error={errors.basicSalary} />
+        <TextField name="basicSalary" label="Basic salary (daily rate)" type="number" defaultValue={v.basicSalary} error={errors.basicSalary} />
         <SelectField
           label="Pay frequency"
           value={selects.payFrequency}
@@ -208,19 +177,11 @@ export function EmployeeForm({
             ["monthly", "Monthly"],
           ]}
         />
-        <SelectField
-          label="Tax status (BIR)"
-          value={selects.taxStatus}
-          onChange={(val) => setSelects((s) => ({ ...s, taxStatus: val }))}
-          options={TAX_STATUSES.map((t) => [t, t] as [string, string])}
-        />
       </Section>
 
       <Section title="Government IDs">
-        <TextField name="tin" label="TIN" defaultValue={v.tin} error={errors.tin} />
         <TextField name="sssNumber" label="SSS number" defaultValue={v.sssNumber} error={errors.sssNumber} />
         <TextField name="philhealthNumber" label="PhilHealth number" defaultValue={v.philhealthNumber} error={errors.philhealthNumber} />
-        <TextField name="pagibigNumber" label="Pag-IBIG number" defaultValue={v.pagibigNumber} error={errors.pagibigNumber} />
       </Section>
 
       <Section title="Bank Details">

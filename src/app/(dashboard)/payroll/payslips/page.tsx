@@ -38,13 +38,10 @@ export default async function MyPayslipsPage() {
     employeeCode: p.employee.employeeCode,
     position: p.employee.position,
     department: p.employee.department,
-    tin: p.employee.tin,
     basicSalary: p.basicSalary,
     grossPay: p.grossPay,
     sssEmployee: p.sssEmployee,
     philhealthEmployee: p.philhealthEmployee,
-    pagibigEmployee: p.pagibigEmployee,
-    birWithholding: p.birWithholding,
     otherEarnings: p.otherEarnings,
     otherDeductions: p.otherDeductions,
     totalDeductions: p.totalDeductions,
@@ -56,12 +53,11 @@ export default async function MyPayslipsPage() {
     (acc, p) => {
       if (p.period.payDate.getFullYear() === thisYear) {
         acc.gross += p.grossPay;
-        acc.tax += p.birWithholding;
         acc.net += p.netPay;
       }
       return acc;
     },
-    { gross: 0, tax: 0, net: 0 },
+    { gross: 0, net: 0 },
   );
 
   const peso = (n: number) =>
@@ -76,9 +72,8 @@ export default async function MyPayslipsPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <SummaryCard title={`YTD Gross (${thisYear})`} value={peso(ytd.gross)} />
-        <SummaryCard title={`YTD Tax Withheld (${thisYear})`} value={peso(ytd.tax)} />
         <SummaryCard title={`YTD Net (${thisYear})`} value={peso(ytd.net)} />
       </div>
 

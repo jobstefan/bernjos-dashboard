@@ -81,6 +81,11 @@ export function canViewPayroll(role: Role): boolean {
   return role === "admin" || role === "super_admin" || role === "manager";
 }
 
+/** Admins, super-admins and managers can approve/decline cash advances. */
+export function canApproveCashAdvance(role: Role): boolean {
+  return role === "admin" || role === "super_admin" || role === "manager";
+}
+
 /**
  * Assert the actor holds one of `roles`. Returns the actor for convenient
  * chaining. Throws {@link UnauthorizedError} otherwise.
@@ -96,4 +101,9 @@ export async function requireRole(...roles: Role[]): Promise<Actor> {
 /** Assert the actor is an admin or super-admin (full payroll access). */
 export async function requireAdmin(): Promise<Actor> {
   return requireRole("admin", "super_admin");
+}
+
+/** Assert the actor can approve/decline cash advances (admin, super-admin, manager). */
+export async function requireApprover(): Promise<Actor> {
+  return requireRole("admin", "super_admin", "manager");
 }

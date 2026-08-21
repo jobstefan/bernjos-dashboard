@@ -8,7 +8,6 @@ function buildWhere(filters?: EmployeeFilters): Prisma.EmployeeWhereInput {
   const where: Prisma.EmployeeWhereInput = { deletedAt: null };
   if (filters?.department) where.department = filters.department;
   if (filters?.employmentStatus) where.employmentStatus = filters.employmentStatus;
-  if (filters?.employmentType) where.employmentType = filters.employmentType;
   if (filters?.search) {
     const search = filters.search;
     where.OR = [

@@ -2,13 +2,6 @@ import { z } from "zod";
 
 // Enum values mirror the Prisma enums. Kept as literal tuples so these schemas
 // stay usable on the client (no server-only Prisma import).
-export const employmentTypeEnum = z.enum([
-  "regular",
-  "probationary",
-  "contractual",
-  "part_time",
-]);
-
 export const employmentStatusEnum = z.enum([
   "active",
   "inactive",
@@ -17,19 +10,6 @@ export const employmentStatusEnum = z.enum([
 ]);
 
 export const payFrequencyEnum = z.enum(["semi_monthly", "monthly"]);
-
-export const taxStatusEnum = z.enum([
-  "S",
-  "S1",
-  "S2",
-  "S3",
-  "S4",
-  "ME",
-  "ME1",
-  "ME2",
-  "ME3",
-  "ME4",
-]);
 
 export const payrollStatusEnum = z.enum([
   "draft",
@@ -50,20 +30,15 @@ export const createEmployeeSchema = z.object({
   email: z.string().trim().email("Enter a valid email."),
   position: z.string().trim().min(1, "Position is required."),
   department: z.string().trim().min(1, "Department is required."),
-  employmentType: employmentTypeEnum,
   employmentStatus: employmentStatusEnum.default("active"),
   dateHired: dateField,
-  dateRegularized: dateField.optional().nullable(),
   basicSalary: z.coerce
     .number()
     .positive("Basic salary must be greater than zero."),
   payFrequency: payFrequencyEnum.default("semi_monthly"),
-  taxStatus: taxStatusEnum,
   clerkUserId: z.string().trim().optional().nullable(),
   sssNumber: z.string().trim().optional().nullable(),
   philhealthNumber: z.string().trim().optional().nullable(),
-  pagibigNumber: z.string().trim().optional().nullable(),
-  tin: z.string().trim().optional().nullable(),
   bankName: z.string().trim().optional().nullable(),
   bankAccountNumber: z.string().trim().optional().nullable(),
 });
@@ -90,13 +65,41 @@ export const periodFiltersSchema = z.object({
   status: payrollStatusEnum.optional(),
 });
 
+export const cashAdvanceStatusEnum = z.enum([
+  "pending",
+  "approved",
+  "declined",
+  "applied",
+  "cancelled",
+]);
+
+export const createCashAdvanceSchema = z.object({
+  amount: z.coerce
+    .number()
+    .positive("Amount must be greater than zero.")
+    .max(1_000_000, "Amount is too large."),
+  reason: z.string().trim().min(1, "Please provide a reason for the request."),
+});
+
+export const approveCashAdvanceSchema = z.object({
+  id: z.string().min(1),
+  note: z.string().trim().optional().nullable(),
+});
+
+export const declineCashAdvanceSchema = z.object({
+  id: z.string().min(1),
+  reason: z.string().trim().min(1, "A reason for declining is required."),
+});
+
 export const employeeFiltersSchema = z.object({
   search: z.string().trim().optional(),
   department: z.string().trim().optional(),
   employmentStatus: employmentStatusEnum.optional(),
-  employmentType: employmentTypeEnum.optional(),
 });
 
 export type CreateEmployeeSchema = z.infer<typeof createEmployeeSchema>;
 export type UpdateEmployeeSchema = z.infer<typeof updateEmployeeSchema>;
 export type CreatePeriodSchema = z.infer<typeof createPeriodSchema>;
+export type CreateCashAdvanceSchema = z.infer<typeof createCashAdvanceSchema>;
+export type ApproveCashAdvanceSchema = z.infer<typeof approveCashAdvanceSchema>;
+export type DeclineCashAdvanceSchema = z.infer<typeof declineCashAdvanceSchema>;

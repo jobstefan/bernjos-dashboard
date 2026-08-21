@@ -1,28 +1,28 @@
 import type {
+  CashAdvanceModel,
   EmployeeModel,
   PayrollPeriodModel,
   PayrollRunItemModel,
 } from "@/generated/prisma/models";
 import type {
+  CashAdvanceStatus,
   EmploymentStatus,
-  EmploymentType,
   PayFrequency,
   PayrollStatus,
   RunItemStatus,
-  TaxStatus,
 } from "@/generated/prisma/enums";
 
 // Re-export Prisma model + enum types under friendly names for the app layer.
 export type Employee = EmployeeModel;
 export type PayrollPeriod = PayrollPeriodModel;
 export type PayrollRunItem = PayrollRunItemModel;
+export type CashAdvance = CashAdvanceModel;
 export type {
+  CashAdvanceStatus,
   EmploymentStatus,
-  EmploymentType,
   PayFrequency,
   PayrollStatus,
   RunItemStatus,
-  TaxStatus,
 };
 
 /** The four payroll roles, read from Clerk `publicMetadata.role`. */
@@ -43,25 +43,22 @@ export interface DeductionBreakdown {
   employeeId: string;
   periodId: string;
   frequency: PayFrequency;
+  /** Daily basic-pay rate. */
   basicSalary: number;
-  /** Gross for this cut-off (monthly salary, halved for semi-monthly). */
+  /** Days worked in the period (interim default until attendance lands). */
+  daysWorked: number;
+  /** Gross for this period (daily rate × days worked). */
   grossPay: number;
   sssEmployee: number;
   sssEmployer: number;
   philhealthEmployee: number;
   philhealthEmployer: number;
-  pagibigEmployee: number;
-  pagibigEmployer: number;
-  taxableIncome: number;
-  birWithholding: number;
   totalDeductions: number;
   netPay: number;
   /** IDs of the exact statutory rows used, for auditability. */
   brackets: {
     sssBracketId: string;
     philhealthBracketId: string;
-    pagibigRateId: string;
-    birBracketId: string;
   };
 }
 
@@ -90,7 +87,6 @@ export interface EmployeeFilters {
   search?: string;
   department?: string;
   employmentStatus?: EmploymentStatus;
-  employmentType?: EmploymentType;
 }
 
 /** A single employee's payslip for one period (run item joined to context). */
@@ -111,17 +107,34 @@ export interface Payslip {
     fullName: string;
     position: string;
     department: string;
-    tin: string | null;
   };
   basicSalary: number;
   grossPay: number;
   sssEmployee: number;
   philhealthEmployee: number;
-  pagibigEmployee: number;
-  birWithholding: number;
   otherDeductions: number;
   otherEarnings: number;
   totalDeductions: number;
   netPay: number;
   status: RunItemStatus;
+}
+
+export interface CashAdvanceFilters {
+  status?: CashAdvanceStatus;
+  employeeId?: string;
+}
+
+/** A cash-advance request flattened for display in a table. */
+export interface CashAdvanceRow {
+  id: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  amount: number;
+  reason: string;
+  status: CashAdvanceStatus;
+  decisionNote: string | null;
+  appliedPeriodLabel: string | null;
+  requestedAt: string;
+  decidedAt: string | null;
 }

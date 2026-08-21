@@ -1,4 +1,3 @@
-import { AlertTriangle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { formatPeso } from "@/lib/utils/payroll";
 
@@ -7,14 +6,11 @@ export interface PayslipView {
   employeeCode: string;
   position: string;
   department: string;
-  tin: string | null;
   periodLabel: string;
   basicSalary: number;
   grossPay: number;
   sssEmployee: number;
   philhealthEmployee: number;
-  pagibigEmployee: number;
-  birWithholding: number;
   otherEarnings: number;
   otherDeductions: number;
   totalDeductions: number;
@@ -61,11 +57,6 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
         <div className="mt-1 text-xs text-muted-foreground">
           {payslip.periodLabel}
         </div>
-        {!payslip.tin ? (
-          <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-            <AlertTriangle className="size-3" /> Missing TIN
-          </span>
-        ) : null}
       </div>
 
       <Separator />
@@ -74,8 +65,8 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
         <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Earnings
         </div>
-        <Line label="Basic (monthly)" value={payslip.basicSalary} />
-        <Line label="Gross (this cut-off)" value={payslip.grossPay} emphasis />
+        <Line label="Basic (daily rate)" value={payslip.basicSalary} />
+        <Line label="Gross (this period)" value={payslip.grossPay} emphasis />
         {payslip.otherEarnings > 0 ? (
           <Line label="Other earnings" value={payslip.otherEarnings} />
         ) : null}
@@ -89,8 +80,6 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
         </div>
         <Line label="SSS" value={payslip.sssEmployee} negative />
         <Line label="PhilHealth" value={payslip.philhealthEmployee} negative />
-        <Line label="Pag-IBIG" value={payslip.pagibigEmployee} negative />
-        <Line label="BIR withholding" value={payslip.birWithholding} negative />
         {payslip.otherDeductions > 0 ? (
           <Line label="Other deductions" value={payslip.otherDeductions} negative />
         ) : null}

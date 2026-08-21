@@ -1,0 +1,34 @@
+# Local Postgres for development — the same engine Supabase runs, without the
+# rest of the Supabase stack (Auth/Storage/Studio are unused; this app uses
+# Clerk + Prisma). Fast to start.
+#
+# Host port is 54332 (not the Supabase-local default 54322) to avoid clashing
+# with any `supabase start` stack you may run for another project.
+#
+#   pnpm db:local:up      # start (detached)
+#   pnpm db:local:down    # stop + remove
+#   pnpm db:local:reset   # stop, delete data volume, start fresh
+#
+# Connection string (already set as DATABASE_URL in .env for dev):
+#   postgresql://postgres:postgres@127.0.0.1:54332/postgres
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: bernjos_pg_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "54332:5432"
+    volumes:
+      - bernjos_pg_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  bernjos_pg_dev_data:

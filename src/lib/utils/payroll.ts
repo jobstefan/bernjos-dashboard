@@ -1,4 +1,4 @@
-import type { PayrollStatus } from "@/lib/types/payroll";
+import type { CashAdvanceStatus, PayrollStatus } from "@/lib/types/payroll";
 
 const pesoFormatter = new Intl.NumberFormat("en-PH", {
   minimumFractionDigits: 2,
@@ -52,6 +52,44 @@ export function getPayrollStatusColor(status: PayrollStatus): string {
       return "bg-green-50 text-green-700 border-green-200";
     case "paid":
       return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    default:
+      return "bg-slate-100 text-slate-700 border-slate-200";
+  }
+}
+
+export function getCashAdvanceStatusLabel(status: CashAdvanceStatus): string {
+  switch (status) {
+    case "pending":
+      return "Pending";
+    case "approved":
+      return "Approved";
+    case "declined":
+      return "Declined";
+    case "applied":
+      return "Applied";
+    case "cancelled":
+      return "Cancelled";
+    default:
+      return status;
+  }
+}
+
+/**
+ * Tailwind classes (bg tint + text + border) for a cash-advance status pill.
+ * pending=amber, approved=green, declined=rose, applied=emerald, cancelled=slate.
+ */
+export function getCashAdvanceStatusColor(status: CashAdvanceStatus): string {
+  switch (status) {
+    case "pending":
+      return "bg-amber-50 text-amber-700 border-amber-200";
+    case "approved":
+      return "bg-green-50 text-green-700 border-green-200";
+    case "declined":
+      return "bg-rose-50 text-rose-700 border-rose-200";
+    case "applied":
+      return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    case "cancelled":
+      return "bg-slate-100 text-slate-600 border-slate-200";
     default:
       return "bg-slate-100 text-slate-700 border-slate-200";
   }

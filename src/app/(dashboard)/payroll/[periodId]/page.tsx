@@ -36,13 +36,10 @@ export default async function PeriodDetailPage({
     employeeCode: item.employee.employeeCode,
     position: item.employee.position,
     department: item.employee.department,
-    tin: item.employee.tin,
     basicSalary: Number(item.basicSalary),
     grossPay: Number(item.grossPay),
     sssEmployee: Number(item.sssEmployee),
     philhealthEmployee: Number(item.philhealthEmployee),
-    pagibigEmployee: Number(item.pagibigEmployee),
-    birWithholding: Number(item.birWithholding),
     otherDeductions: Number(item.otherDeductions),
     otherEarnings: Number(item.otherEarnings),
     totalDeductions: Number(item.totalDeductions),
@@ -100,7 +97,7 @@ export default async function PeriodDetailPage({
         <SummaryCard
           title="Total Deductions"
           value={formatPeso(totals.deductions)}
-          hint="SSS + PhilHealth + Pag-IBIG + BIR"
+          hint="SSS + PhilHealth"
         />
         <SummaryCard title="Total Net Pay" value={formatPeso(totals.net)} />
         <SummaryCard title="Employees" value={String(rows.length)} />

@@ -1,0 +1,144 @@
+"use client";
+
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  approveCashAdvanceAction,
+  declineCashAdvanceAction,
+} from "@/app/actions/cash-advance.actions";
+import { formatPeso } from "@/lib/utils/payroll";
+import type { CashAdvanceRow } from "@/lib/types/payroll";
+
+export function ApproveDialog({
+  advance,
+  onOpenChange,
+}: {
+  advance: CashAdvanceRow | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = React.useTransition();
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!advance) return;
+    const form = new FormData(e.currentTarget);
+    const input = { id: advance.id, note: String(form.get("note") ?? "") };
+    startTransition(async () => {
+      const res = await approveCashAdvanceAction(input);
+      if (res.success) {
+        toast.success("Cash advance approved.");
+        onOpenChange(false);
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    });
+  }
+
+  return (
+    <Dialog open={advance !== null} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <form onSubmit={onSubmit}>
+          <DialogHeader>
+            <DialogTitle>Approve cash advance</DialogTitle>
+            <DialogDescription>
+              {advance
+                ? `${advance.employeeName} · ${formatPeso(advance.amount)}. This will be deducted from their next calculated payroll.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 py-4">
+            <Label>Note (optional)</Label>
+            <Textarea name="note" placeholder="Add an approval note if needed" />
+          </div>
+          <DialogFooter>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Approving…" : "Approve"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function DeclineDialog({
+  advance,
+  onOpenChange,
+}: {
+  advance: CashAdvanceRow | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = React.useTransition();
+  const [error, setError] = React.useState<string | null>(null);
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!advance) return;
+    const form = new FormData(e.currentTarget);
+    const input = { id: advance.id, reason: String(form.get("reason") ?? "") };
+    setError(null);
+    startTransition(async () => {
+      const res = await declineCashAdvanceAction(input);
+      if (res.success) {
+        toast.success("Cash advance declined.");
+        onOpenChange(false);
+        router.refresh();
+      } else {
+        setError(res.fieldErrors?.reason?.[0] ?? res.error);
+        toast.error(res.error);
+      }
+    });
+  }
+
+  return (
+    <Dialog
+      open={advance !== null}
+      onOpenChange={(next) => {
+        onOpenChange(next);
+        if (!next) setError(null);
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <form onSubmit={onSubmit}>
+          <DialogHeader>
+            <DialogTitle>Decline cash advance</DialogTitle>
+            <DialogDescription>
+              {advance
+                ? `${advance.employeeName} · ${formatPeso(advance.amount)}. Please provide a reason — the employee will see it.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 py-4">
+            <Label>Reason</Label>
+            <Textarea name="reason" placeholder="Why is this request being declined?" />
+            {error ? <p className="text-xs text-destructive">{error}</p> : null}
+          </div>
+          <DialogFooter>
+            <Button
+              type="submit"
+              disabled={pending}
+              className="bg-destructive/10 text-destructive hover:bg-destructive/20"
+            >
+              {pending ? "Declining…" : "Decline"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

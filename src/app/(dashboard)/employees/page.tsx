@@ -30,10 +30,8 @@ export default async function EmployeesPage() {
     email: e.email,
     position: e.position,
     department: e.department,
-    employmentType: e.employmentType,
     employmentStatus: e.employmentStatus,
     basicSalary: Number(e.basicSalary),
-    tin: e.tin,
   }));
 
   return (

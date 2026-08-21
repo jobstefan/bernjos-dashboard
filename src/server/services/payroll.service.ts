@@ -14,8 +14,11 @@ import {
 } from "@/server/db/payroll";
 import { findActiveEmployeesByFrequency, findEmployeeById } from "@/server/db/employees";
 import {
-  findBirBracket,
-  findPagibigRate,
+  findApprovedUnappliedForEmployee,
+  markCashAdvancesApplied,
+  resetCashAdvancesForPeriod,
+} from "@/server/db/cash-advance";
+import {
   findPhilhealthBracket,
   findSssBracket,
 } from "@/server/db/statutory";
@@ -31,6 +34,7 @@ import type {
   Actor,
   CreatePeriodInput,
   DeductionBreakdown,
+  PayFrequency,
   Payslip,
   PayrollRunResult,
   PeriodFilters,
@@ -40,6 +44,16 @@ const { Decimal } = Prisma;
 type Decimal = Prisma.Decimal;
 
 const ZERO = new Decimal(0);
+
+/**
+ * Interim working-days per pay frequency, used to turn a daily rate into a
+ * period gross until the scheduling & attendance feature supplies the actual
+ * days worked. Gross = daily rate × days worked.
+ */
+const DEFAULT_WORKING_DAYS: Record<PayFrequency, number> = {
+  semi_monthly: 11,
+  monthly: 22,
+};
 
 function round2(value: Decimal): Decimal {
   return value.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
@@ -54,9 +68,10 @@ function toNum(value: Decimal | number): number {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Compute one employee's statutory deductions for a period. Monthly contributions
- * are computed first (SSS/PhilHealth/Pag-IBIG), then — for semi-monthly frequency —
- * halved before the BIR withholding lookup, per BIR practice. Throws
+ * Compute one employee's statutory deductions for a period. `basicSalary` is a
+ * daily rate; the period gross is `daily rate × days worked` (days worked is an
+ * interim default per frequency until attendance lands). SSS and PhilHealth
+ * contributions are computed on that period gross. Throws
  * {@link MissingStatutoryDataError} if any bracket table is unseeded.
  */
 export async function calculateEmployeeDeductions(
@@ -70,97 +85,49 @@ export async function calculateEmployeeDeductions(
 
   const asOf = period.periodStart;
   const frequency = period.frequency;
-  const divisor = frequency === "semi_monthly" ? new Decimal(2) : new Decimal(1);
-  const monthlySalary = new Decimal(employee.basicSalary);
+  const dailyRate = new Decimal(employee.basicSalary);
+  const daysWorked = DEFAULT_WORKING_DAYS[frequency];
+  const grossPay = round2(dailyRate.mul(daysWorked));
+  const salaryBasis = grossPay.toNumber();
 
   // SSS — contribution = Monthly Salary Credit × share rate.
-  const sss = await findSssBracket(monthlySalary.toNumber(), asOf);
+  const sss = await findSssBracket(salaryBasis, asOf);
   if (!sss) throw new MissingStatutoryDataError("SSS", asOf);
-  const sssEmployerMonthly = new Decimal(sss.monthlyCredit).mul(sss.employerShare);
-  const sssEmployeeMonthly = new Decimal(sss.monthlyCredit).mul(sss.employeeShare);
+  const sssEmployee = round2(new Decimal(sss.monthlyCredit).mul(sss.employeeShare));
+  const sssEmployer = round2(new Decimal(sss.monthlyCredit).mul(sss.employerShare));
 
-  // PhilHealth — premium = clamp(salary, floor, ceiling) × rate; employee pays half.
-  const ph = await findPhilhealthBracket(monthlySalary.toNumber(), asOf);
+  // PhilHealth — premium = clamp(gross, floor, ceiling) × rate; employee pays half.
+  const ph = await findPhilhealthBracket(salaryBasis, asOf);
   if (!ph) throw new MissingStatutoryDataError("PhilHealth", asOf);
-  const phBase = Decimal.min(
-    Decimal.max(monthlySalary, ph.minSalary),
-    ph.maxSalary,
-  );
-  let phPremiumMonthly = phBase.mul(ph.rate);
-  phPremiumMonthly = Decimal.min(
-    Decimal.max(phPremiumMonthly, ph.minContribution),
+  const phBase = Decimal.min(Decimal.max(grossPay, ph.minSalary), ph.maxSalary);
+  let phPremium = phBase.mul(ph.rate);
+  phPremium = Decimal.min(
+    Decimal.max(phPremium, ph.minContribution),
     ph.maxContribution,
   );
-  const phEmployeeMonthly = phPremiumMonthly.div(2);
-  const phEmployerMonthly = phPremiumMonthly.div(2);
+  const philhealthEmployee = round2(phPremium.div(2));
+  const philhealthEmployer = round2(phPremium.div(2));
 
-  // Pag-IBIG — salary × employee rate, capped at max contribution.
-  const pagibig = await findPagibigRate(monthlySalary.toNumber(), asOf);
-  if (!pagibig) throw new MissingStatutoryDataError("Pag-IBIG", asOf);
-  const pagibigEmployeeMonthly = Decimal.min(
-    monthlySalary.mul(pagibig.employeeRate),
-    pagibig.maxContribution,
-  );
-  const pagibigEmployerMonthly = Decimal.min(
-    monthlySalary.mul(pagibig.employerRate),
-    pagibig.maxContribution,
-  );
-
-  // Per cut-off values.
-  const grossPay = round2(monthlySalary.div(divisor));
-  const sssEmployee = round2(sssEmployeeMonthly.div(divisor));
-  const sssEmployer = round2(sssEmployerMonthly.div(divisor));
-  const philhealthEmployee = round2(phEmployeeMonthly.div(divisor));
-  const philhealthEmployer = round2(phEmployerMonthly.div(divisor));
-  const pagibigEmployee = round2(pagibigEmployeeMonthly.div(divisor));
-  const pagibigEmployer = round2(pagibigEmployerMonthly.div(divisor));
-
-  const statutoryEmployee = sssEmployee
-    .add(philhealthEmployee)
-    .add(pagibigEmployee);
-  const taxableIncome = round2(Decimal.max(grossPay.sub(statutoryEmployee), ZERO));
-
-  // BIR withholding — base tax + (taxable − excess-over) × rate.
-  const bir = await findBirBracket(
-    taxableIncome.toNumber(),
-    employee.taxStatus,
-    frequency,
-    asOf,
-  );
-  if (!bir) throw new MissingStatutoryDataError("BIR", asOf);
-  const birWithholding = round2(
-    Decimal.max(
-      new Decimal(bir.baseTax).add(
-        taxableIncome.sub(bir.excessOver).mul(bir.rate),
-      ),
-      ZERO,
-    ),
-  );
-
-  const totalDeductions = round2(statutoryEmployee.add(birWithholding));
+  const statutoryEmployee = sssEmployee.add(philhealthEmployee);
+  const totalDeductions = round2(statutoryEmployee);
   const netPay = round2(grossPay.sub(totalDeductions));
 
   return {
     employeeId,
     periodId,
     frequency,
-    basicSalary: toNum(monthlySalary),
+    basicSalary: toNum(dailyRate),
+    daysWorked,
     grossPay: toNum(grossPay),
     sssEmployee: toNum(sssEmployee),
     sssEmployer: toNum(sssEmployer),
     philhealthEmployee: toNum(philhealthEmployee),
     philhealthEmployer: toNum(philhealthEmployer),
-    pagibigEmployee: toNum(pagibigEmployee),
-    pagibigEmployer: toNum(pagibigEmployer),
-    taxableIncome: toNum(taxableIncome),
-    birWithholding: toNum(birWithholding),
     totalDeductions: toNum(totalDeductions),
     netPay: toNum(netPay),
     brackets: {
       sssBracketId: sss.id,
       philhealthBracketId: ph.id,
-      pagibigRateId: pagibig.id,
-      birBracketId: bir.id,
     },
   };
 }
@@ -216,15 +183,33 @@ export async function calculatePayrollRun(
     throw new PayrollAlreadyApprovedError(periodId);
   }
 
+  // Re-running: release any advances previously applied to this period so they
+  // are re-picked below and never double-counted or orphaned.
+  await resetCashAdvancesForPeriod(periodId);
+
   const employees = await findActiveEmployeesByFrequency(period.frequency);
 
   const rows: Prisma.PayrollRunItemCreateManyInput[] = [];
+  const appliedAdvanceIds: string[] = [];
   let totalGross = ZERO;
   let totalDeductions = ZERO;
   let totalNet = ZERO;
 
   for (const employee of employees) {
     const b = await calculateEmployeeDeductions(employee.id, periodId);
+
+    // Fold approved, not-yet-applied cash advances into other deductions.
+    const advances = await findApprovedUnappliedForEmployee(employee.id);
+    let otherDeductions = ZERO;
+    for (const advance of advances) {
+      otherDeductions = otherDeductions.add(advance.amount);
+      appliedAdvanceIds.push(advance.id);
+    }
+    otherDeductions = round2(otherDeductions);
+
+    const itemTotalDeductions = round2(new Decimal(b.totalDeductions).add(otherDeductions));
+    const itemNetPay = round2(new Decimal(b.grossPay).sub(itemTotalDeductions));
+
     rows.push({
       payrollPeriodId: periodId,
       employeeId: employee.id,
@@ -232,22 +217,23 @@ export async function calculatePayrollRun(
       grossPay: b.grossPay,
       sssEmployee: b.sssEmployee,
       philhealthEmployee: b.philhealthEmployee,
-      pagibigEmployee: b.pagibigEmployee,
-      birWithholding: b.birWithholding,
-      otherDeductions: 0,
+      otherDeductions,
       otherEarnings: 0,
-      totalDeductions: b.totalDeductions,
-      netPay: b.netPay,
+      totalDeductions: itemTotalDeductions,
+      netPay: itemNetPay,
       status: "included",
     });
     totalGross = totalGross.add(b.grossPay);
-    totalDeductions = totalDeductions.add(b.totalDeductions);
-    totalNet = totalNet.add(b.netPay);
+    totalDeductions = totalDeductions.add(itemTotalDeductions);
+    totalNet = totalNet.add(itemNetPay);
   }
 
   // Replace any prior (non-approved) items, then insert fresh.
   await deleteRunItemsForPeriod(periodId);
   if (rows.length > 0) await insertRunItems(rows);
+  if (appliedAdvanceIds.length > 0) {
+    await markCashAdvancesApplied(appliedAdvanceIds, periodId);
+  }
   const updated = await updatePeriod(periodId, { status: "calculated" });
 
   await auditLog({
@@ -365,14 +351,11 @@ function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
       fullName: `${item.employee.firstName} ${item.employee.lastName}`,
       position: item.employee.position,
       department: item.employee.department,
-      tin: item.employee.tin,
     },
     basicSalary: toNum(item.basicSalary),
     grossPay: toNum(item.grossPay),
     sssEmployee: toNum(item.sssEmployee),
     philhealthEmployee: toNum(item.philhealthEmployee),
-    pagibigEmployee: toNum(item.pagibigEmployee),
-    birWithholding: toNum(item.birWithholding),
     otherDeductions: toNum(item.otherDeductions),
     otherEarnings: toNum(item.otherEarnings),
     totalDeductions: toNum(item.totalDeductions),
