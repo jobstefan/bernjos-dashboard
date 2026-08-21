@@ -1,0 +1,53 @@
+import type { Role } from "@/lib/types/payroll";
+
+export interface NavItem {
+  label: string;
+  href: string;
+  /** Lucide icon name resolved in the sidebar. */
+  icon: "dashboard" | "payroll" | "employees" | "payslip";
+  roles: Role[];
+}
+
+export const NAV_ITEMS: NavItem[] = [
+  {
+    label: "Dashboard",
+    href: "/",
+    icon: "dashboard",
+    roles: ["super_admin", "admin", "manager", "employee"],
+  },
+  {
+    label: "Payroll",
+    href: "/payroll",
+    icon: "payroll",
+    roles: ["super_admin", "admin", "manager"],
+  },
+  {
+    label: "My Payslips",
+    href: "/payroll/payslips",
+    icon: "payslip",
+    roles: ["employee"],
+  },
+  {
+    label: "Employees",
+    href: "/employees",
+    icon: "employees",
+    roles: ["super_admin", "admin", "manager"],
+  },
+];
+
+export function navForRole(role: Role): NavItem[] {
+  return NAV_ITEMS.filter((item) => item.roles.includes(role));
+}
+
+export function roleLabel(role: Role): string {
+  switch (role) {
+    case "super_admin":
+      return "Super Admin";
+    case "admin":
+      return "Admin";
+    case "manager":
+      return "Manager";
+    case "employee":
+      return "Employee";
+  }
+}

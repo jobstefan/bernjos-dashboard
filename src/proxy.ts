@@ -1,10 +1,18 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 // Next.js 16 renamed Middleware to "Proxy" (this file replaces middleware.ts).
-// Clerk's clerkMiddleware() runs on every matched request and makes auth
-// available throughout the app. To protect routes, use createRouteMatcher with
-// auth().protect() — see https://clerk.com/docs/references/nextjs/clerk-middleware
-export default clerkMiddleware();
+// Everything except the sign-in/sign-up routes and public assets requires auth.
+const isPublicRoute = createRouteMatcher([
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/api/inngest(.*)",
+]);
+
+export default clerkMiddleware(async (auth, req) => {
+  if (!isPublicRoute(req)) {
+    await auth.protect();
+  }
+});
 
 export const config = {
   matcher: [

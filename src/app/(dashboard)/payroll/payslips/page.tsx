@@ -1,0 +1,96 @@
+import { FileText } from "lucide-react";
+import { getActor } from "@/lib/auth/rbac";
+import { getEmployeeByClerkUser } from "@/server/services/employee.service";
+import { getEmployeePayslipHistory } from "@/server/services/payroll.service";
+import { SummaryCard } from "@/components/payroll/summary-card";
+import { EmptyState } from "@/components/payroll/empty-state";
+import {
+  PayslipHistory,
+  type PayslipHistoryRow,
+} from "@/components/payroll/payslip-history";
+
+export default async function MyPayslipsPage() {
+  const actor = await getActor();
+  const employee = await getEmployeeByClerkUser(actor.clerkUserId);
+
+  if (!employee) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold tracking-tight">My Payslips</h1>
+        <EmptyState
+          icon={FileText}
+          title="No employee record linked"
+          description="Your account isn't linked to an employee profile yet. Please contact HR to connect your payroll records."
+        />
+      </div>
+    );
+  }
+
+  const history = await getEmployeePayslipHistory(employee.id);
+  const paid = history.filter((p) => p.period.status === "paid");
+
+  const rows: PayslipHistoryRow[] = paid.map((p) => ({
+    id: p.runItemId,
+    periodLabel: p.period.label,
+    payDate: p.period.payDate.toISOString(),
+    status: p.period.status,
+    employeeName: p.employee.fullName,
+    employeeCode: p.employee.employeeCode,
+    position: p.employee.position,
+    department: p.employee.department,
+    tin: p.employee.tin,
+    basicSalary: p.basicSalary,
+    grossPay: p.grossPay,
+    sssEmployee: p.sssEmployee,
+    philhealthEmployee: p.philhealthEmployee,
+    pagibigEmployee: p.pagibigEmployee,
+    birWithholding: p.birWithholding,
+    otherEarnings: p.otherEarnings,
+    otherDeductions: p.otherDeductions,
+    totalDeductions: p.totalDeductions,
+    netPay: p.netPay,
+  }));
+
+  const thisYear = new Date().getFullYear();
+  const ytd = paid.reduce(
+    (acc, p) => {
+      if (p.period.payDate.getFullYear() === thisYear) {
+        acc.gross += p.grossPay;
+        acc.tax += p.birWithholding;
+        acc.net += p.netPay;
+      }
+      return acc;
+    },
+    { gross: 0, tax: 0, net: 0 },
+  );
+
+  const peso = (n: number) =>
+    `₱ ${n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">My Payslips</h1>
+        <p className="text-sm text-muted-foreground">
+          {employee.firstName} {employee.lastName} · {employee.employeeCode}
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <SummaryCard title={`YTD Gross (${thisYear})`} value={peso(ytd.gross)} />
+        <SummaryCard title={`YTD Tax Withheld (${thisYear})`} value={peso(ytd.tax)} />
+        <SummaryCard title={`YTD Net (${thisYear})`} value={peso(ytd.net)} />
+      </div>
+
+      {rows.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title="No payslips yet"
+          description="Your payslips will appear here once a payroll period that includes you has been marked as paid."
+        />
+      ) : (
+        <PayslipHistory rows={rows} />
+      )}
+    </div>
+  );
+}

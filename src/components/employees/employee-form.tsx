@@ -1,0 +1,322 @@
+"use client";
+
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  createEmployeeAction,
+  updateEmployeeAction,
+} from "@/app/actions/employee.actions";
+
+export interface EmployeeFormValues {
+  id?: string;
+  employeeCode: string;
+  firstName: string;
+  lastName: string;
+  middleName: string;
+  email: string;
+  position: string;
+  department: string;
+  employmentType: string;
+  employmentStatus: string;
+  dateHired: string;
+  dateRegularized: string;
+  basicSalary: string;
+  payFrequency: string;
+  taxStatus: string;
+  clerkUserId: string;
+  sssNumber: string;
+  philhealthNumber: string;
+  pagibigNumber: string;
+  tin: string;
+  bankName: string;
+  bankAccountNumber: string;
+}
+
+const EMPTY: EmployeeFormValues = {
+  employeeCode: "",
+  firstName: "",
+  lastName: "",
+  middleName: "",
+  email: "",
+  position: "",
+  department: "",
+  employmentType: "regular",
+  employmentStatus: "active",
+  dateHired: "",
+  dateRegularized: "",
+  basicSalary: "",
+  payFrequency: "semi_monthly",
+  taxStatus: "S",
+  clerkUserId: "",
+  sssNumber: "",
+  philhealthNumber: "",
+  pagibigNumber: "",
+  tin: "",
+  bankName: "",
+  bankAccountNumber: "",
+};
+
+const TAX_STATUSES = ["S", "S1", "S2", "S3", "S4", "ME", "ME1", "ME2", "ME3", "ME4"];
+
+export function EmployeeForm({
+  mode,
+  initial,
+}: {
+  mode: "create" | "edit";
+  initial?: Partial<EmployeeFormValues>;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = React.useTransition();
+  const [errors, setErrors] = React.useState<Record<string, string[]>>({});
+  const [formError, setFormError] = React.useState<string | null>(null);
+
+  const [selects, setSelects] = React.useState({
+    employmentType: initial?.employmentType ?? EMPTY.employmentType,
+    employmentStatus: initial?.employmentStatus ?? EMPTY.employmentStatus,
+    payFrequency: initial?.payFrequency ?? EMPTY.payFrequency,
+    taxStatus: initial?.taxStatus ?? EMPTY.taxStatus,
+  });
+
+  const v = { ...EMPTY, ...initial };
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const get = (k: string) => {
+      const val = String(form.get(k) ?? "").trim();
+      return val === "" ? undefined : val;
+    };
+    const input = {
+      id: initial?.id,
+      employeeCode: get("employeeCode"),
+      firstName: get("firstName"),
+      lastName: get("lastName"),
+      middleName: get("middleName"),
+      email: get("email"),
+      position: get("position"),
+      department: get("department"),
+      employmentType: selects.employmentType,
+      employmentStatus: selects.employmentStatus,
+      dateHired: get("dateHired"),
+      dateRegularized: get("dateRegularized"),
+      basicSalary: get("basicSalary"),
+      payFrequency: selects.payFrequency,
+      taxStatus: selects.taxStatus,
+      clerkUserId: get("clerkUserId"),
+      sssNumber: get("sssNumber"),
+      philhealthNumber: get("philhealthNumber"),
+      pagibigNumber: get("pagibigNumber"),
+      tin: get("tin"),
+      bankName: get("bankName"),
+      bankAccountNumber: get("bankAccountNumber"),
+    };
+
+    setErrors({});
+    setFormError(null);
+    startTransition(async () => {
+      const res =
+        mode === "create"
+          ? await createEmployeeAction(input)
+          : await updateEmployeeAction(input);
+      if (res.success) {
+        toast.success(
+          mode === "create" ? "Employee created." : "Employee updated.",
+        );
+        router.push(
+          mode === "create" ? "/employees" : `/employees/${res.data.id}`,
+        );
+        router.refresh();
+      } else {
+        setErrors(res.fieldErrors ?? {});
+        setFormError(res.error);
+        toast.error(res.error);
+        // Bring the error banner into view.
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      }
+    });
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-6">
+      {formError ? (
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          <span>{formError}</span>
+        </div>
+      ) : null}
+
+      <Section title="Personal Information">
+        <TextField name="firstName" label="First name" defaultValue={v.firstName} error={errors.firstName} />
+        <TextField name="middleName" label="Middle name" defaultValue={v.middleName} error={errors.middleName} />
+        <TextField name="lastName" label="Last name" defaultValue={v.lastName} error={errors.lastName} />
+        <TextField name="email" label="Email" type="email" defaultValue={v.email} error={errors.email} />
+      </Section>
+
+      <Section title="Employment Details">
+        <TextField name="employeeCode" label="Employee code" defaultValue={v.employeeCode} error={errors.employeeCode} />
+        <TextField name="position" label="Position" defaultValue={v.position} error={errors.position} />
+        <TextField name="department" label="Department" defaultValue={v.department} error={errors.department} />
+        <SelectField
+          label="Employment type"
+          value={selects.employmentType}
+          onChange={(val) => setSelects((s) => ({ ...s, employmentType: val }))}
+          options={[
+            ["regular", "Regular"],
+            ["probationary", "Probationary"],
+            ["contractual", "Contractual"],
+            ["part_time", "Part-time"],
+          ]}
+        />
+        <SelectField
+          label="Employment status"
+          value={selects.employmentStatus}
+          onChange={(val) => setSelects((s) => ({ ...s, employmentStatus: val }))}
+          options={[
+            ["active", "Active"],
+            ["inactive", "Inactive"],
+            ["resigned", "Resigned"],
+            ["terminated", "Terminated"],
+          ]}
+        />
+        <TextField name="dateHired" label="Date hired" type="date" defaultValue={v.dateHired} error={errors.dateHired} />
+        <TextField name="dateRegularized" label="Date regularized" type="date" defaultValue={v.dateRegularized} error={errors.dateRegularized} />
+      </Section>
+
+      <Section title="Compensation">
+        <TextField name="basicSalary" label="Basic salary (monthly)" type="number" defaultValue={v.basicSalary} error={errors.basicSalary} />
+        <SelectField
+          label="Pay frequency"
+          value={selects.payFrequency}
+          onChange={(val) => setSelects((s) => ({ ...s, payFrequency: val }))}
+          options={[
+            ["semi_monthly", "Semi-monthly"],
+            ["monthly", "Monthly"],
+          ]}
+        />
+        <SelectField
+          label="Tax status (BIR)"
+          value={selects.taxStatus}
+          onChange={(val) => setSelects((s) => ({ ...s, taxStatus: val }))}
+          options={TAX_STATUSES.map((t) => [t, t] as [string, string])}
+        />
+      </Section>
+
+      <Section title="Government IDs">
+        <TextField name="tin" label="TIN" defaultValue={v.tin} error={errors.tin} />
+        <TextField name="sssNumber" label="SSS number" defaultValue={v.sssNumber} error={errors.sssNumber} />
+        <TextField name="philhealthNumber" label="PhilHealth number" defaultValue={v.philhealthNumber} error={errors.philhealthNumber} />
+        <TextField name="pagibigNumber" label="Pag-IBIG number" defaultValue={v.pagibigNumber} error={errors.pagibigNumber} />
+      </Section>
+
+      <Section title="Bank Details">
+        <TextField name="bankName" label="Bank name" defaultValue={v.bankName} error={errors.bankName} />
+        <TextField name="bankAccountNumber" label="Account number" defaultValue={v.bankAccountNumber} error={errors.bankAccountNumber} />
+        <TextField
+          name="clerkUserId"
+          label="Clerk user ID (for self-service payslips)"
+          defaultValue={v.clerkUserId}
+          error={errors.clerkUserId}
+        />
+      </Section>
+
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={() => router.back()}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={pending}>
+          {pending
+            ? "Saving…"
+            : mode === "create"
+              ? "Create employee"
+              : "Save changes"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-4 sm:grid-cols-2">{children}</CardContent>
+    </Card>
+  );
+}
+
+function TextField({
+  name,
+  label,
+  type = "text",
+  defaultValue,
+  error,
+}: {
+  name: string;
+  label: string;
+  type?: string;
+  defaultValue?: string;
+  error?: string[];
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label htmlFor={name}>{label}</Label>
+      <Input id={name} name={name} type={type} defaultValue={defaultValue} />
+      {error?.length ? (
+        <p className="text-xs text-destructive">{error[0]}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: [string, string][];
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label>{label}</Label>
+      <Select value={value} onValueChange={(val) => onChange(val as string)}>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map(([val, labelText]) => (
+            <SelectItem key={val} value={val}>
+              {labelText}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}

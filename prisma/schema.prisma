@@ -24,3 +24,225 @@ model User {
 
   @@map("users")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Payroll domain
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum EmploymentType {
+  regular
+  probationary
+  contractual
+  part_time
+}
+
+enum EmploymentStatus {
+  active
+  inactive
+  resigned
+  terminated
+}
+
+enum PayFrequency {
+  semi_monthly
+  monthly
+}
+
+/// BIR civil-status codes used for withholding tax.
+enum TaxStatus {
+  S
+  S1
+  S2
+  S3
+  S4
+  ME
+  ME1
+  ME2
+  ME3
+  ME4
+}
+
+enum PayrollStatus {
+  draft
+  calculated
+  pending_approval
+  approved
+  paid
+}
+
+enum RunItemStatus {
+  included
+  excluded
+}
+
+/// An employee on the payroll. `clerkUserId` links to the Clerk user so an
+/// employee can view their own payslips.
+model Employee {
+  id                String           @id @default(cuid())
+  clerkUserId       String?          @unique @map("clerk_user_id")
+  employeeCode      String           @unique @map("employee_code")
+  firstName         String           @map("first_name")
+  lastName          String           @map("last_name")
+  middleName        String?          @map("middle_name")
+  email             String           @map("email")
+  position          String
+  department        String
+  employmentType    EmploymentType   @map("employment_type")
+  employmentStatus  EmploymentStatus @default(active) @map("employment_status")
+  dateHired         DateTime         @map("date_hired") @db.Date
+  dateRegularized   DateTime?        @map("date_regularized") @db.Date
+  basicSalary       Decimal          @map("basic_salary") @db.Decimal(12, 2)
+  payFrequency      PayFrequency     @default(semi_monthly) @map("pay_frequency")
+  taxStatus         TaxStatus        @map("tax_status")
+  sssNumber         String?          @map("sss_number")
+  philhealthNumber  String?          @map("philhealth_number")
+  pagibigNumber     String?          @map("pagibig_number")
+  tin               String?
+  bankName          String?          @map("bank_name")
+  bankAccountNumber String?          @map("bank_account_number")
+  deletedAt         DateTime?        @map("deleted_at")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  runItems PayrollRunItem[]
+
+  @@index([employmentStatus])
+  @@index([department])
+  @@map("employees")
+}
+
+/// SSS contribution schedule. One row per MSC salary bracket; a new set of rows
+/// is inserted (with a later `effectiveDate`) whenever SSS updates its rates.
+model StatutorySssBracket {
+  id             String   @id @default(cuid())
+  effectiveDate  DateTime @map("effective_date") @db.Date
+  minSalary      Decimal  @map("min_salary") @db.Decimal(12, 2)
+  maxSalary      Decimal  @map("max_salary") @db.Decimal(12, 2)
+  monthlyCredit  Decimal  @map("monthly_credit") @db.Decimal(12, 2)
+  employeeShare  Decimal  @map("employee_share") @db.Decimal(6, 4)
+  employerShare  Decimal  @map("employer_share") @db.Decimal(6, 4)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([effectiveDate])
+  @@map("statutory_sss_brackets")
+}
+
+/// PhilHealth premium schedule. One row per effective period (bracketed by
+/// salary floor/ceiling). The employee pays half of `rate`.
+model StatutoryPhilhealthBracket {
+  id              String   @id @default(cuid())
+  effectiveDate   DateTime @map("effective_date") @db.Date
+  minSalary       Decimal  @map("min_salary") @db.Decimal(12, 2)
+  maxSalary       Decimal  @map("max_salary") @db.Decimal(12, 2)
+  rate            Decimal  @db.Decimal(6, 4)
+  minContribution Decimal  @map("min_contribution") @db.Decimal(12, 2)
+  maxContribution Decimal  @map("max_contribution") @db.Decimal(12, 2)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([effectiveDate])
+  @@map("statutory_philhealth_brackets")
+}
+
+/// Pag-IBIG contribution rates by salary bracket.
+model StatutoryPagibigRate {
+  id              String   @id @default(cuid())
+  effectiveDate   DateTime @map("effective_date") @db.Date
+  minSalary       Decimal  @map("min_salary") @db.Decimal(12, 2)
+  maxSalary       Decimal  @map("max_salary") @db.Decimal(12, 2)
+  employeeRate    Decimal  @map("employee_rate") @db.Decimal(6, 4)
+  employerRate    Decimal  @map("employer_rate") @db.Decimal(6, 4)
+  maxContribution Decimal  @map("max_contribution") @db.Decimal(12, 2)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([effectiveDate])
+  @@map("statutory_pagibig_rates")
+}
+
+/// BIR withholding-tax brackets, per civil status and pay frequency.
+model StatutoryBirBracket {
+  id            String       @id @default(cuid())
+  effectiveDate DateTime     @map("effective_date") @db.Date
+  taxStatus     TaxStatus    @map("tax_status")
+  frequency     PayFrequency
+  minTaxable    Decimal      @map("min_taxable") @db.Decimal(12, 2)
+  maxTaxable    Decimal      @map("max_taxable") @db.Decimal(12, 2)
+  baseTax       Decimal      @map("base_tax") @db.Decimal(12, 2)
+  excessOver    Decimal      @map("excess_over") @db.Decimal(12, 2)
+  rate          Decimal      @db.Decimal(6, 4)
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  @@index([effectiveDate])
+  @@index([taxStatus, frequency])
+  @@map("statutory_bir_brackets")
+}
+
+/// A payroll period (cut-off). Groups the per-employee run items.
+model PayrollPeriod {
+  id          String        @id @default(cuid())
+  periodLabel String        @map("period_label")
+  periodStart DateTime      @map("period_start") @db.Date
+  periodEnd   DateTime      @map("period_end") @db.Date
+  payDate     DateTime      @map("pay_date") @db.Date
+  frequency   PayFrequency
+  status      PayrollStatus @default(draft)
+  createdBy   String        @map("created_by")
+  approvedBy  String?       @map("approved_by")
+  approvedAt  DateTime?     @map("approved_at")
+  paidBy      String?       @map("paid_by")
+  paidAt      DateTime?     @map("paid_at")
+  notes       String?
+  deletedAt   DateTime?     @map("deleted_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  runItems PayrollRunItem[]
+
+  @@index([status])
+  @@map("payroll_periods")
+}
+
+/// One row per employee per payroll period. Immutable once the period is approved.
+model PayrollRunItem {
+  id                 String        @id @default(cuid())
+  payrollPeriodId    String        @map("payroll_period_id")
+  employeeId         String        @map("employee_id")
+  basicSalary        Decimal       @map("basic_salary") @db.Decimal(12, 2)
+  grossPay           Decimal       @map("gross_pay") @db.Decimal(12, 2)
+  sssEmployee        Decimal       @map("sss_employee") @db.Decimal(12, 2)
+  philhealthEmployee Decimal       @map("philhealth_employee") @db.Decimal(12, 2)
+  pagibigEmployee    Decimal       @map("pagibig_employee") @db.Decimal(12, 2)
+  birWithholding     Decimal       @map("bir_withholding") @db.Decimal(12, 2)
+  otherDeductions    Decimal       @default(0) @map("other_deductions") @db.Decimal(12, 2)
+  otherEarnings      Decimal       @default(0) @map("other_earnings") @db.Decimal(12, 2)
+  totalDeductions    Decimal       @map("total_deductions") @db.Decimal(12, 2)
+  netPay             Decimal       @map("net_pay") @db.Decimal(12, 2)
+  status             RunItemStatus @default(included)
+  notes              String?
+  deletedAt          DateTime?     @map("deleted_at")
+  createdAt          DateTime      @default(now()) @map("created_at")
+
+  period   PayrollPeriod @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+  employee Employee      @relation(fields: [employeeId], references: [id])
+
+  @@unique([payrollPeriodId, employeeId])
+  @@index([employeeId])
+  @@map("payroll_run_items")
+}
+
+/// Immutable audit trail: who did what, when, with before/after snapshots.
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String   @map("actor_id")
+  actorEmail  String?  @map("actor_email")
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String   @map("entity_id")
+  beforeState Json?    @map("before_state")
+  afterState  Json?    @map("after_state")
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@map("audit_logs")
+}
