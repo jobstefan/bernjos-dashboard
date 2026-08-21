@@ -87,8 +87,9 @@ model Employee {
   createdAt         DateTime         @default(now()) @map("created_at")
   updatedAt         DateTime         @updatedAt @map("updated_at")
 
-  runItems     PayrollRunItem[]
-  cashAdvances CashAdvance[]
+  runItems        PayrollRunItem[]
+  cashAdvances    CashAdvance[]
+  scheduleEntries ScheduleEntry[]
 
   @@index([employmentStatus])
   @@index([department])
@@ -225,4 +226,46 @@ model CashAdvance {
   @@index([employeeId])
   @@index([status])
   @@map("cash_advances")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Daily schedule domain
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A work location. Kept intentionally lightweight (name + optional address) so
+/// schedule entries can reference a branch without over-modeling locations yet.
+model Branch {
+  id        String    @id @default(cuid())
+  name      String
+  address   String?
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  scheduleEntries ScheduleEntry[]
+
+  @@map("branches")
+}
+
+/// One employee's schedule for a single day. Exactly one row per (date, employee);
+/// the absence of a row for a day means that employee is OFF that day.
+model ScheduleEntry {
+  id         String   @id @default(cuid())
+  date       DateTime @db.Date
+  employeeId String   @map("employee_id")
+  branchId   String?  @map("branch_id")
+  /// Shift start/end as `HH:MM` 24-hour strings.
+  startTime  String   @map("start_time")
+  endTime    String   @map("end_time")
+  note       String?
+  createdBy  String   @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+  branch   Branch?  @relation(fields: [branchId], references: [id])
+
+  @@unique([date, employeeId])
+  @@index([date])
+  @@map("schedule_entries")
 }

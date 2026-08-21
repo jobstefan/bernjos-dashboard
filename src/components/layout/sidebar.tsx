@@ -3,19 +3,23 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { UserButton } from "@clerk/nextjs";
+import { SignOutButton, UserButton } from "@clerk/nextjs";
 import {
   LayoutDashboard,
   Wallet,
   Users,
   FileText,
   HandCoins,
+  CalendarDays,
+  Building2,
+  LogOut,
   Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { navForRole, roleLabel, type NavItem } from "@/components/layout/nav";
+import { devLogoutAction } from "@/app/actions/dev-auth.actions";
 import type { Role } from "@/lib/types/payroll";
 
 const ICONS = {
@@ -24,6 +28,8 @@ const ICONS = {
   employees: Users,
   payslip: FileText,
   cashAdvance: HandCoins,
+  schedule: CalendarDays,
+  branch: Building2,
 } as const;
 
 function isActive(pathname: string, href: string): boolean {
@@ -70,10 +76,12 @@ function SidebarBody({
   role,
   pathname,
   onNavigate,
+  devAuth,
 }: {
   role: Role;
   pathname: string;
   onNavigate?: () => void;
+  devAuth?: boolean;
 }) {
   const items = navForRole(role);
   return (
@@ -91,28 +99,60 @@ function SidebarBody({
         <NavLinks items={items} pathname={pathname} onNavigate={onNavigate} />
       </div>
       <div className="flex items-center gap-3 border-t border-white/10 px-4 py-4">
-        <UserButton />
+        {devAuth ? (
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-sm font-semibold text-white">
+            {roleLabel(role).charAt(0)}
+          </div>
+        ) : (
+          <UserButton />
+        )}
         <div className="text-xs">
           <div className="font-medium text-white">Signed in</div>
           <div className="text-slate-400">{roleLabel(role)}</div>
         </div>
+        {devAuth ? (
+          <form action={devLogoutAction} className="ml-auto">
+            <Button
+              type="submit"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Log out"
+              title="Log out"
+              className="text-slate-300 hover:bg-white/5 hover:text-white"
+            >
+              <LogOut className="size-4" />
+            </Button>
+          </form>
+        ) : (
+          <SignOutButton>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Log out"
+              title="Log out"
+              className="ml-auto text-slate-300 hover:bg-white/5 hover:text-white"
+            >
+              <LogOut className="size-4" />
+            </Button>
+          </SignOutButton>
+        )}
       </div>
     </div>
   );
 }
 
-export function Sidebar({ role }: { role: Role }) {
+export function Sidebar({ role, devAuth }: { role: Role; devAuth?: boolean }) {
   const pathname = usePathname();
   return (
     <aside className="hidden w-64 shrink-0 md:block">
       <div className="fixed inset-y-0 left-0 w-64">
-        <SidebarBody role={role} pathname={pathname} />
+        <SidebarBody role={role} pathname={pathname} devAuth={devAuth} />
       </div>
     </aside>
   );
 }
 
-export function MobileTopbar({ role }: { role: Role }) {
+export function MobileTopbar({ role, devAuth }: { role: Role; devAuth?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   return (
@@ -127,7 +167,12 @@ export function MobileTopbar({ role }: { role: Role }) {
         />
         <SheetContent side="left" className="w-64 p-0">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
-          <SidebarBody role={role} pathname={pathname} onNavigate={() => setOpen(false)} />
+          <SidebarBody
+            role={role}
+            pathname={pathname}
+            devAuth={devAuth}
+            onNavigate={() => setOpen(false)}
+          />
         </SheetContent>
       </Sheet>
       <span className="font-semibold">Bernjos Payroll</span>

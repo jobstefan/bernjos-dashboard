@@ -19,6 +19,18 @@ const envSchema = z.object({
   INNGEST_EVENT_KEY: z.string().optional(),
   INNGEST_SIGNING_KEY: z.string().optional(),
 
+  // RBAC dev bypass. Unset → on outside production (everyone = super_admin).
+  // "false" enforces real Clerk roles even in dev; "true" forces the bypass on.
+  PAYROLL_RBAC_BYPASS: z.enum(["true", "false"]).optional(),
+
+  // Password used by the Clerk user seed (`pnpm db:seed:users`). Dev-only.
+  SEED_USER_PASSWORD: z.string().optional(),
+
+  // Local dev login: when "true", bypass Clerk and use a simple cookie-based
+  // role login (see src/lib/auth/dev-session.ts). Never enable in production.
+  DEV_AUTH: z.enum(["true", "false"]).optional(),
+  DEV_AUTH_PASSWORD: z.string().optional(),
+
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 

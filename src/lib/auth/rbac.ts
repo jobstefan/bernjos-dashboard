@@ -1,6 +1,7 @@
 import "server-only";
 import { currentUser } from "@clerk/nextjs/server";
 import { UnauthorizedError } from "@/lib/errors/payroll";
+import { isDevAuthEnabled, readDevSession } from "@/lib/auth/dev-session";
 import type { Actor, Role } from "@/lib/types/payroll";
 
 const VALID_ROLES: readonly Role[] = [
@@ -47,6 +48,17 @@ function resolveRole(raw: unknown): Role {
  * `publicMetadata.role` (defaults to `employee`). Throws if nobody is signed in.
  */
 export async function getActor(): Promise<Actor> {
+  // Local dev login (Clerk bypassed): resolve the actor from the dev cookie.
+  if (isDevAuthEnabled()) {
+    const session = await readDevSession();
+    if (!session) throw new UnauthorizedError("You must be signed in.");
+    return {
+      clerkUserId: session.clerkUserId,
+      email: session.email,
+      role: session.role,
+    };
+  }
+
   const user = await currentUser();
   if (!user) {
     throw new UnauthorizedError("You must be signed in.");
@@ -63,6 +75,11 @@ export async function getActor(): Promise<Actor> {
 
 /** Convenience: just the current role (or `employee` if unauthenticated). */
 export async function getCurrentRole(): Promise<Role> {
+  if (isDevAuthEnabled()) {
+    const session = await readDevSession();
+    return session?.role ?? "employee";
+  }
+
   const user = await currentUser();
   if (!user) return "employee";
   return resolveRole(user.publicMetadata?.role);
@@ -84,6 +101,16 @@ export function canViewPayroll(role: Role): boolean {
 /** Admins, super-admins and managers can approve/decline cash advances. */
 export function canApproveCashAdvance(role: Role): boolean {
   return role === "admin" || role === "super_admin" || role === "manager";
+}
+
+/** Admins, super-admins and managers can view the daily schedule board. */
+export function canViewSchedule(role: Role): boolean {
+  return role === "admin" || role === "super_admin" || role === "manager";
+}
+
+/** Only admins and super-admins can edit the schedule or manage branches. */
+export function canManageSchedule(role: Role): boolean {
+  return role === "admin" || role === "super_admin";
 }
 
 /**

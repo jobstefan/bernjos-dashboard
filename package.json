@@ -14,6 +14,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:users": "tsx prisma/seed-users.ts",
     "db:local:up": "docker compose -f docker-compose.dev.yml up -d",
     "db:local:down": "docker compose -f docker-compose.dev.yml down",
     "db:local:reset": "docker compose -f docker-compose.dev.yml down -v && docker compose -f docker-compose.dev.yml up -d",

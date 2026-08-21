@@ -36,6 +36,10 @@ export function findEmployeeByClerkId(clerkUserId: string) {
   return prisma.employee.findFirst({ where: { clerkUserId, deletedAt: null } });
 }
 
+export function findEmployeeByCode(employeeCode: string) {
+  return prisma.employee.findFirst({ where: { employeeCode, deletedAt: null } });
+}
+
 export function findActiveEmployeesByFrequency(
   frequency: "semi_monthly" | "monthly",
 ) {
