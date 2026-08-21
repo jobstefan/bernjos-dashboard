@@ -114,6 +114,14 @@ export function canManageSchedule(role: Role): boolean {
 }
 
 /**
+ * Only admins and super-admins supervise all employees' savings. Managers, like
+ * employees, only ever see their own savings (self-service page).
+ */
+export function canSuperviseSavings(role: Role): boolean {
+  return isAdmin(role);
+}
+
+/**
  * Assert the actor holds one of `roles`. Returns the actor for convenient
  * chaining. Throws {@link UnauthorizedError} otherwise.
  */

@@ -12,6 +12,7 @@ import {
   HandCoins,
   CalendarDays,
   Building2,
+  PiggyBank,
   LogOut,
   Menu,
 } from "lucide-react";
@@ -30,6 +31,7 @@ const ICONS = {
   cashAdvance: HandCoins,
   schedule: CalendarDays,
   branch: Building2,
+  savings: PiggyBank,
 } as const;
 
 function isActive(pathname: string, href: string): boolean {

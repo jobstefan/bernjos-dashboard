@@ -13,6 +13,7 @@ export interface PayslipView {
   philhealthEmployee: number;
   otherEarnings: number;
   otherDeductions: number;
+  savingsContribution: number;
   totalDeductions: number;
   netPay: number;
 }
@@ -85,6 +86,25 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
         ) : null}
         <Line label="Total deductions" value={payslip.totalDeductions} emphasis negative />
       </div>
+
+      {payslip.savingsContribution > 0 ? (
+        <>
+          <Separator />
+          <div>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Savings
+            </div>
+            <Line
+              label="Savings contribution"
+              value={payslip.savingsContribution}
+              negative
+            />
+            <p className="pt-1 text-xs text-muted-foreground">
+              Held in your savings account — this is your money, not a deduction.
+            </p>
+          </div>
+        </>
+      ) : null}
 
       <Separator />
 

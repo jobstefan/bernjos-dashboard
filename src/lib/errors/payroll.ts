@@ -62,6 +62,13 @@ export class InvalidStateTransitionError extends PayrollError {
   }
 }
 
+/** A request that is well-formed but breaks a business rule (e.g. overdraw). */
+export class BadRequestError extends PayrollError {
+  constructor(message: string) {
+    super("BAD_REQUEST", message);
+  }
+}
+
 /** Narrow an unknown caught value to a user-safe message. */
 export function toErrorMessage(error: unknown): string {
   if (error instanceof PayrollError) return error.message;

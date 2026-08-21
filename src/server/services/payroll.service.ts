@@ -19,6 +19,11 @@ import {
   resetCashAdvancesForPeriod,
 } from "@/server/db/cash-advance";
 import {
+  findSavingsAccountByEmployee,
+  insertSavingsTransaction,
+  resetSavingsContributionsForPeriod,
+} from "@/server/db/savings";
+import {
   findPhilhealthBracket,
   findSssBracket,
 } from "@/server/db/statutory";
@@ -184,13 +189,17 @@ export async function calculatePayrollRun(
   }
 
   // Re-running: release any advances previously applied to this period so they
-  // are re-picked below and never double-counted or orphaned.
+  // are re-picked below and never double-counted or orphaned, and clear any
+  // savings contribution ledger rows this period previously wrote.
   await resetCashAdvancesForPeriod(periodId);
+  await resetSavingsContributionsForPeriod(periodId);
 
   const employees = await findActiveEmployeesByFrequency(period.frequency);
 
   const rows: Prisma.PayrollRunItemCreateManyInput[] = [];
   const appliedAdvanceIds: string[] = [];
+  // Savings contributions to write to the ledger once run items are persisted.
+  const savingsToApply: { accountId: string; amount: Decimal }[] = [];
   let totalGross = ZERO;
   let totalDeductions = ZERO;
   let totalNet = ZERO;
@@ -208,7 +217,25 @@ export async function calculatePayrollRun(
     otherDeductions = round2(otherDeductions);
 
     const itemTotalDeductions = round2(new Decimal(b.totalDeductions).add(otherDeductions));
-    const itemNetPay = round2(new Decimal(b.grossPay).sub(itemTotalDeductions));
+    const payAfterDeductions = round2(new Decimal(b.grossPay).sub(itemTotalDeductions));
+
+    // Savings is the employee's own money moved into their account — NOT a
+    // deduction. Pull the recurring contribution (clamped so it never drives net
+    // pay negative) and record it separately from `totalDeductions`.
+    const account = await findSavingsAccountByEmployee(employee.id);
+    let savingsContribution = ZERO;
+    if (account && account.active) {
+      const wanted = round2(new Decimal(account.contributionAmount));
+      savingsContribution = Decimal.max(
+        ZERO,
+        Decimal.min(wanted, payAfterDeductions),
+      );
+      if (savingsContribution.gt(ZERO)) {
+        savingsToApply.push({ accountId: account.id, amount: savingsContribution });
+      }
+    }
+
+    const itemNetPay = round2(payAfterDeductions.sub(savingsContribution));
 
     rows.push({
       payrollPeriodId: periodId,
@@ -219,6 +246,7 @@ export async function calculatePayrollRun(
       philhealthEmployee: b.philhealthEmployee,
       otherDeductions,
       otherEarnings: 0,
+      savingsContribution,
       totalDeductions: itemTotalDeductions,
       netPay: itemNetPay,
       status: "included",
@@ -233,6 +261,18 @@ export async function calculatePayrollRun(
   if (rows.length > 0) await insertRunItems(rows);
   if (appliedAdvanceIds.length > 0) {
     await markCashAdvancesApplied(appliedAdvanceIds, periodId);
+  }
+  // Write the savings contributions to each employee's ledger, tagged to this
+  // period so a recalculation can reset them idempotently.
+  for (const s of savingsToApply) {
+    await insertSavingsTransaction({
+      accountId: s.accountId,
+      type: "contribution",
+      amount: s.amount,
+      note: `Payroll contribution — ${period.periodLabel}`,
+      appliedPeriodId: periodId,
+      createdBy: actor.clerkUserId,
+    });
   }
   const updated = await updatePeriod(periodId, { status: "calculated" });
 
@@ -358,6 +398,7 @@ function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
     philhealthEmployee: toNum(item.philhealthEmployee),
     otherDeductions: toNum(item.otherDeductions),
     otherEarnings: toNum(item.otherEarnings),
+    savingsContribution: toNum(item.savingsContribution),
     totalDeductions: toNum(item.totalDeductions),
     netPay: toNum(item.netPay),
     status: item.status,

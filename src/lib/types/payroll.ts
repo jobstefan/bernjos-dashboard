@@ -114,6 +114,8 @@ export interface Payslip {
   philhealthEmployee: number;
   otherDeductions: number;
   otherEarnings: number;
+  /** Employee savings withheld into their account — not a deduction. */
+  savingsContribution: number;
   totalDeductions: number;
   netPay: number;
   status: RunItemStatus;

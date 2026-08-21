@@ -28,6 +28,7 @@ export interface RunItemRow {
   philhealthEmployee: number;
   otherDeductions: number;
   otherEarnings: number;
+  savingsContribution: number;
   totalDeductions: number;
   netPay: number;
   status: "included" | "excluded";
@@ -92,6 +93,12 @@ export function RunItemsTable({
         header: "Other Earn.",
         enableSorting: false,
         cell: ({ row }) => money(row.original.otherEarnings),
+      },
+      {
+        accessorKey: "savingsContribution",
+        header: "Savings",
+        enableSorting: false,
+        cell: ({ row }) => money(row.original.savingsContribution),
       },
       {
         accessorKey: "netPay",

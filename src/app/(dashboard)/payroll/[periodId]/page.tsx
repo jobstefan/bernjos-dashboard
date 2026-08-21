@@ -42,6 +42,7 @@ export default async function PeriodDetailPage({
     philhealthEmployee: Number(item.philhealthEmployee),
     otherDeductions: Number(item.otherDeductions),
     otherEarnings: Number(item.otherEarnings),
+    savingsContribution: Number(item.savingsContribution),
     totalDeductions: Number(item.totalDeductions),
     netPay: Number(item.netPay),
     status: item.status,

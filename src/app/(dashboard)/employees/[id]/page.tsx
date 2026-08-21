@@ -45,6 +45,7 @@ export default async function EmployeeProfilePage({
     philhealthEmployee: p.philhealthEmployee,
     otherEarnings: p.otherEarnings,
     otherDeductions: p.otherDeductions,
+    savingsContribution: p.savingsContribution,
     totalDeductions: p.totalDeductions,
     netPay: p.netPay,
   }));
