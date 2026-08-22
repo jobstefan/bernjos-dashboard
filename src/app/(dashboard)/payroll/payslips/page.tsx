@@ -47,6 +47,7 @@ export default async function MyPayslipsPage() {
     totalDeductions: p.totalDeductions,
     netPay: p.netPay,
     remarks: p.remarks,
+    branchBreakdown: p.branchBreakdown,
   }));
 
   return (

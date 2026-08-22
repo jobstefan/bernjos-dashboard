@@ -398,6 +398,8 @@ export async function summarizeForPayroll(
   let lateMinutes = 0;
   let undertimeMinutes = 0;
   let deductionDays = 0;
+  // Days worked keyed by the branch that recorded them, for per-branch gross pay.
+  const daysByBranch = new Map<string | null, number>();
 
   for (const entry of entries) {
     scheduledDays++;
@@ -413,6 +415,10 @@ export async function summarizeForPayroll(
       continue;
     }
     daysWorked++;
+    // Attribute the day to the branch that recorded the punch; fall back to the
+    // scheduled branch, else leave it unassigned (null).
+    const branchId = rec?.branchId ?? entry.branchId ?? null;
+    daysByBranch.set(branchId, (daysByBranch.get(branchId) ?? 0) + 1);
     // Charge late/undertime from the first minute (no grace) — pro-rated by the
     // shift length so it's a per-minute deduction of the daily rate.
     lateMinutes += cmp.lateMinutes;
@@ -431,5 +437,9 @@ export async function summarizeForPayroll(
     lateMinutes,
     undertimeMinutes,
     deductionDays,
+    byBranch: Array.from(daysByBranch, ([branchId, days]) => ({
+      branchId,
+      daysWorked: days,
+    })),
   };
 }

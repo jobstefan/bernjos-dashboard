@@ -10,7 +10,7 @@ import {
   findRunItems,
   findRunItemsForEmployee,
   insertPeriod,
-  insertRunItems,
+  insertRunItemsWithBranches,
   updatePeriod,
   updateRunItem,
 } from "@/server/db/payroll";
@@ -125,6 +125,17 @@ export async function calculateEmployeeDeductions(
   const grossPay = round2(dailyRate.mul(daysWorked));
   const lateDeduction = round2(dailyRate.mul(attendance.deductionDays));
 
+  // Split gross across the branches the employee worked at, so each branch can be
+  // expensed for the pay it incurred. Only meaningful when attendance-tracked;
+  // the default-working-days fallback carries no branch data.
+  const branchBreakdown = attendanceTracked
+    ? attendance.byBranch.map((b) => ({
+        branchId: b.branchId,
+        daysWorked: b.daysWorked,
+        grossPay: toNum(round2(dailyRate.mul(b.daysWorked))),
+      }))
+    : [];
+
   // Fully absent → no pay, no statutory (and skip bracket lookups so an empty
   // low bracket can't crash the run or push net pay negative).
   if (daysWorked === 0) {
@@ -140,6 +151,7 @@ export async function calculateEmployeeDeductions(
       lateMinutes: 0,
       undertimeMinutes: 0,
       lateDeduction: 0,
+      branchBreakdown: [],
       sssEmployee: 0,
       sssEmployer: 0,
       philhealthEmployee: 0,
@@ -200,6 +212,7 @@ export async function calculateEmployeeDeductions(
     lateMinutes: attendance.lateMinutes,
     undertimeMinutes: attendance.undertimeMinutes,
     lateDeduction: toNum(lateDeduction),
+    branchBreakdown,
     sssEmployee: toNum(sssEmployee),
     sssEmployer: toNum(sssEmployer),
     philhealthEmployee: toNum(philhealthEmployee),
@@ -273,7 +286,9 @@ export async function calculatePayrollRun(
 
   const employees = await findActiveEmployeesByFrequency(period.frequency);
 
-  const rows: Prisma.PayrollRunItemCreateManyInput[] = [];
+  const rows: (Prisma.PayrollRunItemCreateManyInput & {
+    branches: Prisma.PayrollRunItemBranchCreateManyRunItemInput[];
+  })[] = [];
   const appliedAdvanceIds: string[] = [];
   let totalGross = ZERO;
   let totalDeductions = ZERO;
@@ -335,6 +350,11 @@ export async function calculatePayrollRun(
       netPay: itemNetPay,
       status: "included",
       notes: attendanceNote,
+      branches: b.branchBreakdown.map((br) => ({
+        branchId: br.branchId,
+        daysWorked: br.daysWorked,
+        grossPay: br.grossPay,
+      })),
     });
     totalGross = totalGross.add(b.grossPay);
     totalDeductions = totalDeductions.add(itemTotalDeductions);
@@ -343,7 +363,7 @@ export async function calculatePayrollRun(
 
   // Replace any prior (non-approved) items, then insert fresh.
   await deleteRunItemsForPeriod(periodId);
-  if (rows.length > 0) await insertRunItems(rows);
+  if (rows.length > 0) await insertRunItemsWithBranches(rows);
   if (appliedAdvanceIds.length > 0) {
     await markCashAdvancesApplied(appliedAdvanceIds, periodId);
   }
@@ -496,6 +516,11 @@ function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
     netPay: toNum(item.netPay),
     status: item.status,
     remarks: item.remarks,
+    branchBreakdown: item.branches.map((b) => ({
+      branchName: b.branch?.name ?? "Unassigned",
+      daysWorked: toNum(b.daysWorked),
+      grossPay: toNum(b.grossPay),
+    })),
   };
 }
 

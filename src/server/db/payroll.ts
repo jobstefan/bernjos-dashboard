@@ -52,7 +52,7 @@ export function updatePeriod(id: string, data: Prisma.PayrollPeriodUpdateInput) 
 export function findRunItems(periodId: string) {
   return prisma.payrollRunItem.findMany({
     where: { payrollPeriodId: periodId, deletedAt: null },
-    include: { employee: true },
+    include: { employee: true, branches: { include: { branch: true } } },
     orderBy: { employee: { lastName: "asc" } },
   });
 }
@@ -60,14 +60,14 @@ export function findRunItems(periodId: string) {
 export function findRunItem(periodId: string, employeeId: string) {
   return prisma.payrollRunItem.findFirst({
     where: { payrollPeriodId: periodId, employeeId, deletedAt: null },
-    include: { employee: true, period: true },
+    include: { employee: true, period: true, branches: { include: { branch: true } } },
   });
 }
 
 export function findRunItemById(id: string) {
   return prisma.payrollRunItem.findFirst({
     where: { id, deletedAt: null },
-    include: { employee: true, period: true },
+    include: { employee: true, period: true, branches: { include: { branch: true } } },
   });
 }
 
@@ -82,7 +82,7 @@ export function findRunItemsForEmployee(employeeId: string) {
       deletedAt: null,
       period: { deletedAt: null },
     },
-    include: { employee: true, period: true },
+    include: { employee: true, period: true, branches: { include: { branch: true } } },
     orderBy: { period: { periodStart: "desc" } },
   });
 }
@@ -96,4 +96,26 @@ export function deleteRunItemsForPeriod(periodId: string) {
 
 export function insertRunItems(data: Prisma.PayrollRunItemCreateManyInput[]) {
   return prisma.payrollRunItem.createMany({ data });
+}
+
+/**
+ * Insert run items together with their per-branch gross breakdown. Uses nested
+ * `create` (not `createMany`, which can't write children) inside a transaction so
+ * each item and its branch rows land atomically.
+ */
+export function insertRunItemsWithBranches(
+  data: (Omit<Prisma.PayrollRunItemCreateManyInput, "id"> & {
+    branches: Omit<Prisma.PayrollRunItemBranchCreateManyRunItemInput, "id">[];
+  })[],
+) {
+  return prisma.$transaction(
+    data.map(({ branches, ...item }) =>
+      prisma.payrollRunItem.create({
+        data: {
+          ...item,
+          branches: branches.length ? { create: branches } : undefined,
+        },
+      }),
+    ),
+  );
 }

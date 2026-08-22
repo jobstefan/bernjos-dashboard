@@ -17,6 +17,12 @@ export interface PayslipView {
   totalDeductions: number;
   netPay: number;
   remarks?: string | null;
+  /** Gross pay attributed to each branch worked (daily rate × days there). */
+  branchBreakdown?: {
+    branchName: string;
+    daysWorked: number;
+    grossPay: number;
+  }[];
 }
 
 function Line({
@@ -68,6 +74,18 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
           Earnings
         </div>
         <Line label="Basic (daily rate)" value={payslip.basicSalary} />
+        {payslip.branchBreakdown && payslip.branchBreakdown.length > 0 ? (
+          <>
+            {payslip.branchBreakdown.map((b, i) => (
+              <Line
+                key={`${b.branchName}-${i}`}
+                label={`${b.branchName} (${b.daysWorked} day${b.daysWorked === 1 ? "" : "s"})`}
+                value={b.grossPay}
+              />
+            ))}
+            <Line label="Gross pay" value={payslip.grossPay} emphasis />
+          </>
+        ) : null}
         {payslip.otherEarnings > 0 ? (
           <Line label="Other earnings" value={payslip.otherEarnings} />
         ) : null}

@@ -38,6 +38,11 @@ export interface RunItemRow {
   netPay: number;
   status: "included" | "excluded";
   remarks: string | null;
+  branchBreakdown: {
+    branchName: string;
+    daysWorked: number;
+    grossPay: number;
+  }[];
 }
 
 const money = (v: number) => (

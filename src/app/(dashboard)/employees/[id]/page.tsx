@@ -48,6 +48,7 @@ export default async function EmployeeProfilePage({
     savingsContribution: p.savingsContribution,
     totalDeductions: p.totalDeductions,
     netPay: p.netPay,
+    branchBreakdown: p.branchBreakdown,
   }));
 
   const fields: [string, string][] = [

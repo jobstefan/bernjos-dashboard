@@ -47,6 +47,11 @@ export default async function PeriodDetailPage({
     netPay: Number(item.netPay),
     status: item.status,
     remarks: item.remarks,
+    branchBreakdown: item.branches.map((b) => ({
+      branchName: b.branch?.name ?? "Unassigned",
+      daysWorked: Number(b.daysWorked),
+      grossPay: Number(b.grossPay),
+    })),
   }));
 
   const totals = rows.reduce(

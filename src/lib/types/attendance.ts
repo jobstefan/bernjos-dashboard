@@ -61,4 +61,10 @@ export interface PayrollAttendanceSummary {
   undertimeMinutes: number;
   /** Late+undertime expressed as fractional days (pro-rated by each shift's length). */
   deductionDays: number;
+  /**
+   * Days worked grouped by the branch that recorded them (attendance record's
+   * branch, falling back to the scheduled branch). A null `branchId` buckets days
+   * whose branch couldn't be resolved. Empty when the employee isn't attendance-tracked.
+   */
+  byBranch: { branchId: string | null; daysWorked: number }[];
 }

@@ -190,10 +190,29 @@ model PayrollRunItem {
 
   period   PayrollPeriod @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
   employee Employee      @relation(fields: [employeeId], references: [id])
+  branches PayrollRunItemBranch[]
 
   @@unique([payrollPeriodId, employeeId])
   @@index([employeeId])
   @@map("payroll_run_items")
+}
+
+/// Snapshot of how a run item's gross pay splits across the branches the employee
+/// worked at in the period (gross = daily rate × days worked at that branch). Lets
+/// admins expense each employee's pay against the branch that incurred it.
+/// A null `branchId` buckets days whose branch couldn't be resolved ("Unassigned").
+model PayrollRunItemBranch {
+  id         String  @id @default(cuid())
+  runItemId  String  @map("run_item_id")
+  branchId   String? @map("branch_id")
+  daysWorked Decimal @map("days_worked") @db.Decimal(6, 2)
+  grossPay   Decimal @map("gross_pay") @db.Decimal(12, 2)
+
+  runItem PayrollRunItem @relation(fields: [runItemId], references: [id], onDelete: Cascade)
+  branch  Branch?        @relation(fields: [branchId], references: [id])
+
+  @@index([runItemId])
+  @@map("payroll_run_item_branches")
 }
 
 /// Immutable audit trail: who did what, when, with before/after snapshots.
@@ -263,9 +282,10 @@ model Branch {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  scheduleEntries   ScheduleEntry[]
-  employeeDevices   EmployeeDevice[]
-  attendanceImports AttendanceImport[]
+  scheduleEntries    ScheduleEntry[]
+  employeeDevices    EmployeeDevice[]
+  attendanceImports  AttendanceImport[]
+  payrollBranchItems PayrollRunItemBranch[]
 
   @@map("branches")
 }

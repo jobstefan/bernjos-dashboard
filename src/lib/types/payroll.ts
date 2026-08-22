@@ -59,6 +59,12 @@ export interface DeductionBreakdown {
   undertimeMinutes: number;
   /** Peso deduction for late+undertime (pro-rated daily rate; 0 when not tracked). */
   lateDeduction: number;
+  /**
+   * Gross pay split across the branches the employee worked at (daily rate × days
+   * at that branch). Empty when not attendance-tracked. A null `branchId` buckets
+   * days whose branch couldn't be resolved.
+   */
+  branchBreakdown: { branchId: string | null; daysWorked: number; grossPay: number }[];
   sssEmployee: number;
   sssEmployer: number;
   philhealthEmployee: number;
@@ -131,6 +137,15 @@ export interface Payslip {
   status: RunItemStatus;
   /** Admin-authored remark shown on the payslip (null when none). */
   remarks: string | null;
+  /** Gross pay attributed to each branch the employee worked at (empty when none). */
+  branchBreakdown: BranchGrossLine[];
+}
+
+/** One branch's share of an employee's period gross (daily rate × days there). */
+export interface BranchGrossLine {
+  branchName: string;
+  daysWorked: number;
+  grossPay: number;
 }
 
 export interface CashAdvanceFilters {
