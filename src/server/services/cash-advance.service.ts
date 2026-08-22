@@ -11,6 +11,7 @@ import {
 import { getEmployeeByClerkUser } from "@/server/services/employee.service";
 import { auditLog } from "@/server/services/audit.service";
 import {
+  BadRequestError,
   InvalidStateTransitionError,
   NotFoundError,
   UnauthorizedError,
@@ -36,6 +37,8 @@ function toRow(advance: NonNullable<CashAdvanceWithRelations>): CashAdvanceRow {
     employeeCode: advance.employee.employeeCode,
     employeeName: `${advance.employee.firstName} ${advance.employee.lastName}`,
     amount: Number(advance.amount),
+    approvedAmount:
+      advance.approvedAmount != null ? Number(advance.approvedAmount) : null,
     reason: advance.reason,
     status: advance.status,
     decisionNote: advance.decisionNote,
@@ -105,6 +108,7 @@ export async function requestCashAdvance(
 
 export async function approveCashAdvance(
   id: string,
+  approvedAmount: number,
   note: string | null,
   actor: Actor,
 ) {
@@ -115,8 +119,14 @@ export async function approveCashAdvance(
       "Only a pending request can be approved.",
     );
   }
+  if (approvedAmount !== Number(before.amount) && !note?.trim()) {
+    throw new BadRequestError(
+      "A note is required when the approved amount differs from the requested amount.",
+    );
+  }
   const after = await updateCashAdvance(id, {
     status: "approved",
+    approvedAmount,
     decidedBy: actor.clerkUserId,
     decidedAt: new Date(),
     decisionNote: note ?? null,

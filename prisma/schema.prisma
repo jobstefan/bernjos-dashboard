@@ -220,6 +220,8 @@ model CashAdvance {
   id              String            @id @default(cuid())
   employeeId      String            @map("employee_id")
   amount          Decimal           @db.Decimal(12, 2)
+  /// Amount the approver granted; may differ from the requested `amount`. Null until approved.
+  approvedAmount  Decimal?          @map("approved_amount") @db.Decimal(12, 2)
   reason          String
   status          CashAdvanceStatus @default(pending)
   /// Clerk user id of the employee who made the request.

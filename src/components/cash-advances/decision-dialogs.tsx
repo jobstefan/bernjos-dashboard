@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -30,12 +31,29 @@ export function ApproveDialog({
 }) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
+  const [error, setError] = React.useState<string | null>(null);
+  const [amount, setAmount] = React.useState<string>("");
+
+  // Reset the amount field to the requested amount whenever a new advance opens.
+  React.useEffect(() => {
+    if (advance) {
+      setAmount(String(advance.amount));
+      setError(null);
+    }
+  }, [advance]);
+
+  const changed = advance !== null && Number(amount) !== advance.amount;
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!advance) return;
     const form = new FormData(e.currentTarget);
-    const input = { id: advance.id, note: String(form.get("note") ?? "") };
+    const input = {
+      id: advance.id,
+      approvedAmount: String(form.get("approvedAmount") ?? ""),
+      note: String(form.get("note") ?? ""),
+    };
+    setError(null);
     startTransition(async () => {
       const res = await approveCashAdvanceAction(input);
       if (res.success) {
@@ -43,26 +61,58 @@ export function ApproveDialog({
         onOpenChange(false);
         router.refresh();
       } else {
+        setError(
+          res.fieldErrors?.approvedAmount?.[0] ??
+            res.fieldErrors?.note?.[0] ??
+            res.error,
+        );
         toast.error(res.error);
       }
     });
   }
 
   return (
-    <Dialog open={advance !== null} onOpenChange={onOpenChange}>
+    <Dialog
+      open={advance !== null}
+      onOpenChange={(next) => {
+        onOpenChange(next);
+        if (!next) setError(null);
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <form onSubmit={onSubmit}>
           <DialogHeader>
             <DialogTitle>Approve cash advance</DialogTitle>
             <DialogDescription>
               {advance
-                ? `${advance.employeeName} · ${formatPeso(advance.amount)}. This will be deducted from their next calculated payroll.`
+                ? `${advance.employeeName} requested ${formatPeso(advance.amount)}. The approved amount below is what gets deducted from their next calculated payroll.`
                 : ""}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-2 py-4">
-            <Label>Note (optional)</Label>
-            <Textarea name="note" placeholder="Add an approval note if needed" />
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Approved amount (₱)</Label>
+              <Input
+                name="approvedAmount"
+                type="number"
+                min="0"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>{changed ? "Note (required)" : "Note (optional)"}</Label>
+              <Textarea
+                name="note"
+                placeholder={
+                  changed
+                    ? "Explain why the approved amount differs from the request"
+                    : "Add an approval note if needed"
+                }
+              />
+              {error ? <p className="text-xs text-destructive">{error}</p> : null}
+            </div>
           </div>
           <DialogFooter>
             <Button type="submit" disabled={pending}>

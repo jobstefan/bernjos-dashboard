@@ -58,6 +58,7 @@ export async function approveCashAdvanceAction(
     }
     const advance = await approveCashAdvance(
       parsed.data.id,
+      parsed.data.approvedAmount,
       parsed.data.note ?? null,
       actor,
     );

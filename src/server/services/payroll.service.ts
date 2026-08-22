@@ -289,7 +289,7 @@ export async function calculatePayrollRun(
     // Fold approved, not-yet-applied cash advances into other deductions.
     const advances = await findApprovedUnappliedForEmployee(employee.id);
     for (const advance of advances) {
-      otherDeductions = otherDeductions.add(advance.amount);
+      otherDeductions = otherDeductions.add(advance.approvedAmount ?? advance.amount);
       appliedAdvanceIds.push(advance.id);
     }
     otherDeductions = round2(otherDeductions);

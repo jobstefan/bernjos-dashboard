@@ -103,6 +103,10 @@ export const createCashAdvanceSchema = z.object({
 
 export const approveCashAdvanceSchema = z.object({
   id: z.string().min(1),
+  approvedAmount: z.coerce
+    .number()
+    .positive("Approved amount must be greater than zero.")
+    .max(1_000_000, "Amount is too large."),
   note: z.string().trim().optional().nullable(),
 });
 

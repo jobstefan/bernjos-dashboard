@@ -134,9 +134,23 @@ export function CashAdvancesTable({
       {
         accessorKey: "amount",
         header: "Amount",
-        cell: ({ row }) => (
-          <span className="font-mono">{formatPeso(row.original.amount)}</span>
-        ),
+        cell: ({ row }) => {
+          const { amount, approvedAmount } = row.original;
+          const showApproved =
+            approvedAmount !== null && approvedAmount !== amount;
+          return (
+            <div>
+              <span className="font-mono">
+                {formatPeso(showApproved ? approvedAmount : amount)}
+              </span>
+              {showApproved ? (
+                <div className="text-xs text-muted-foreground line-through">
+                  {formatPeso(amount)}
+                </div>
+              ) : null}
+            </div>
+          );
+        },
       },
       {
         accessorKey: "reason",

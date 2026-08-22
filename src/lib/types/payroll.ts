@@ -145,6 +145,7 @@ export interface CashAdvanceRow {
   employeeCode: string;
   employeeName: string;
   amount: number;
+  approvedAmount: number | null;
   reason: string;
   status: CashAdvanceStatus;
   decisionNote: string | null;
