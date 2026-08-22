@@ -55,7 +55,8 @@ export default async function AttendancePage({
           <h1 className="text-2xl font-bold tracking-tight">Attendance</h1>
           <p className="text-sm text-muted-foreground">
             Biometric actuals vs the schedule — {rows.length} day
-            {rows.length === 1 ? "" : "s"} in range
+            {rows.length === 1 ? "" : "s"} in range. Records are stored in the
+            dashboard database (not the uploaded file) and can be edited by hand.
           </p>
         </div>
         <UploadAttendanceButton branches={branches} />

@@ -84,10 +84,9 @@ model Employee {
   /// Declared monthly salary used ONLY for the SSS bracket lookup (often lower
   /// than actual pay to reduce the contribution). Null = fall back to gross.
   sssSalaryBasis    Decimal?         @map("sss_salary_basis") @db.Decimal(12, 2)
-  /// Whether this employee contributes PhilHealth, and the fixed employee amount
-  /// deducted per period when enabled.
-  philhealthEnabled Boolean          @default(false) @map("philhealth_enabled")
-  philhealthAmount  Decimal          @default(0) @map("philhealth_amount") @db.Decimal(12, 2)
+  /// Fixed PhilHealth employee amount deducted per period. 0 (or null) means the
+  /// employee does not contribute — no PhilHealth deduction appears on the payslip.
+  philhealthAmount  Decimal?         @default(0) @map("philhealth_amount") @db.Decimal(12, 2)
   bankName          String?          @map("bank_name")
   bankAccountNumber String?          @map("bank_account_number")
   deletedAt         DateTime?        @map("deleted_at")
@@ -184,6 +183,8 @@ model PayrollRunItem {
   netPay             Decimal       @map("net_pay") @db.Decimal(12, 2)
   status             RunItemStatus @default(included)
   notes              String?
+  /// Free-text remark added by an admin, surfaced on the employee's payslip.
+  remarks            String?
   deletedAt          DateTime?     @map("deleted_at")
   createdAt          DateTime      @default(now()) @map("created_at")
 
@@ -391,20 +392,28 @@ model AttendanceImport {
 /// `ScheduleEntry`. Compared against the schedule to derive lates/absences.
 model AttendanceRecord {
   id         String   @id @default(cuid())
-  importId   String   @map("import_id")
+  /// The import this row came from. Null for rows an admin added by hand (a day
+  /// the scanner missed) — those have no source file.
+  importId   String?  @map("import_id")
   employeeId String   @map("employee_id")
   branchId   String?  @map("branch_id")
   date       DateTime @db.Date
   /// Actual clock-in / clock-out as `HH:MM` 24-hour strings (like ScheduleEntry).
   timeIn     String?  @map("time_in")
   timeOut    String?  @map("time_out")
+  /// "biometric" (parsed from an import) | "manual" (admin edit/override).
+  source     String   @default("biometric")
+  /// Clerk user id + timestamp of the last manual edit, when `source` is "manual".
+  editedBy   String?   @map("edited_by")
+  editedAt   DateTime? @map("edited_at")
   /// The original parsed row, kept for audit and to re-derive if rules change.
-  rawRow     Json     @map("raw_row")
+  /// Null for manually-added rows (no source row).
+  rawRow     Json?    @map("raw_row")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  import   AttendanceImport @relation(fields: [importId], references: [id], onDelete: Cascade)
-  employee Employee         @relation(fields: [employeeId], references: [id])
+  import   AttendanceImport? @relation(fields: [importId], references: [id], onDelete: SetNull)
+  employee Employee          @relation(fields: [employeeId], references: [id])
 
   @@unique([date, employeeId])
   @@index([employeeId])

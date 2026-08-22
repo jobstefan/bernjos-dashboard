@@ -16,6 +16,7 @@ export interface PayslipView {
   savingsContribution: number;
   totalDeductions: number;
   netPay: number;
+  remarks?: string | null;
 }
 
 function Line({
@@ -79,8 +80,12 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
         <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Deductions
         </div>
-        <Line label="SSS" value={payslip.sssEmployee} negative />
-        <Line label="PhilHealth" value={payslip.philhealthEmployee} negative />
+        {payslip.sssEmployee > 0 ? (
+          <Line label="SSS" value={payslip.sssEmployee} negative />
+        ) : null}
+        {payslip.philhealthEmployee > 0 ? (
+          <Line label="PhilHealth" value={payslip.philhealthEmployee} negative />
+        ) : null}
         {payslip.otherDeductions > 0 ? (
           <Line label="Other deductions" value={payslip.otherDeductions} negative />
         ) : null}
@@ -114,6 +119,20 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
           {formatPeso(payslip.netPay)}
         </span>
       </div>
+
+      {payslip.remarks ? (
+        <>
+          <Separator />
+          <div>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Remarks
+            </div>
+            <p className="whitespace-pre-wrap text-sm text-foreground">
+              {payslip.remarks}
+            </p>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

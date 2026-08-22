@@ -44,12 +44,11 @@ export const createEmployeeSchema = z.object({
     .nonnegative("SSS contribution salary can't be negative.")
     .optional()
     .nullable(),
-  philhealthEnabled: z.boolean().optional().default(false),
   philhealthAmount: z.coerce
     .number()
     .nonnegative("PhilHealth amount can't be negative.")
     .optional()
-    .default(0),
+    .nullable(),
   bankName: z.string().trim().optional().nullable(),
   bankAccountNumber: z.string().trim().optional().nullable(),
 });
@@ -71,6 +70,16 @@ export const createPeriodSchema = z
     message: "Period end must be on or after the start date.",
     path: ["periodEnd"],
   });
+
+export const updatePayslipRemarksSchema = z.object({
+  runItemId: z.string().min(1),
+  remarks: z
+    .string()
+    .trim()
+    .max(1000, "Remark is too long.")
+    .optional()
+    .nullable(),
+});
 
 export const periodFiltersSchema = z.object({
   status: payrollStatusEnum.optional(),
@@ -111,6 +120,7 @@ export const employeeFiltersSchema = z.object({
 export type CreateEmployeeSchema = z.infer<typeof createEmployeeSchema>;
 export type UpdateEmployeeSchema = z.infer<typeof updateEmployeeSchema>;
 export type CreatePeriodSchema = z.infer<typeof createPeriodSchema>;
+export type UpdatePayslipRemarksSchema = z.infer<typeof updatePayslipRemarksSchema>;
 export type CreateCashAdvanceSchema = z.infer<typeof createCashAdvanceSchema>;
 export type ApproveCashAdvanceSchema = z.infer<typeof approveCashAdvanceSchema>;
 export type DeclineCashAdvanceSchema = z.infer<typeof declineCashAdvanceSchema>;

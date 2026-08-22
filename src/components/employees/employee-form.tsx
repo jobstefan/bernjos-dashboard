@@ -37,7 +37,6 @@ export interface EmployeeFormValues {
   sssNumber: string;
   philhealthNumber: string;
   sssSalaryBasis: string;
-  philhealthEnabled: string;
   philhealthAmount: string;
   bankName: string;
   bankAccountNumber: string;
@@ -60,7 +59,6 @@ const FIELD_LABELS: Record<string, string> = {
   sssNumber: "SSS number",
   philhealthNumber: "PhilHealth number",
   sssSalaryBasis: "SSS contribution salary",
-  philhealthEnabled: "PhilHealth contribution",
   philhealthAmount: "PhilHealth amount",
   bankName: "Bank name",
   bankAccountNumber: "Account number",
@@ -82,7 +80,6 @@ const EMPTY: EmployeeFormValues = {
   sssNumber: "",
   philhealthNumber: "",
   sssSalaryBasis: "",
-  philhealthEnabled: "false",
   philhealthAmount: "",
   bankName: "",
   bankAccountNumber: "",
@@ -103,7 +100,6 @@ export function EmployeeForm({
   const [selects, setSelects] = React.useState({
     employmentStatus: initial?.employmentStatus ?? EMPTY.employmentStatus,
     payFrequency: initial?.payFrequency ?? EMPTY.payFrequency,
-    philhealthEnabled: initial?.philhealthEnabled ?? EMPTY.philhealthEnabled,
   });
 
   const v = { ...EMPTY, ...initial };
@@ -132,7 +128,6 @@ export function EmployeeForm({
       sssNumber: get("sssNumber"),
       philhealthNumber: get("philhealthNumber"),
       sssSalaryBasis: get("sssSalaryBasis"),
-      philhealthEnabled: selects.philhealthEnabled === "true",
       philhealthAmount: get("philhealthAmount"),
       bankName: get("bankName"),
       bankAccountNumber: get("bankAccountNumber"),
@@ -244,21 +239,13 @@ export function EmployeeForm({
           error={errors.sssSalaryBasis}
         />
         <TextField name="philhealthNumber" label="PhilHealth number" defaultValue={v.philhealthNumber} error={errors.philhealthNumber} />
-        <SelectField
-          label="PhilHealth contribution"
-          value={selects.philhealthEnabled}
-          onChange={(val) => setSelects((s) => ({ ...s, philhealthEnabled: val }))}
-          options={[
-            ["false", "None"],
-            ["true", "Enabled"],
-          ]}
-        />
         <TextField
           name="philhealthAmount"
           label="PhilHealth amount (per period)"
           type="number"
           defaultValue={v.philhealthAmount}
           error={errors.philhealthAmount}
+          hint="Leave blank or 0 for no PhilHealth deduction."
         />
       </Section>
 
@@ -312,12 +299,14 @@ function TextField({
   type = "text",
   defaultValue,
   error,
+  hint,
 }: {
   name: string;
   label: string;
   type?: string;
   defaultValue?: string;
   error?: string[];
+  hint?: string;
 }) {
   return (
     <div className="grid gap-2">
@@ -325,6 +314,8 @@ function TextField({
       <Input id={name} name={name} type={type} defaultValue={defaultValue} />
       {error?.length ? (
         <p className="text-xs text-destructive">{error[0]}</p>
+      ) : hint ? (
+        <p className="text-xs text-muted-foreground">{hint}</p>
       ) : null}
     </div>
   );

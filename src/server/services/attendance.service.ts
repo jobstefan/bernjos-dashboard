@@ -2,13 +2,16 @@ import "server-only";
 import * as XLSX from "xlsx";
 import {
   findAttendanceBranches,
+  deleteAttendanceRecord,
   deleteImportRow,
   findEmployeeDevice,
   findImportById,
   findImports,
+  findRecordForDay,
   findRecordsForEmployee,
   findRecordsForRange,
   insertImport,
+  manualUpsertAttendanceRecord,
   updateImportRow,
   upsertAttendanceRecord,
   upsertEmployeeDevice,
@@ -20,7 +23,6 @@ import { auditLog } from "@/server/services/audit.service";
 import { getAdapter } from "@/lib/attendance/adapters";
 import type { SheetGrid } from "@/lib/attendance/adapters";
 import { compareDay } from "@/lib/attendance/compare";
-import { GRACE_MINUTES } from "@/lib/attendance/config";
 import {
   BadRequestError,
   NotFoundError,
@@ -35,6 +37,7 @@ import type {
   UnmatchedDevice,
 } from "@/lib/types/attendance";
 import type {
+  EditAttendanceSchema,
   MapDeviceSchema,
   UploadAttendanceSchema,
 } from "@/lib/validations/attendance";
@@ -163,8 +166,8 @@ export async function runImport(params: {
         date: new Date(`${rec.date}T00:00:00.000Z`),
         timeIn: rec.timeIn,
         timeOut: rec.timeOut,
-        // Coerce any Date cells to JSON-safe values for the Json column.
-        rawRow: JSON.parse(JSON.stringify(rec.raw)) as Prisma.InputJsonValue,
+        // Deep-clone the raw row before storing it in the Json column.
+        rawRow: structuredClone(rec.raw) as Prisma.InputJsonValue,
       });
       matched++;
     }
@@ -217,6 +220,51 @@ export async function deleteImport(id: string, actor: Actor) {
   });
 }
 
+// ── Manual editing ───────────────────────────────────────────────────────────
+
+/**
+ * Admin manual edit of one employee-day. Clearing both times removes the record;
+ * otherwise the record is upserted as a `manual` override. The branch is carried
+ * over from any existing record so the row stays branch-scoped.
+ */
+export async function editAttendanceRecord(
+  input: EditAttendanceSchema,
+  actor: Actor,
+) {
+  const date = new Date(`${input.date}T00:00:00.000Z`);
+  const before = await findRecordForDay(input.employeeId, date);
+
+  if (!input.timeIn && !input.timeOut) {
+    if (!before) return; // nothing to clear
+    await deleteAttendanceRecord(input.employeeId, date);
+    await auditLog({
+      actor,
+      action: "attendance.record.cleared",
+      entityType: "attendance_record",
+      entityId: before.id,
+      before,
+    });
+    return;
+  }
+
+  const record = await manualUpsertAttendanceRecord({
+    employeeId: input.employeeId,
+    branchId: before?.branchId ?? null,
+    date,
+    timeIn: input.timeIn,
+    timeOut: input.timeOut,
+    editedBy: actor.clerkUserId,
+  });
+  await auditLog({
+    actor,
+    action: "attendance.record.edited",
+    entityType: "attendance_record",
+    entityId: record.id,
+    before,
+    after: record,
+  });
+}
+
 // ── Reads for the UI ─────────────────────────────────────────────────────────
 
 const dateKey = (date: Date, employeeId: string) =>
@@ -257,6 +305,7 @@ export async function getComparison(
       scheduledEnd: entry.endTime,
       actualIn: rec?.timeIn ?? null,
       actualOut: rec?.timeOut ?? null,
+      source: (rec?.source as "biometric" | "manual" | undefined) ?? null,
       status: cmp.status,
       lateMinutes: cmp.lateMinutes,
       undertimeMinutes: cmp.undertimeMinutes,
@@ -276,6 +325,7 @@ export async function getComparison(
       scheduledEnd: null,
       actualIn: rec.timeIn,
       actualOut: rec.timeOut,
+      source: (rec.source as "biometric" | "manual" | undefined) ?? null,
       status: "no-schedule",
       lateMinutes: 0,
       undertimeMinutes: 0,
@@ -363,12 +413,13 @@ export async function summarizeForPayroll(
       continue;
     }
     daysWorked++;
-    const lateBeyondGrace = Math.max(0, cmp.lateMinutes - GRACE_MINUTES);
-    lateMinutes += lateBeyondGrace;
+    // Charge late/undertime from the first minute (no grace) — pro-rated by the
+    // shift length so it's a per-minute deduction of the daily rate.
+    lateMinutes += cmp.lateMinutes;
     undertimeMinutes += cmp.undertimeMinutes;
     if (cmp.scheduledMinutes > 0) {
       deductionDays +=
-        (lateBeyondGrace + cmp.undertimeMinutes) / cmp.scheduledMinutes;
+        (cmp.lateMinutes + cmp.undertimeMinutes) / cmp.scheduledMinutes;
     }
   }
 

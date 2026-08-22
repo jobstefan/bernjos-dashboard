@@ -56,7 +56,62 @@ export function upsertAttendanceRecord(data: AttendanceRecordData) {
   return prisma.attendanceRecord.upsert({
     where: { date_employeeId: { date, employeeId } },
     create: { importId, employeeId, branchId, date, timeIn, timeOut, rawRow },
-    update: { importId, branchId, timeIn, timeOut, rawRow },
+    // A fresh import supersedes any manual edit for the day: reset the source.
+    update: {
+      importId,
+      branchId,
+      timeIn,
+      timeOut,
+      rawRow,
+      source: "biometric",
+      editedBy: null,
+      editedAt: null,
+    },
+  });
+}
+
+/**
+ * Admin manual edit of one employee-day. Sets `source: "manual"` and records the
+ * editor. On update it keeps the existing `importId`/`rawRow` (so correcting a
+ * biometric row stays linked to its import); on create there is no import.
+ */
+export function manualUpsertAttendanceRecord(data: {
+  employeeId: string;
+  branchId: string | null;
+  date: Date;
+  timeIn: string | null;
+  timeOut: string | null;
+  editedBy: string;
+}) {
+  const { employeeId, branchId, date, timeIn, timeOut, editedBy } = data;
+  const editedAt = new Date();
+  return prisma.attendanceRecord.upsert({
+    where: { date_employeeId: { date, employeeId } },
+    create: {
+      employeeId,
+      branchId,
+      date,
+      timeIn,
+      timeOut,
+      source: "manual",
+      editedBy,
+      editedAt,
+    },
+    update: { branchId, timeIn, timeOut, source: "manual", editedBy, editedAt },
+  });
+}
+
+/** One employee's record for a single day, or null. */
+export function findRecordForDay(employeeId: string, date: Date) {
+  return prisma.attendanceRecord.findUnique({
+    where: { date_employeeId: { date, employeeId } },
+  });
+}
+
+/** Remove an employee-day record (admin "clear" action). No-op if absent. */
+export function deleteAttendanceRecord(employeeId: string, date: Date) {
+  return prisma.attendanceRecord.deleteMany({
+    where: { date, employeeId },
   });
 }
 

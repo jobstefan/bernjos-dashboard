@@ -6,11 +6,13 @@ import {
   findPeriodById,
   findPeriods,
   findRunItem,
+  findRunItemById,
   findRunItems,
   findRunItemsForEmployee,
   insertPeriod,
   insertRunItems,
   updatePeriod,
+  updateRunItem,
 } from "@/server/db/payroll";
 import { findActiveEmployeesByFrequency, findEmployeeById } from "@/server/db/employees";
 import {
@@ -176,8 +178,9 @@ export async function calculateEmployeeDeductions(
     sssBracketId = sss.id;
   }
 
-  // PhilHealth — a fixed per-employee amount, only when the employee is enrolled.
-  if (deductsPhilhealth(period) && employee.philhealthEnabled) {
+  // PhilHealth — a fixed per-employee amount. A 0/null amount means the employee
+  // doesn't contribute, so no deduction is taken.
+  if (deductsPhilhealth(period) && employee.philhealthAmount != null) {
     philhealthEmployee = round2(new Decimal(employee.philhealthAmount));
   }
 
@@ -486,7 +489,31 @@ function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
     totalDeductions: toNum(item.totalDeductions),
     netPay: toNum(item.netPay),
     status: item.status,
+    remarks: item.remarks,
   };
+}
+
+/**
+ * Set (or clear) the admin remark on a single payslip. Admin-only; audited.
+ * Pass a null/empty remark to clear it.
+ */
+export async function updatePayslipRemarks(
+  runItemId: string,
+  remarks: string | null,
+  actor: Actor,
+): Promise<void> {
+  const item = await findRunItemById(runItemId);
+  if (!item) throw new NotFoundError("Payslip", runItemId);
+  const next = remarks && remarks.trim().length > 0 ? remarks.trim() : null;
+  const after = await updateRunItem(runItemId, { remarks: next });
+  await auditLog({
+    actor,
+    action: "payroll.payslip.remarks_updated",
+    entityType: "payroll_run_item",
+    entityId: runItemId,
+    before: { remarks: item.remarks },
+    after: { remarks: after.remarks },
+  });
 }
 
 export async function getEmployeePayslip(

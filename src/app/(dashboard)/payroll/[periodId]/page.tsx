@@ -46,6 +46,7 @@ export default async function PeriodDetailPage({
     totalDeductions: Number(item.totalDeductions),
     netPay: Number(item.netPay),
     status: item.status,
+    remarks: item.remarks,
   }));
 
   const totals = rows.reduce(
@@ -115,7 +116,11 @@ export default async function PeriodDetailPage({
           }
         />
       ) : (
-        <RunItemsTable rows={rows} periodLabel={period.periodLabel} />
+        <RunItemsTable
+          rows={rows}
+          periodLabel={period.periodLabel}
+          canEditRemarks={admin}
+        />
       )}
     </div>
   );

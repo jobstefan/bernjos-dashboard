@@ -53,7 +53,7 @@ export interface DeductionBreakdown {
   attendanceTracked: boolean;
   /** Scheduled days with no attendance record (0 when not tracked). */
   absentDays: number;
-  /** Deductible late minutes beyond grace, summed (0 when not tracked). */
+  /** Deductible late minutes from the first minute, summed (0 when not tracked). */
   lateMinutes: number;
   /** Early-out minutes, summed (0 when not tracked). */
   undertimeMinutes: number;
@@ -129,6 +129,8 @@ export interface Payslip {
   totalDeductions: number;
   netPay: number;
   status: RunItemStatus;
+  /** Admin-authored remark shown on the payslip (null when none). */
+  remarks: string | null;
 }
 
 export interface CashAdvanceFilters {

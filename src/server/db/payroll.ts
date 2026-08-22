@@ -64,6 +64,17 @@ export function findRunItem(periodId: string, employeeId: string) {
   });
 }
 
+export function findRunItemById(id: string) {
+  return prisma.payrollRunItem.findFirst({
+    where: { id, deletedAt: null },
+    include: { employee: true, period: true },
+  });
+}
+
+export function updateRunItem(id: string, data: Prisma.PayrollRunItemUpdateInput) {
+  return prisma.payrollRunItem.update({ where: { id }, data });
+}
+
 export function findRunItemsForEmployee(employeeId: string) {
   return prisma.payrollRunItem.findMany({
     where: {

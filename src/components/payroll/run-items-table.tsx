@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { toast } from "sonner";
 import { DataTable } from "@/components/payroll/data-table";
 import {
   Sheet,
@@ -9,10 +10,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   PayslipBreakdown,
   type PayslipView,
 } from "@/components/payroll/payslip-breakdown";
+import { updatePayslipRemarksAction } from "@/app/actions/payroll.actions";
 import { formatPeso } from "@/lib/utils/payroll";
 
 export interface RunItemRow {
@@ -32,6 +37,7 @@ export interface RunItemRow {
   totalDeductions: number;
   netPay: number;
   status: "included" | "excluded";
+  remarks: string | null;
 }
 
 const money = (v: number) => (
@@ -41,9 +47,11 @@ const money = (v: number) => (
 export function RunItemsTable({
   rows,
   periodLabel,
+  canEditRemarks = false,
 }: {
   rows: RunItemRow[];
   periodLabel: string;
+  canEditRemarks?: boolean;
 }) {
   const [selected, setSelected] = React.useState<RunItemRow | null>(null);
 
@@ -150,11 +158,69 @@ export function RunItemsTable({
           <SheetHeader>
             <SheetTitle>Payslip</SheetTitle>
           </SheetHeader>
-          <div className="overflow-y-auto px-4 pb-6">
+          <div className="space-y-6 overflow-y-auto px-4 pb-6">
             {view ? <PayslipBreakdown payslip={view} /> : null}
+            {selected && canEditRemarks ? (
+              <RemarksEditor
+                key={selected.id}
+                runItemId={selected.id}
+                initial={selected.remarks}
+                onSaved={(remarks) =>
+                  setSelected((cur) =>
+                    cur && cur.id === selected.id ? { ...cur, remarks } : cur,
+                  )
+                }
+              />
+            ) : null}
           </div>
         </SheetContent>
       </Sheet>
     </>
+  );
+}
+
+function RemarksEditor({
+  runItemId,
+  initial,
+  onSaved,
+}: {
+  runItemId: string;
+  initial: string | null;
+  onSaved: (remarks: string | null) => void;
+}) {
+  const [value, setValue] = React.useState(initial ?? "");
+  const [pending, startTransition] = React.useTransition();
+  const dirty = value.trim() !== (initial ?? "");
+
+  function save() {
+    startTransition(async () => {
+      const res = await updatePayslipRemarksAction({ runItemId, remarks: value });
+      if (res.success) {
+        onSaved(value.trim() || null);
+        toast.success("Remark saved.");
+      } else {
+        toast.error(res.error);
+      }
+    });
+  }
+
+  return (
+    <div className="space-y-2 border-t pt-4">
+      <Label htmlFor="payslip-remarks" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Remarks
+      </Label>
+      <Textarea
+        id="payslip-remarks"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Add a remark shown on this employee's payslip…"
+        rows={3}
+      />
+      <div className="flex justify-end">
+        <Button size="sm" onClick={save} disabled={!dirty || pending}>
+          {pending ? "Saving…" : "Save remark"}
+        </Button>
+      </div>
+    </div>
   );
 }

@@ -159,8 +159,9 @@ function DeleteImportButton({ importId }: { importId: string }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this import?</AlertDialogTitle>
             <AlertDialogDescription>
-              The uploaded file&apos;s attendance records will be removed. Device
-              mappings you created are kept. This can&apos;t be undone.
+              This removes the upload record only. The attendance data it imported
+              stays in the dashboard, and device mappings you created are kept. This
+              can&apos;t be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -15,5 +15,32 @@ export const mapDeviceSchema = z.object({
   deviceUserId: z.string().trim().min(1, "Enter the device id."),
 });
 
+// `HH:MM` 24-hour time from <input type="time">; empty string → null (cleared).
+const hhmmOrNull = z
+  .string()
+  .trim()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter a valid time.")
+  .or(z.literal(""))
+  .nullish()
+  .transform((v) => (v ? v : null));
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Admin manual edit of one employee-day's attendance. */
+export const editAttendanceSchema = z.object({
+  employeeId: z.string().min(1, "Choose an employee."),
+  date: z.string().regex(DATE_RE, "Enter a valid date."),
+  timeIn: hhmmOrNull,
+  timeOut: hhmmOrNull,
+});
+
+/** Remove one employee-day's attendance record. */
+export const deleteAttendanceSchema = z.object({
+  employeeId: z.string().min(1),
+  date: z.string().regex(DATE_RE, "Enter a valid date."),
+});
+
 export type UploadAttendanceSchema = z.infer<typeof uploadAttendanceSchema>;
 export type MapDeviceSchema = z.infer<typeof mapDeviceSchema>;
+export type EditAttendanceSchema = z.infer<typeof editAttendanceSchema>;
+export type DeleteAttendanceSchema = z.infer<typeof deleteAttendanceSchema>;

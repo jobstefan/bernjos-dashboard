@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/rbac";
 import {
+  editAttendanceSchema,
   mapDeviceSchema,
   uploadAttendanceSchema,
 } from "@/lib/validations/attendance";
 import {
   deleteImport,
+  editAttendanceRecord,
   mapDevice,
   startImport,
 } from "@/server/services/attendance.service";
@@ -39,6 +41,27 @@ export async function deleteImportAction(id: string): Promise<ActionResult> {
   try {
     const actor = await requireAdmin();
     await deleteImport(id, actor);
+    revalidatePath("/attendance");
+    return { success: true, data: undefined };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+export async function editAttendanceAction(
+  input: unknown,
+): Promise<ActionResult> {
+  try {
+    const actor = await requireAdmin();
+    const parsed = editAttendanceSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: "Please fix the highlighted fields.",
+        fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+      };
+    }
+    await editAttendanceRecord(parsed.data, actor);
     revalidatePath("/attendance");
     return { success: true, data: undefined };
   } catch (error) {

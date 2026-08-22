@@ -10,6 +10,8 @@ export interface AttendanceComparisonRow {
   scheduledEnd: string | null;
   actualIn: string | null;
   actualOut: string | null;
+  /** Origin of the actual record: parsed from an import, hand-edited, or none. */
+  source: "biometric" | "manual" | null;
   status: AttendanceStatus;
   lateMinutes: number;
   undertimeMinutes: number;
@@ -53,7 +55,7 @@ export interface PayrollAttendanceSummary {
   daysWorked: number;
   /** Scheduled days with no attendance record. */
   absentDays: number;
-  /** Deductible late minutes (beyond grace), summed across the period. */
+  /** Deductible late minutes (from the first minute), summed across the period. */
   lateMinutes: number;
   /** Early-out minutes, summed across the period. */
   undertimeMinutes: number;

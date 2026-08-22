@@ -47,6 +47,7 @@ export default async function MyPayslipsPage() {
     savingsContribution: p.savingsContribution,
     totalDeductions: p.totalDeductions,
     netPay: p.netPay,
+    remarks: p.remarks,
   }));
 
   const thisYear = new Date().getFullYear();

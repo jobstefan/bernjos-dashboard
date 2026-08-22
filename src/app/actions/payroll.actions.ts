@@ -2,13 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/rbac";
-import { createPeriodSchema } from "@/lib/validations/payroll";
+import {
+  createPeriodSchema,
+  updatePayslipRemarksSchema,
+} from "@/lib/validations/payroll";
 import {
   approvePayrollRun,
   calculatePayrollRun,
   createPayrollPeriod,
   markPayrollPaid,
   submitForApproval,
+  updatePayslipRemarks,
 } from "@/server/services/payroll.service";
 import { toActionError } from "@/server/errors";
 import type { ActionResult } from "@/lib/types/action";
@@ -67,6 +71,31 @@ export async function approveRunAction(periodId: string): Promise<ActionResult> 
     await approvePayrollRun(periodId, actor);
     revalidatePath("/payroll");
     revalidatePath(`/payroll/${periodId}`);
+    return { success: true, data: undefined };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+export async function updatePayslipRemarksAction(
+  input: unknown,
+): Promise<ActionResult> {
+  try {
+    const actor = await requireAdmin();
+    const parsed = updatePayslipRemarksSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: "Please fix the highlighted fields.",
+        fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+      };
+    }
+    await updatePayslipRemarks(
+      parsed.data.runItemId,
+      parsed.data.remarks ?? null,
+      actor,
+    );
+    revalidatePath("/payroll");
     return { success: true, data: undefined };
   } catch (error) {
     return { success: false, ...toActionError(error) };

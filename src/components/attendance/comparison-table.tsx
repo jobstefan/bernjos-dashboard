@@ -2,8 +2,11 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { Pencil } from "lucide-react";
 import { DataTable } from "@/components/payroll/data-table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { AttendanceEditDialog } from "@/components/attendance/attendance-edit-dialog";
 import type { AttendanceComparisonRow } from "@/lib/types/attendance";
 import type { AttendanceStatus } from "@/lib/attendance/compare";
 
@@ -21,6 +24,9 @@ const range = (from: string | null, to: string | null) =>
   from || to ? `${from ?? "—"} – ${to ?? "—"}` : "—";
 
 export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
+  const [editingRow, setEditingRow] =
+    React.useState<AttendanceComparisonRow | null>(null);
+
   const columns = React.useMemo<ColumnDef<AttendanceComparisonRow>[]>(
     () => [
       { accessorKey: "date", header: "Date" },
@@ -51,8 +57,13 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
         header: "Actual",
         enableSorting: false,
         cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground">
+          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
             {range(row.original.actualIn, row.original.actualOut)}
+            {row.original.source === "manual" ? (
+              <Badge variant="outline" className="text-[10px]">
+                Manual
+              </Badge>
+            ) : null}
           </span>
         ),
       },
@@ -87,15 +98,43 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
           );
         },
       },
+      {
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Edit attendance"
+            title="Edit attendance"
+            onClick={() => setEditingRow(row.original)}
+          >
+            <Pencil className="size-4" />
+          </Button>
+        ),
+      },
     ],
     [],
   );
 
   return (
-    <DataTable
-      columns={columns}
-      data={rows}
-      initialSorting={[{ id: "date", desc: true }]}
-    />
+    <>
+      <DataTable
+        columns={columns}
+        data={rows}
+        initialSorting={[{ id: "date", desc: true }]}
+      />
+      {editingRow ? (
+        <AttendanceEditDialog
+          key={`${editingRow.date}|${editingRow.employeeId}`}
+          row={editingRow}
+          open={editingRow !== null}
+          onOpenChange={(open) => {
+            if (!open) setEditingRow(null);
+          }}
+        />
+      ) : null}
+    </>
   );
 }
