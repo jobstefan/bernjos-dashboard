@@ -16,10 +16,21 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   createBranchAction,
   updateBranchAction,
 } from "@/app/actions/branch.actions";
+import { listFormats } from "@/lib/attendance/adapters";
 import type { BranchRow } from "@/lib/types/schedule";
+
+const NONE = "none";
+const FORMATS = listFormats();
 
 /** Shared create/edit form. `branch` present = edit mode. */
 export function BranchDialog({
@@ -37,6 +48,7 @@ export function BranchDialog({
   const [formError, setFormError] = React.useState<string | null>(null);
   const [name, setName] = React.useState("");
   const [address, setAddress] = React.useState("");
+  const [format, setFormat] = React.useState(NONE);
   const isEdit = Boolean(branch);
 
   // Seed the controlled fields whenever the dialog opens (or the target changes).
@@ -44,12 +56,17 @@ export function BranchDialog({
     if (open) {
       setName(branch?.name ?? "");
       setAddress(branch?.address ?? "");
+      setFormat(branch?.attendanceFormat ?? NONE);
     }
   }, [open, branch]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const input = { name, address };
+    const input = {
+      name,
+      address,
+      attendanceFormat: format === NONE ? null : format,
+    };
     setErrors({});
     setFormError(null);
     startTransition(async () => {
@@ -120,6 +137,33 @@ export function BranchDialog({
               {errors.address?.length ? (
                 <p className="text-xs text-destructive">{errors.address[0]}</p>
               ) : null}
+            </div>
+            <div className="grid gap-2">
+              <Label>Biometric format (optional)</Label>
+              <Select value={format} onValueChange={(v) => setFormat(v ?? NONE)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {(value) =>
+                      value === NONE
+                        ? "None — no attendance uploads"
+                        : (FORMATS.find((f) => f.format === value)?.label ??
+                          String(value))
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>None — no attendance uploads</SelectItem>
+                  {FORMATS.map((f) => (
+                    <SelectItem key={f.format} value={f.format}>
+                      {f.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Which biometric export this branch uses. Set this to allow
+                attendance uploads for the branch.
+              </p>
             </div>
           </div>
 

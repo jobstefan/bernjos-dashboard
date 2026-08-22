@@ -81,16 +81,25 @@ model Employee {
   payFrequency      PayFrequency     @default(semi_monthly) @map("pay_frequency")
   sssNumber         String?          @map("sss_number")
   philhealthNumber  String?          @map("philhealth_number")
+  /// Declared monthly salary used ONLY for the SSS bracket lookup (often lower
+  /// than actual pay to reduce the contribution). Null = fall back to gross.
+  sssSalaryBasis    Decimal?         @map("sss_salary_basis") @db.Decimal(12, 2)
+  /// Whether this employee contributes PhilHealth, and the fixed employee amount
+  /// deducted per period when enabled.
+  philhealthEnabled Boolean          @default(false) @map("philhealth_enabled")
+  philhealthAmount  Decimal          @default(0) @map("philhealth_amount") @db.Decimal(12, 2)
   bankName          String?          @map("bank_name")
   bankAccountNumber String?          @map("bank_account_number")
   deletedAt         DateTime?        @map("deleted_at")
   createdAt         DateTime         @default(now()) @map("created_at")
   updatedAt         DateTime         @updatedAt @map("updated_at")
 
-  runItems        PayrollRunItem[]
-  cashAdvances    CashAdvance[]
-  scheduleEntries ScheduleEntry[]
-  savingsAccount  SavingsAccount?
+  runItems          PayrollRunItem[]
+  cashAdvances      CashAdvance[]
+  scheduleEntries   ScheduleEntry[]
+  savingsAccount    SavingsAccount?
+  devices           EmployeeDevice[]
+  attendanceRecords AttendanceRecord[]
 
   @@index([employmentStatus])
   @@index([department])
@@ -244,11 +253,16 @@ model Branch {
   id        String    @id @default(cuid())
   name      String
   address   String?
+  /// Adapter key identifying this branch's biometric export format (e.g.
+  /// "zkteco-v1"). Null = attendance uploads not configured for this branch.
+  attendanceFormat String? @map("attendance_format")
   deletedAt DateTime? @map("deleted_at")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  scheduleEntries ScheduleEntry[]
+  scheduleEntries   ScheduleEntry[]
+  employeeDevices   EmployeeDevice[]
+  attendanceImports AttendanceImport[]
 
   @@map("branches")
 }
@@ -322,4 +336,77 @@ model SavingsTransaction {
   @@index([accountId])
   @@index([appliedPeriodId])
   @@map("savings_transactions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Attendance domain (biometric imports → schedule vs actual)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Maps a biometric scanner's enrollment id to an employee, scoped to a branch.
+/// Biometric exports identify people by a device-specific id (not `employeeCode`),
+/// and the same person can hold different ids across branch scanners — hence the
+/// `(branchId, deviceUserId)` uniqueness rather than a global one.
+model EmployeeDevice {
+  id           String   @id @default(cuid())
+  employeeId   String   @map("employee_id")
+  branchId     String   @map("branch_id")
+  deviceUserId String   @map("device_user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+  branch   Branch   @relation(fields: [branchId], references: [id])
+
+  @@unique([branchId, deviceUserId])
+  @@index([employeeId])
+  @@map("employee_devices")
+}
+
+/// One uploaded biometric Excel file. Tracks processing status and match counts
+/// so the import can be reviewed (unmatched ids) and re-run.
+model AttendanceImport {
+  id            String   @id @default(cuid())
+  branchId      String   @map("branch_id")
+  /// Adapter key used to parse this file (snapshot of the branch's format).
+  format        String
+  fileName      String   @map("file_name")
+  /// processing | completed | failed
+  status        String   @default("processing")
+  totalRows     Int      @default(0) @map("total_rows")
+  matchedRows   Int      @default(0) @map("matched_rows")
+  unmatchedRows Int      @default(0) @map("unmatched_rows")
+  errorMessage  String?  @map("error_message")
+  /// deviceUserIds present in the file with no EmployeeDevice mapping.
+  unmatchedIds  Json?    @map("unmatched_ids")
+  uploadedBy    String   @map("uploaded_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  branch  Branch             @relation(fields: [branchId], references: [id])
+  records AttendanceRecord[]
+
+  @@index([branchId])
+  @@map("attendance_imports")
+}
+
+/// Normalized *actual* attendance — one row per (date, employee), mirroring
+/// `ScheduleEntry`. Compared against the schedule to derive lates/absences.
+model AttendanceRecord {
+  id         String   @id @default(cuid())
+  importId   String   @map("import_id")
+  employeeId String   @map("employee_id")
+  branchId   String?  @map("branch_id")
+  date       DateTime @db.Date
+  /// Actual clock-in / clock-out as `HH:MM` 24-hour strings (like ScheduleEntry).
+  timeIn     String?  @map("time_in")
+  timeOut    String?  @map("time_out")
+  /// The original parsed row, kept for audit and to re-derive if rules change.
+  rawRow     Json     @map("raw_row")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  import   AttendanceImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  employee Employee         @relation(fields: [employeeId], references: [id])
+
+  @@unique([date, employeeId])
+  @@index([employeeId])
+  @@map("attendance_records")
 }

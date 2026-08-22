@@ -8,6 +8,7 @@ export interface BranchRow {
   id: string;
   name: string;
   address: string | null;
+  attendanceFormat: string | null;
   createdAt: string;
 }
 

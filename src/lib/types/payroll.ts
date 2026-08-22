@@ -45,10 +45,20 @@ export interface DeductionBreakdown {
   frequency: PayFrequency;
   /** Daily basic-pay rate. */
   basicSalary: number;
-  /** Days worked in the period (interim default until attendance lands). */
+  /** Days worked in the period (from attendance, else the per-frequency default). */
   daysWorked: number;
   /** Gross for this period (daily rate × days worked). */
   grossPay: number;
+  /** True when days worked came from the employee's schedule + attendance. */
+  attendanceTracked: boolean;
+  /** Scheduled days with no attendance record (0 when not tracked). */
+  absentDays: number;
+  /** Deductible late minutes beyond grace, summed (0 when not tracked). */
+  lateMinutes: number;
+  /** Early-out minutes, summed (0 when not tracked). */
+  undertimeMinutes: number;
+  /** Peso deduction for late+undertime (pro-rated daily rate; 0 when not tracked). */
+  lateDeduction: number;
   sssEmployee: number;
   sssEmployer: number;
   philhealthEmployee: number;

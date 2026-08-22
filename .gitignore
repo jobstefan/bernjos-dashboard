@@ -45,3 +45,6 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# Local biometric sample data (real employee data — do not commit)
+sample-sheets/

@@ -39,6 +39,17 @@ export const createEmployeeSchema = z.object({
   clerkUserId: z.string().trim().optional().nullable(),
   sssNumber: z.string().trim().optional().nullable(),
   philhealthNumber: z.string().trim().optional().nullable(),
+  sssSalaryBasis: z.coerce
+    .number()
+    .nonnegative("SSS contribution salary can't be negative.")
+    .optional()
+    .nullable(),
+  philhealthEnabled: z.boolean().optional().default(false),
+  philhealthAmount: z.coerce
+    .number()
+    .nonnegative("PhilHealth amount can't be negative.")
+    .optional()
+    .default(0),
   bankName: z.string().trim().optional().nullable(),
   bankAccountNumber: z.string().trim().optional().nullable(),
 });

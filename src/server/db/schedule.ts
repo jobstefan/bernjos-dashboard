@@ -24,6 +24,15 @@ export function findEntriesForEmployee(employeeId: string, from: Date, to: Date)
   });
 }
 
+/** Every employee's entries across a date range (for the attendance comparison). */
+export function findEntriesForRange(from: Date, to: Date) {
+  return prisma.scheduleEntry.findMany({
+    where: { date: { gte: from, lte: to } },
+    include: withRelations,
+    orderBy: { date: "asc" },
+  });
+}
+
 /** Data for one working employee's entry on a given day. */
 export interface DayEntryData {
   employeeId: string;

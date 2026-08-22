@@ -23,11 +23,9 @@ import {
   insertSavingsTransaction,
   resetSavingsContributionsForPeriod,
 } from "@/server/db/savings";
-import {
-  findPhilhealthBracket,
-  findSssBracket,
-} from "@/server/db/statutory";
+import { findSssBracket } from "@/server/db/statutory";
 import { auditLog } from "@/server/services/audit.service";
+import { summarizeForPayroll } from "@/server/services/attendance.service";
 import {
   DuplicatePeriodError,
   InvalidStateTransitionError,
@@ -64,6 +62,24 @@ function round2(value: Decimal): Decimal {
   return value.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 }
 
+/** True when the period ends in the second half of the month (day ≥ 16). */
+function isSecondCutoff(periodEnd: Date): boolean {
+  return periodEnd.getUTCDate() >= 16;
+}
+
+/**
+ * SSS and PhilHealth are monthly contributions taken once per month. Monthly
+ * periods always deduct. For semi-monthly, SSS is taken on the second cutoff and
+ * PhilHealth on the first, so each lands once per month on a different payday.
+ */
+function deductsSss(period: { frequency: PayFrequency; periodEnd: Date }): boolean {
+  return period.frequency === "monthly" || isSecondCutoff(period.periodEnd);
+}
+
+function deductsPhilhealth(period: { frequency: PayFrequency; periodEnd: Date }): boolean {
+  return period.frequency === "monthly" || !isSecondCutoff(period.periodEnd);
+}
+
 function toNum(value: Decimal | number): number {
   return typeof value === "number" ? value : value.toNumber();
 }
@@ -91,27 +107,79 @@ export async function calculateEmployeeDeductions(
   const asOf = period.periodStart;
   const frequency = period.frequency;
   const dailyRate = new Decimal(employee.basicSalary);
-  const daysWorked = DEFAULT_WORKING_DAYS[frequency];
-  const grossPay = round2(dailyRate.mul(daysWorked));
-  const salaryBasis = grossPay.toNumber();
 
-  // SSS — contribution = Monthly Salary Credit × share rate.
-  const sss = await findSssBracket(salaryBasis, asOf);
-  if (!sss) throw new MissingStatutoryDataError("SSS", asOf);
-  const sssEmployee = round2(new Decimal(sss.monthlyCredit).mul(sss.employeeShare));
-  const sssEmployer = round2(new Decimal(sss.monthlyCredit).mul(sss.employerShare));
-
-  // PhilHealth — premium = clamp(gross, floor, ceiling) × rate; employee pays half.
-  const ph = await findPhilhealthBracket(salaryBasis, asOf);
-  if (!ph) throw new MissingStatutoryDataError("PhilHealth", asOf);
-  const phBase = Decimal.min(Decimal.max(grossPay, ph.minSalary), ph.maxSalary);
-  let phPremium = phBase.mul(ph.rate);
-  phPremium = Decimal.min(
-    Decimal.max(phPremium, ph.minContribution),
-    ph.maxContribution,
+  // Days worked come from the schedule + attendance when the employee is
+  // scheduled in the period; otherwise fall back to the per-frequency default
+  // so employees/branches not yet using attendance are unaffected.
+  const attendance = await summarizeForPayroll(
+    employee.id,
+    period.periodStart,
+    period.periodEnd,
   );
-  const philhealthEmployee = round2(phPremium.div(2));
-  const philhealthEmployer = round2(phPremium.div(2));
+  const attendanceTracked = attendance.hasSchedule;
+  const daysWorked = attendanceTracked
+    ? attendance.daysWorked
+    : DEFAULT_WORKING_DAYS[frequency];
+  const grossPay = round2(dailyRate.mul(daysWorked));
+  const lateDeduction = round2(dailyRate.mul(attendance.deductionDays));
+
+  // Fully absent → no pay, no statutory (and skip bracket lookups so an empty
+  // low bracket can't crash the run or push net pay negative).
+  if (daysWorked === 0) {
+    return {
+      employeeId,
+      periodId,
+      frequency,
+      basicSalary: toNum(dailyRate),
+      daysWorked: 0,
+      grossPay: 0,
+      attendanceTracked,
+      absentDays: attendance.absentDays,
+      lateMinutes: 0,
+      undertimeMinutes: 0,
+      lateDeduction: 0,
+      sssEmployee: 0,
+      sssEmployer: 0,
+      philhealthEmployee: 0,
+      philhealthEmployer: 0,
+      totalDeductions: 0,
+      netPay: 0,
+      brackets: { sssBracketId: "", philhealthBracketId: "" },
+    };
+  }
+
+  // SSS and PhilHealth are monthly contributions, each taken once per month —
+  // SSS on the second cutoff, PhilHealth on the first (monthly periods take both).
+  const expectedDays = attendanceTracked
+    ? attendance.scheduledDays
+    : DEFAULT_WORKING_DAYS[frequency];
+
+  let sssEmployee = ZERO;
+  let sssEmployer = ZERO;
+  let philhealthEmployee = ZERO;
+  const philhealthEmployer = ZERO;
+  let sssBracketId = "";
+
+  if (deductsSss(period)) {
+    // SSS uses the employee's declared contribution salary (often set lower to
+    // reduce the contribution); if unset, fall back to the expected period gross.
+    const sssBasis =
+      employee.sssSalaryBasis != null
+        ? new Decimal(employee.sssSalaryBasis)
+        : round2(dailyRate.mul(expectedDays));
+
+    // SSS — contribution = Monthly Salary Credit × share rate.
+    const sss = await findSssBracket(sssBasis.toNumber(), asOf);
+    if (!sss) throw new MissingStatutoryDataError("SSS", asOf);
+    sssEmployee = round2(new Decimal(sss.monthlyCredit).mul(sss.employeeShare));
+    sssEmployer = round2(new Decimal(sss.monthlyCredit).mul(sss.employerShare));
+    sssBracketId = sss.id;
+  }
+
+  // PhilHealth — a fixed per-employee amount, only when the employee is enrolled.
+  if (deductsPhilhealth(period) && employee.philhealthEnabled) {
+    philhealthEmployee = round2(new Decimal(employee.philhealthAmount));
+  }
 
   const statutoryEmployee = sssEmployee.add(philhealthEmployee);
   const totalDeductions = round2(statutoryEmployee);
@@ -124,6 +192,11 @@ export async function calculateEmployeeDeductions(
     basicSalary: toNum(dailyRate),
     daysWorked,
     grossPay: toNum(grossPay),
+    attendanceTracked,
+    absentDays: attendance.absentDays,
+    lateMinutes: attendance.lateMinutes,
+    undertimeMinutes: attendance.undertimeMinutes,
+    lateDeduction: toNum(lateDeduction),
     sssEmployee: toNum(sssEmployee),
     sssEmployer: toNum(sssEmployer),
     philhealthEmployee: toNum(philhealthEmployee),
@@ -131,8 +204,8 @@ export async function calculateEmployeeDeductions(
     totalDeductions: toNum(totalDeductions),
     netPay: toNum(netPay),
     brackets: {
-      sssBracketId: sss.id,
-      philhealthBracketId: ph.id,
+      sssBracketId,
+      philhealthBracketId: "",
     },
   };
 }
@@ -207,14 +280,24 @@ export async function calculatePayrollRun(
   for (const employee of employees) {
     const b = await calculateEmployeeDeductions(employee.id, periodId);
 
+    // Late/undertime deduction (pro-rated daily rate) folds into other deductions.
+    let otherDeductions = new Decimal(b.lateDeduction);
+
     // Fold approved, not-yet-applied cash advances into other deductions.
     const advances = await findApprovedUnappliedForEmployee(employee.id);
-    let otherDeductions = ZERO;
     for (const advance of advances) {
       otherDeductions = otherDeductions.add(advance.amount);
       appliedAdvanceIds.push(advance.id);
     }
     otherDeductions = round2(otherDeductions);
+
+    // Summarize attendance on the run item for transparency on the payslip.
+    const attendanceNote = b.attendanceTracked
+      ? `Attendance: ${b.daysWorked} day(s) worked` +
+        (b.absentDays ? `, ${b.absentDays} absent` : "") +
+        (b.lateMinutes ? `, ${b.lateMinutes} late-min` : "") +
+        (b.undertimeMinutes ? `, ${b.undertimeMinutes} undertime-min` : "")
+      : null;
 
     const itemTotalDeductions = round2(new Decimal(b.totalDeductions).add(otherDeductions));
     const payAfterDeductions = round2(new Decimal(b.grossPay).sub(itemTotalDeductions));
@@ -250,6 +333,7 @@ export async function calculatePayrollRun(
       totalDeductions: itemTotalDeductions,
       netPay: itemNetPay,
       status: "included",
+      notes: attendanceNote,
     });
     totalGross = totalGross.add(b.grossPay);
     totalDeductions = totalDeductions.add(itemTotalDeductions);

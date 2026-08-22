@@ -28,6 +28,8 @@ export const saveDayScheduleSchema = z.object({
 export const createBranchSchema = z.object({
   name: z.string().trim().min(1, "Branch name is required."),
   address: z.string().trim().max(200).optional().nullable(),
+  /** Biometric adapter key (see src/lib/attendance/adapters). Empty = none. */
+  attendanceFormat: z.string().trim().optional().nullable(),
 });
 
 export const updateBranchSchema = createBranchSchema.partial().extend({

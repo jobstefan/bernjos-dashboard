@@ -20,8 +20,14 @@ function toRow(branch: Branch): BranchRow {
     id: branch.id,
     name: branch.name,
     address: branch.address,
+    attendanceFormat: branch.attendanceFormat,
     createdAt: branch.createdAt.toISOString(),
   };
+}
+
+/** Empty string from the form → null (no format configured). */
+function normalizeFormat(value: string | null | undefined): string | null {
+  return value ? value : null;
 }
 
 export async function getBranches(): Promise<BranchRow[]> {
@@ -36,6 +42,7 @@ export async function createBranch(
   const branch = await insertBranch({
     name: input.name,
     address: input.address ?? null,
+    attendanceFormat: normalizeFormat(input.attendanceFormat),
   });
   await auditLog({
     actor,
@@ -58,6 +65,9 @@ export async function updateBranch(
   const after = await updateBranchRow(id, {
     ...(input.name !== undefined ? { name: input.name } : {}),
     ...(input.address !== undefined ? { address: input.address ?? null } : {}),
+    ...(input.attendanceFormat !== undefined
+      ? { attendanceFormat: normalizeFormat(input.attendanceFormat) }
+      : {}),
   });
   await auditLog({
     actor,

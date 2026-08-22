@@ -36,6 +36,9 @@ export interface EmployeeFormValues {
   clerkUserId: string;
   sssNumber: string;
   philhealthNumber: string;
+  sssSalaryBasis: string;
+  philhealthEnabled: string;
+  philhealthAmount: string;
   bankName: string;
   bankAccountNumber: string;
 }
@@ -55,6 +58,9 @@ const EMPTY: EmployeeFormValues = {
   clerkUserId: "",
   sssNumber: "",
   philhealthNumber: "",
+  sssSalaryBasis: "",
+  philhealthEnabled: "false",
+  philhealthAmount: "",
   bankName: "",
   bankAccountNumber: "",
 };
@@ -74,6 +80,7 @@ export function EmployeeForm({
   const [selects, setSelects] = React.useState({
     employmentStatus: initial?.employmentStatus ?? EMPTY.employmentStatus,
     payFrequency: initial?.payFrequency ?? EMPTY.payFrequency,
+    philhealthEnabled: initial?.philhealthEnabled ?? EMPTY.philhealthEnabled,
   });
 
   const v = { ...EMPTY, ...initial };
@@ -101,6 +108,9 @@ export function EmployeeForm({
       clerkUserId: get("clerkUserId"),
       sssNumber: get("sssNumber"),
       philhealthNumber: get("philhealthNumber"),
+      sssSalaryBasis: get("sssSalaryBasis"),
+      philhealthEnabled: selects.philhealthEnabled === "true",
+      philhealthAmount: get("philhealthAmount"),
       bankName: get("bankName"),
       bankAccountNumber: get("bankAccountNumber"),
     };
@@ -179,9 +189,32 @@ export function EmployeeForm({
         />
       </Section>
 
-      <Section title="Government IDs">
+      <Section title="Government Contributions">
         <TextField name="sssNumber" label="SSS number" defaultValue={v.sssNumber} error={errors.sssNumber} />
+        <TextField
+          name="sssSalaryBasis"
+          label="SSS contribution salary (declared)"
+          type="number"
+          defaultValue={v.sssSalaryBasis}
+          error={errors.sssSalaryBasis}
+        />
         <TextField name="philhealthNumber" label="PhilHealth number" defaultValue={v.philhealthNumber} error={errors.philhealthNumber} />
+        <SelectField
+          label="PhilHealth contribution"
+          value={selects.philhealthEnabled}
+          onChange={(val) => setSelects((s) => ({ ...s, philhealthEnabled: val }))}
+          options={[
+            ["false", "None"],
+            ["true", "Enabled"],
+          ]}
+        />
+        <TextField
+          name="philhealthAmount"
+          label="PhilHealth amount (per period)"
+          type="number"
+          defaultValue={v.philhealthAmount}
+          error={errors.philhealthAmount}
+        />
       </Section>
 
       <Section title="Bank Details">

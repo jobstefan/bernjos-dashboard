@@ -55,6 +55,9 @@ function toCreateData(input: CreateEmployeeSchema): Prisma.EmployeeCreateInput {
     clerkUserId: input.clerkUserId ?? null,
     sssNumber: input.sssNumber ?? null,
     philhealthNumber: input.philhealthNumber ?? null,
+    sssSalaryBasis: input.sssSalaryBasis ?? null,
+    philhealthEnabled: input.philhealthEnabled ?? false,
+    philhealthAmount: input.philhealthAmount ?? 0,
     bankName: input.bankName ?? null,
     bankAccountNumber: input.bankAccountNumber ?? null,
   };
@@ -105,6 +108,9 @@ export async function updateEmployee(
   assign("clerkUserId", input.clerkUserId ?? null);
   assign("sssNumber", input.sssNumber ?? null);
   assign("philhealthNumber", input.philhealthNumber ?? null);
+  assign("sssSalaryBasis", input.sssSalaryBasis ?? null);
+  assign("philhealthEnabled", input.philhealthEnabled);
+  assign("philhealthAmount", input.philhealthAmount);
   assign("bankName", input.bankName ?? null);
   assign("bankAccountNumber", input.bankAccountNumber ?? null);
 

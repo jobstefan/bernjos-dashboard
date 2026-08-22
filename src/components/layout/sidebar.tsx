@@ -13,6 +13,7 @@ import {
   CalendarDays,
   Building2,
   PiggyBank,
+  Fingerprint,
   LogOut,
   Menu,
 } from "lucide-react";
@@ -32,6 +33,7 @@ const ICONS = {
   schedule: CalendarDays,
   branch: Building2,
   savings: PiggyBank,
+  attendance: Fingerprint,
 } as const;
 
 function isActive(pathname: string, href: string): boolean {

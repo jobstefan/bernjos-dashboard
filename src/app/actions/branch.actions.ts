@@ -17,6 +17,9 @@ import type { ActionResult } from "@/lib/types/action";
 function revalidate() {
   revalidatePath("/branches");
   revalidatePath("/schedule");
+  // Configuring a branch's biometric format changes which branches can accept
+  // attendance uploads, so refresh the attendance page too.
+  revalidatePath("/attendance");
 }
 
 export async function createBranchAction(

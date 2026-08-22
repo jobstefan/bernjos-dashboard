@@ -41,6 +41,12 @@ export default async function EditEmployeePage({
     clerkUserId: employee.clerkUserId ?? "",
     sssNumber: employee.sssNumber ?? "",
     philhealthNumber: employee.philhealthNumber ?? "",
+    sssSalaryBasis:
+      employee.sssSalaryBasis != null
+        ? String(Number(employee.sssSalaryBasis))
+        : "",
+    philhealthEnabled: employee.philhealthEnabled ? "true" : "false",
+    philhealthAmount: String(Number(employee.philhealthAmount)),
     bankName: employee.bankName ?? "",
     bankAccountNumber: employee.bankAccountNumber ?? "",
   };

@@ -12,7 +12,8 @@ export interface NavItem {
     | "cashAdvance"
     | "schedule"
     | "branch"
-    | "savings";
+    | "savings"
+    | "attendance";
   roles: Role[];
 }
 
@@ -46,6 +47,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/schedule/mine",
     icon: "schedule",
     roles: ["employee"],
+  },
+  {
+    label: "Attendance",
+    href: "/attendance",
+    icon: "attendance",
+    roles: ["super_admin", "admin"],
   },
   {
     label: "Branches",

@@ -113,6 +113,11 @@ export function canManageSchedule(role: Role): boolean {
   return role === "admin" || role === "super_admin";
 }
 
+/** Only admins and super-admins upload attendance and map devices. */
+export function canManageAttendance(role: Role): boolean {
+  return role === "admin" || role === "super_admin";
+}
+
 /**
  * Only admins and super-admins supervise all employees' savings. Managers, like
  * employees, only ever see their own savings (self-service page).
