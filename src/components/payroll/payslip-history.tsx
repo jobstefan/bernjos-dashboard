@@ -15,7 +15,7 @@ import {
   PayslipBreakdown,
   type PayslipView,
 } from "@/components/payroll/payslip-breakdown";
-import { formatDate, formatPeso } from "@/lib/utils/payroll";
+import { formatDate } from "@/lib/utils/payroll";
 import type { PayrollStatus } from "@/lib/types/payroll";
 
 export interface PayslipHistoryRow extends PayslipView {
@@ -40,31 +40,6 @@ export function PayslipHistory({ rows }: { rows: PayslipHistoryRow[] }) {
         accessorKey: "payDate",
         header: "Pay date",
         cell: ({ row }) => formatDate(row.original.payDate),
-      },
-      {
-        accessorKey: "grossPay",
-        header: "Gross",
-        cell: ({ row }) => (
-          <span className="font-mono">{formatPeso(row.original.grossPay)}</span>
-        ),
-      },
-      {
-        accessorKey: "totalDeductions",
-        header: "Deductions",
-        cell: ({ row }) => (
-          <span className="font-mono">
-            {formatPeso(row.original.totalDeductions)}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "netPay",
-        header: "Net Pay",
-        cell: ({ row }) => (
-          <span className="font-mono font-semibold">
-            {formatPeso(row.original.netPay)}
-          </span>
-        ),
       },
       {
         accessorKey: "status",

@@ -68,7 +68,6 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
           Earnings
         </div>
         <Line label="Basic (daily rate)" value={payslip.basicSalary} />
-        <Line label="Gross (this period)" value={payslip.grossPay} emphasis />
         {payslip.otherEarnings > 0 ? (
           <Line label="Other earnings" value={payslip.otherEarnings} />
         ) : null}
@@ -110,15 +109,6 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
           </div>
         </>
       ) : null}
-
-      <Separator />
-
-      <div className="flex items-center justify-between rounded-lg bg-accent px-3 py-3">
-        <span className="text-sm font-semibold">Net pay</span>
-        <span className="font-mono text-lg font-bold text-primary">
-          {formatPeso(payslip.netPay)}
-        </span>
-      </div>
 
       {payslip.remarks ? (
         <>

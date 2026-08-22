@@ -2,7 +2,6 @@ import { FileText } from "lucide-react";
 import { getActor } from "@/lib/auth/rbac";
 import { getEmployeeByClerkUser } from "@/server/services/employee.service";
 import { getEmployeePayslipHistory } from "@/server/services/payroll.service";
-import { SummaryCard } from "@/components/payroll/summary-card";
 import { EmptyState } from "@/components/payroll/empty-state";
 import {
   PayslipHistory,
@@ -50,21 +49,6 @@ export default async function MyPayslipsPage() {
     remarks: p.remarks,
   }));
 
-  const thisYear = new Date().getFullYear();
-  const ytd = paid.reduce(
-    (acc, p) => {
-      if (p.period.payDate.getFullYear() === thisYear) {
-        acc.gross += p.grossPay;
-        acc.net += p.netPay;
-      }
-      return acc;
-    },
-    { gross: 0, net: 0 },
-  );
-
-  const peso = (n: number) =>
-    `₱ ${n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
   return (
     <div className="space-y-6">
       <div>
@@ -72,11 +56,6 @@ export default async function MyPayslipsPage() {
         <p className="text-sm text-muted-foreground">
           {employee.firstName} {employee.lastName} · {employee.employeeCode}
         </p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <SummaryCard title={`YTD Gross (${thisYear})`} value={peso(ytd.gross)} />
-        <SummaryCard title={`YTD Net (${thisYear})`} value={peso(ytd.net)} />
       </div>
 
       {rows.length === 0 ? (
