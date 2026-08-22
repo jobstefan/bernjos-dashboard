@@ -6,6 +6,8 @@
 export interface DailyRecord {
   /** The scanner's enrollment id, matched to an employee via EmployeeDevice. */
   deviceUserId: string;
+  /** The name printed next to the id on the export, for the unmatched panel. */
+  deviceName: string | null;
   /** Calendar date as `YYYY-MM-DD`. */
   date: string;
   /** Earliest punch of the day as `HH:MM` 24-hour, or null if none. */

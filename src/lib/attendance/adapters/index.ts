@@ -1,6 +1,7 @@
 import { BadRequestError } from "@/lib/errors/payroll";
+import { deli } from "./deli";
 import type { AttendanceAdapter } from "./types";
-import { zktecoCard } from "./zkteco-card";
+import { zkteco } from "./zkteco";
 
 export type { AttendanceAdapter, DailyRecord, SheetGrid } from "./types";
 
@@ -9,7 +10,8 @@ export type { AttendanceAdapter, DailyRecord, SheetGrid } from "./types";
  * Keys are stored on `Branch.attendanceFormat` and `AttendanceImport.format`.
  */
 const registry: Record<string, AttendanceAdapter> = {
-  [zktecoCard.format]: zktecoCard,
+  [deli.format]: deli,
+  [zkteco.format]: zkteco,
 };
 
 /** Every registered format, for populating the branch config dropdown. */

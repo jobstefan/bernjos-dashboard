@@ -32,6 +32,7 @@ import type {
   AttendanceComparisonRow,
   AttendanceImportRow,
   PayrollAttendanceSummary,
+  UnmatchedDevice,
 } from "@/lib/types/attendance";
 import type {
   MapDeviceSchema,
@@ -138,7 +139,8 @@ export async function runImport(params: {
     const records = getAdapter(format).parse(sheets);
 
     let matched = 0;
-    const unmatched = new Set<string>();
+    // deviceUserId → the name printed on the export (first non-null seen).
+    const unmatched = new Map<string, string | null>();
     // Resolve each device id once per run (many day-rows share an id).
     const resolved = new Map<string, string | null>();
 
@@ -149,7 +151,9 @@ export async function runImport(params: {
         resolved.set(rec.deviceUserId, employeeId);
       }
       if (!employeeId) {
-        unmatched.add(rec.deviceUserId);
+        if (!unmatched.get(rec.deviceUserId)) {
+          unmatched.set(rec.deviceUserId, rec.deviceName);
+        }
         continue;
       }
       await upsertAttendanceRecord({
@@ -165,7 +169,10 @@ export async function runImport(params: {
       matched++;
     }
 
-    const unmatchedIds = [...unmatched];
+    const unmatchedIds = [...unmatched].map(([deviceUserId, name]) => ({
+      deviceUserId,
+      name,
+    }));
     await updateImportRow(importId, {
       status: "completed",
       totalRows: records.length,
@@ -295,8 +302,12 @@ export async function getImports(): Promise<AttendanceImportRow[]> {
     totalRows: imp.totalRows,
     matchedRows: imp.matchedRows,
     unmatchedRows: imp.unmatchedRows,
-    unmatchedIds: Array.isArray(imp.unmatchedIds)
-      ? (imp.unmatchedIds as string[])
+    unmatched: Array.isArray(imp.unmatchedIds)
+      ? (imp.unmatchedIds as unknown[]).map((u) =>
+          typeof u === "string"
+            ? { deviceUserId: u, name: null } // legacy rows stored bare ids
+            : (u as UnmatchedDevice),
+        )
       : [],
     errorMessage: imp.errorMessage,
     createdAt: imp.createdAt.toISOString(),

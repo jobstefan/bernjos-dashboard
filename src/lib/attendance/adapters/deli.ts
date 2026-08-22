@@ -1,90 +1,67 @@
+import { findPeriodStart, pad, resolveDate, TIME_RE } from "./shared";
+import type { PeriodStart } from "./shared";
 import type { AttendanceAdapter, DailyRecord, SheetGrid } from "./types";
 
 /**
- * ZKTeco "Employee Attendance Table" / "Card Report" exports.
+ * Deli biometric "Employee Attendance Table" exports.
  *
  * These workbooks lay out three employees side-by-side per detail sheet in fixed
  * 15-column blocks. Each block has a header area (the enrollment id sits 8 columns
- * after an "ID"/"User ID" label) and a time-card grid: one row per day (`"14 Su"` /
- * `"14 SUN"`) with punch times in the block's columns. We read every punch on a
- * day and take the earliest as time-in and the latest as time-out — robust to the
- * On/Off/Overtime column variations across firmware versions.
- *
- * The same parser covers both branch variants we've seen; only labels differ
- * (`User ID`/`ID`, `Time Card`/`Att. Report`, `14 Su`/`14 SUN`).
+ * after an "ID"/"User ID" label) and a time-card grid: one row per day (`"14 Su"`)
+ * with punch times spread across the block's columns (`Before Noon`/`After Noon`/
+ * `Overtime`, each with In/Out subcolumns). We read every punch on a day and take
+ * the earliest as time-in and the latest as time-out — robust to how many columns
+ * actually carry a punch.
  */
 
-const pad = (n: number) => String(n).padStart(2, "0");
-const TIME_RE = /^(\d{1,2}):(\d{2})$/;
-const DAY_RE = /^(\d{1,2})\s+[A-Za-z]{2,3}$/; // "14 Su" / "14 SUN"
+const DAY_RE = /^(\d{1,2})\s+[A-Za-z]{2,3}$/; // "14 Su"
 /** The id label sits this many columns before the block's first (date) column. */
 const ID_LABEL_OFFSET = 8;
 const DEFAULT_BLOCK_WIDTH = 15;
 
-interface PeriodStart {
-  year: number;
-  month: number;
-  day: number;
-}
-
-/** Find the period's first date from any header cell (handles both date orders). */
-function findPeriodStart(sheets: SheetGrid[]): PeriodStart | null {
-  for (const sheet of sheets) {
-    for (const row of sheet.rows) {
-      for (const cell of row) {
-        if (typeof cell !== "string") continue;
-        const mdy = cell.match(/(\d{2})-(\d{2})-(\d{4})\s*~/); // MM-DD-YYYY
-        if (mdy) return { year: +mdy[3], month: +mdy[1], day: +mdy[2] };
-        const ymd = cell.match(/(\d{4})-(\d{2})-(\d{2})\s*~/); // YYYY-MM-DD
-        if (ymd) return { year: +ymd[1], month: +ymd[2], day: +ymd[3] };
-      }
-    }
-  }
-  return null;
-}
-
-/** A day number → full `YYYY-MM-DD`, rolling into the next month when it wraps. */
-function resolveDate(day: number, start: PeriodStart): string {
-  let { year, month } = start;
-  if (day < start.day) {
-    month += 1;
-    if (month > 12) {
-      month = 1;
-      year += 1;
-    }
-  }
-  return `${year}-${pad(month)}-${pad(day)}`;
-}
-
-/** Detail sheets carry a "Time Card" / "Att. Report" marker; others don't. */
+/** Detail sheets carry a "Time Card" marker; summary sheets don't. */
 function isDetailSheet(rows: unknown[][]): boolean {
   return rows.some((row) =>
-    row.some(
-      (c) => typeof c === "string" && /^(time card|att\. report)$/i.test(c.trim()),
-    ),
+    row.some((c) => typeof c === "string" && /^time card$/i.test(c.trim())),
   );
 }
 
 interface Block {
   start: number;
   deviceUserId: string;
+  deviceName: string | null;
 }
 
-/** Locate each employee block by its id label; dedupe by start column. */
+/**
+ * Locate each employee block by its id label; dedupe by start column. The "Name"
+ * label sits at the same block offset as the id label (both 8 columns before the
+ * block's date column, on different header rows), so we key both by `start`.
+ */
 function findBlocks(rows: unknown[][]): Block[] {
-  const byStart = new Map<number, string>();
+  const idByStart = new Map<number, string>();
+  const nameByStart = new Map<number, string>();
   for (const row of rows) {
     for (let c = 0; c < row.length; c++) {
       const v = row[c];
-      if (typeof v === "string" && /^(user id|id)$/i.test(v.trim())) {
-        const id = String(row[c + 1] ?? "").trim();
-        const start = c - ID_LABEL_OFFSET;
-        if (id && start >= 0 && !byStart.has(start)) byStart.set(start, id);
+      if (typeof v !== "string") continue;
+      const label = v.trim();
+      const start = c - ID_LABEL_OFFSET;
+      if (start < 0) continue;
+      const value = String(row[c + 1] ?? "").trim();
+      if (!value) continue;
+      if (/^(user id|id)$/i.test(label) && !idByStart.has(start)) {
+        idByStart.set(start, value);
+      } else if (/^name$/i.test(label) && !nameByStart.has(start)) {
+        nameByStart.set(start, value);
       }
     }
   }
-  return [...byStart.entries()]
-    .map(([start, deviceUserId]) => ({ start, deviceUserId }))
+  return [...idByStart.entries()]
+    .map(([start, deviceUserId]) => ({
+      start,
+      deviceUserId,
+      deviceName: nameByStart.get(start) ?? null,
+    }))
     .sort((a, b) => a.start - b.start);
 }
 
@@ -124,6 +101,7 @@ function parseSheet(
       times.sort();
       out.push({
         deviceUserId: block.deviceUserId,
+        deviceName: block.deviceName,
         date: resolveDate(Number(dm[1]), start),
         timeIn: times[0],
         timeOut: times.length > 1 ? times[times.length - 1] : null,
@@ -150,8 +128,8 @@ function parse(sheets: SheetGrid[]): DailyRecord[] {
   return records;
 }
 
-export const zktecoCard: AttendanceAdapter = {
-  format: "zkteco-card",
-  label: "ZKTeco Attendance Card",
+export const deli: AttendanceAdapter = {
+  format: "deli",
+  label: "Deli Biometric",
   parse,
 };

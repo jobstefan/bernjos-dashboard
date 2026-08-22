@@ -46,17 +46,33 @@ const STATUS_VARIANT: Record<string, "secondary" | "destructive" | "outline"> = 
  * One unmatched device id → pick an employee and save the mapping. Stays
  * editable after saving: pick a different employee and click Update to change it.
  */
+/** Case-insensitive match of the export's printed name to an employee. */
+function guessEmployeeId(
+  name: string | null,
+  employees: EmployeeOption[],
+): string {
+  if (!name) return "";
+  const norm = (s: string) => s.toLowerCase().replace(/[\s,]+/g, " ").trim();
+  const target = norm(name);
+  const hit = employees.find((e) => norm(e.name) === target);
+  return hit?.id ?? "";
+}
+
 function MapRow({
   branchId,
   deviceUserId,
+  deviceName,
   employees,
 }: {
   branchId: string;
   deviceUserId: string;
+  deviceName: string | null;
   employees: EmployeeOption[];
 }) {
   const [pending, startTransition] = React.useTransition();
-  const [employeeId, setEmployeeId] = React.useState("");
+  const [employeeId, setEmployeeId] = React.useState(() =>
+    guessEmployeeId(deviceName, employees),
+  );
   const [savedId, setSavedId] = React.useState<string | null>(null);
 
   function onMap() {
@@ -78,9 +94,16 @@ function MapRow({
 
   return (
     <div className="flex items-center gap-2">
-      <code className="w-24 shrink-0 rounded bg-muted px-2 py-1 text-xs">
-        {deviceUserId}
-      </code>
+      <div className="flex w-44 shrink-0 flex-col gap-0.5">
+        <code className="w-fit rounded bg-muted px-2 py-1 text-xs">
+          {deviceUserId}
+        </code>
+        {deviceName ? (
+          <span className="truncate text-xs text-muted-foreground" title={deviceName}>
+            {deviceName}
+          </span>
+        ) : null}
+      </div>
       <Select value={employeeId} onValueChange={(v) => setEmployeeId(v ?? "")}>
         <SelectTrigger className="w-full">
           <SelectValue placeholder="Select employee">
@@ -207,19 +230,20 @@ export function UnmatchedPanel({
             <p className="mt-2 text-sm text-destructive">{imp.errorMessage}</p>
           ) : null}
 
-          {imp.unmatchedIds.length > 0 ? (
+          {imp.unmatched.length > 0 ? (
             <div className="mt-3 space-y-2 border-t border-border pt-3">
               <p className="text-xs font-medium text-muted-foreground">
-                {imp.unmatchedIds.length} device id
-                {imp.unmatchedIds.length === 1 ? "" : "s"} with no matching employee
+                {imp.unmatched.length} device id
+                {imp.unmatched.length === 1 ? "" : "s"} with no matching employee
                 code. Fix the code on the employee, or map here as an override, then
                 re-upload:
               </p>
-              {imp.unmatchedIds.map((id) => (
+              {imp.unmatched.map((u) => (
                 <MapRow
-                  key={id}
+                  key={u.deviceUserId}
                   branchId={imp.branchId}
-                  deviceUserId={id}
+                  deviceUserId={u.deviceUserId}
+                  deviceName={u.name}
                   employees={employees}
                 />
               ))}

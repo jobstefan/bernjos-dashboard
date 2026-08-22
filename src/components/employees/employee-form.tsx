@@ -43,6 +43,29 @@ export interface EmployeeFormValues {
   bankAccountNumber: string;
 }
 
+/** Human labels for fields, so the error banner can name exactly what failed. */
+const FIELD_LABELS: Record<string, string> = {
+  employeeCode: "Employee code",
+  firstName: "First name",
+  lastName: "Last name",
+  middleName: "Middle name",
+  email: "Email",
+  position: "Position",
+  department: "Department",
+  employmentStatus: "Employment status",
+  dateHired: "Date hired",
+  basicSalary: "Basic salary",
+  payFrequency: "Pay frequency",
+  clerkUserId: "Clerk user ID",
+  sssNumber: "SSS number",
+  philhealthNumber: "PhilHealth number",
+  sssSalaryBasis: "SSS contribution salary",
+  philhealthEnabled: "PhilHealth contribution",
+  philhealthAmount: "PhilHealth amount",
+  bankName: "Bank name",
+  bankAccountNumber: "Account number",
+};
+
 const EMPTY: EmployeeFormValues = {
   employeeCode: "",
   firstName: "",
@@ -131,9 +154,17 @@ export function EmployeeForm({
         );
         router.refresh();
       } else {
-        setErrors(res.fieldErrors ?? {});
+        const fieldErrors = res.fieldErrors ?? {};
+        setErrors(fieldErrors);
         setFormError(res.error);
-        toast.error(res.error);
+        // Name the first failing field in the toast so the source is obvious even
+        // before scrolling to the highlighted input.
+        const firstField = Object.keys(fieldErrors)[0];
+        toast.error(
+          firstField
+            ? `${res.error} (${FIELD_LABELS[firstField] ?? firstField})`
+            : res.error,
+        );
         // Bring the error banner into view.
         if (typeof window !== "undefined") {
           window.scrollTo({ top: 0, behavior: "smooth" });
@@ -147,7 +178,21 @@ export function EmployeeForm({
       {formError ? (
         <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
-          <span>{formError}</span>
+          <div className="space-y-1">
+            <span>{formError}</span>
+            {Object.keys(errors).length > 0 ? (
+              <ul className="list-disc space-y-0.5 pl-4">
+                {Object.entries(errors).map(([field, messages]) => (
+                  <li key={field}>
+                    <span className="font-medium">
+                      {FIELD_LABELS[field] ?? field}:
+                    </span>{" "}
+                    {messages?.[0]}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         </div>
       ) : null}
 

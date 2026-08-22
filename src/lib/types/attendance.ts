@@ -15,6 +15,12 @@ export interface AttendanceComparisonRow {
   undertimeMinutes: number;
 }
 
+/** An enrollment id from an export with no matching employee, plus its printed name. */
+export interface UnmatchedDevice {
+  deviceUserId: string;
+  name: string | null;
+}
+
 /** An upload batch, flattened for display. */
 export interface AttendanceImportRow {
   id: string;
@@ -26,7 +32,7 @@ export interface AttendanceImportRow {
   totalRows: number;
   matchedRows: number;
   unmatchedRows: number;
-  unmatchedIds: string[];
+  unmatched: UnmatchedDevice[];
   errorMessage: string | null;
   createdAt: string;
 }
