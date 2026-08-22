@@ -53,7 +53,7 @@ function toAccountRow(account: AccountWithRelations): SavingsAccountRow {
     employeeCode: account.employee.employeeCode,
     employeeName: `${account.employee.firstName} ${account.employee.lastName}`,
     contributionAmount: Number(account.contributionAmount),
-    active: account.active,
+    frozen: account.employee.employmentStatus !== "active",
     balance: computeBalance(account),
     lastActivityAt: account.transactions[0]?.createdAt.toISOString() ?? null,
     transactions: account.transactions.map(toTransactionRow),
@@ -81,7 +81,7 @@ export async function getSavingsForEmployee(
     employeeCode: account.employee.employeeCode,
     employeeName: `${account.employee.firstName} ${account.employee.lastName}`,
     contributionAmount: Number(account.contributionAmount),
-    active: account.active,
+    frozen: account.employee.employmentStatus !== "active",
     balance: computeBalance(account),
     transactions: account.transactions.map(toTransactionRow),
   };
@@ -98,12 +98,16 @@ export async function upsertSavingsAccount(
 ) {
   const employee = await findEmployeeById(input.employeeId);
   if (!employee) throw new NotFoundError("Employee", input.employeeId);
+  if (employee.employmentStatus !== "active") {
+    throw new BadRequestError(
+      "This savings account is frozen because the employee is no longer active.",
+    );
+  }
 
   const before = await findSavingsAccountByEmployee(input.employeeId);
   const account = await upsertSavingsAccountRow({
     employeeId: input.employeeId,
     contributionAmount: input.contributionAmount,
-    active: input.active,
     createdBy: actor.clerkUserId,
   });
 

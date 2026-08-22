@@ -4,7 +4,13 @@ import type { Prisma } from "@/generated/prisma/client";
 
 const withRelations = {
   employee: {
-    select: { id: true, employeeCode: true, firstName: true, lastName: true },
+    select: {
+      id: true,
+      employeeCode: true,
+      firstName: true,
+      lastName: true,
+      employmentStatus: true,
+    },
   },
   transactions: {
     include: { appliedPeriod: { select: { id: true, periodLabel: true } } },
@@ -12,9 +18,14 @@ const withRelations = {
   },
 } satisfies Prisma.SavingsAccountInclude;
 
+/**
+ * Accounts shown in the admin supervision list. Only active employees appear —
+ * frozen accounts (terminated/resigned/inactive) are hidden but their balances
+ * are preserved and still reachable by id / employee.
+ */
 export function findSavingsAccounts() {
   return prisma.savingsAccount.findMany({
-    where: { employee: { deletedAt: null } },
+    where: { employee: { deletedAt: null, employmentStatus: "active" } },
     include: withRelations,
     orderBy: { employee: { lastName: "asc" } },
   });
@@ -35,13 +46,12 @@ export function findSavingsAccountById(id: string) {
 }
 
 /**
- * Create or update an employee's account with a recurring contribution + active
- * flag. One account per employee (enforced by the unique `employeeId`).
+ * Create or update an employee's account with a recurring contribution. One
+ * account per employee (enforced by the unique `employeeId`).
  */
 export function upsertSavingsAccount(input: {
   employeeId: string;
   contributionAmount: number;
-  active: boolean;
   createdBy: string;
 }) {
   return prisma.savingsAccount.upsert({
@@ -49,12 +59,10 @@ export function upsertSavingsAccount(input: {
     create: {
       employee: { connect: { id: input.employeeId } },
       contributionAmount: input.contributionAmount,
-      active: input.active,
       createdBy: input.createdBy,
     },
     update: {
       contributionAmount: input.contributionAmount,
-      active: input.active,
     },
     include: withRelations,
   });
@@ -80,12 +88,10 @@ export function insertSavingsTransaction(input: {
   });
 }
 
-/** Active accounts with a positive contribution — the set payroll pulls from. */
+/** Accounts of non-deleted employees — the set payroll pulls contributions from. */
 export function findActiveAccountsForContribution() {
   return prisma.savingsAccount.findMany({
     where: {
-      active: true,
-      contributionAmount: { gt: 0 },
       employee: { deletedAt: null },
     },
   });

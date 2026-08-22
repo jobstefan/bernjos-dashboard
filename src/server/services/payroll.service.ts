@@ -265,8 +265,9 @@ export async function calculatePayrollRun(
   }
 
   // Re-running: release any advances previously applied to this period so they
-  // are re-picked below and never double-counted or orphaned, and clear any
-  // savings contribution ledger rows this period previously wrote.
+  // are re-picked below and never double-counted or orphaned. Savings
+  // contributions are only written at approval, so clearing them here just
+  // guards against any stray rows from an earlier flow.
   await resetCashAdvancesForPeriod(periodId);
   await resetSavingsContributionsForPeriod(periodId);
 
@@ -274,8 +275,6 @@ export async function calculatePayrollRun(
 
   const rows: Prisma.PayrollRunItemCreateManyInput[] = [];
   const appliedAdvanceIds: string[] = [];
-  // Savings contributions to write to the ledger once run items are persisted.
-  const savingsToApply: { accountId: string; amount: Decimal }[] = [];
   let totalGross = ZERO;
   let totalDeductions = ZERO;
   let totalNet = ZERO;
@@ -306,19 +305,18 @@ export async function calculatePayrollRun(
     const payAfterDeductions = round2(new Decimal(b.grossPay).sub(itemTotalDeductions));
 
     // Savings is the employee's own money moved into their account — NOT a
-    // deduction. Pull the recurring contribution (clamped so it never drives net
-    // pay negative) and record it separately from `totalDeductions`.
+    // deduction. Compute the recurring contribution (clamped so it never drives
+    // net pay negative) for the run item; the ledger transaction is only written
+    // when the run is approved (see `approvePayrollRun`), so a provisional draft
+    // never moves money into savings.
     const account = await findSavingsAccountByEmployee(employee.id);
     let savingsContribution = ZERO;
-    if (account && account.active) {
+    if (account) {
       const wanted = round2(new Decimal(account.contributionAmount));
       savingsContribution = Decimal.max(
         ZERO,
         Decimal.min(wanted, payAfterDeductions),
       );
-      if (savingsContribution.gt(ZERO)) {
-        savingsToApply.push({ accountId: account.id, amount: savingsContribution });
-      }
     }
 
     const itemNetPay = round2(payAfterDeductions.sub(savingsContribution));
@@ -348,18 +346,6 @@ export async function calculatePayrollRun(
   if (rows.length > 0) await insertRunItems(rows);
   if (appliedAdvanceIds.length > 0) {
     await markCashAdvancesApplied(appliedAdvanceIds, periodId);
-  }
-  // Write the savings contributions to each employee's ledger, tagged to this
-  // period so a recalculation can reset them idempotently.
-  for (const s of savingsToApply) {
-    await insertSavingsTransaction({
-      accountId: s.accountId,
-      type: "contribution",
-      amount: s.amount,
-      note: `Payroll contribution — ${period.periodLabel}`,
-      appliedPeriodId: periodId,
-      createdBy: actor.clerkUserId,
-    });
   }
   const updated = await updatePeriod(periodId, { status: "calculated" });
 
@@ -413,6 +399,26 @@ export async function approvePayrollRun(periodId: string, actor: Actor): Promise
     approvedBy: actor.clerkUserId,
     approvedAt: new Date(),
   });
+
+  // Move each employee's savings contribution into their account now that the
+  // run is final. Doing this at approval (not draft) means a provisional draft
+  // never inflates the balance, and a withdrawal taken before approval can't
+  // cancel out the contribution.
+  const items = await findRunItems(periodId);
+  for (const item of items) {
+    if (!new Decimal(item.savingsContribution).gt(0)) continue;
+    const account = await findSavingsAccountByEmployee(item.employeeId);
+    if (!account) continue;
+    await insertSavingsTransaction({
+      accountId: account.id,
+      type: "contribution",
+      amount: item.savingsContribution,
+      note: `Payroll contribution — ${period.periodLabel}`,
+      appliedPeriodId: periodId,
+      createdBy: actor.clerkUserId,
+    });
+  }
+
   await auditLog({
     actor,
     action: "payroll.run.approved",

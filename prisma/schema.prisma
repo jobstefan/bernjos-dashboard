@@ -300,13 +300,13 @@ model ScheduleEntry {
 /// An employee's savings account. This is an internal "support system" — the
 /// employee's own money, held for them. `contributionAmount` is the recurring
 /// amount pulled from each payroll run (into `PayrollRunItem.savingsContribution`,
-/// never a deduction) while `active`. Exactly one account per employee.
+/// never a deduction). Savings is mandatory: every employee has exactly one
+/// account and the contribution is always at least ₱100.
 model SavingsAccount {
   id                 String   @id @default(cuid())
   employeeId         String   @unique @map("employee_id")
-  /// Recurring amount contributed per payroll period while active.
-  contributionAmount Decimal  @default(0) @map("contribution_amount") @db.Decimal(12, 2)
-  active             Boolean  @default(true)
+  /// Recurring amount contributed per payroll period (minimum ₱100).
+  contributionAmount Decimal  @default(100) @map("contribution_amount") @db.Decimal(12, 2)
   createdBy          String   @map("created_by")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")

@@ -8,9 +8,8 @@ export const upsertSavingsAccountSchema = z.object({
   employeeId: z.string().min(1, "Select an employee."),
   contributionAmount: z.coerce
     .number()
-    .min(0, "Contribution can't be negative.")
+    .min(100, "Contribution must be at least ₱100.")
     .max(1_000_000, "Amount is too large."),
-  active: z.coerce.boolean().default(true),
 });
 
 /** Admin records a manual withdrawal or balance adjustment against an account. */

@@ -16,9 +16,11 @@ export interface SavingsAccountRow {
   employeeId: string;
   employeeCode: string;
   employeeName: string;
-  /** Recurring amount pulled each payroll period while active. */
+  /** Recurring amount pulled each payroll period (minimum ₱100). */
   contributionAmount: number;
-  active: boolean;
+  /** Frozen when the employee is no longer active — no contributions are pulled
+   * and the contribution can't be edited. Their balance is preserved. */
+  frozen: boolean;
   /** Running balance = sum of all ledger amounts. */
   balance: number;
   lastActivityAt: string | null;
@@ -42,7 +44,8 @@ export interface EmployeeSavings {
   employeeCode: string;
   employeeName: string;
   contributionAmount: number;
-  active: boolean;
+  /** Frozen when the employee is no longer active (see `SavingsAccountRow`). */
+  frozen: boolean;
   balance: number;
   transactions: SavingsTransactionRow[];
 }

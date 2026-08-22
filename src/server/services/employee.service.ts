@@ -8,6 +8,7 @@ import {
   softDeleteEmployee,
   updateEmployeeRow,
 } from "@/server/db/employees";
+import { upsertSavingsAccount } from "@/server/db/savings";
 import { auditLog } from "@/server/services/audit.service";
 import { NotFoundError } from "@/lib/errors/payroll";
 import type { Actor, Employee, EmployeeFilters } from "@/lib/types/payroll";
@@ -67,6 +68,12 @@ export async function createEmployee(
   actor: Actor,
 ): Promise<Employee> {
   const employee = await insertEmployee(toCreateData(input));
+  // Savings is mandatory: every employee starts with an account at the ₱100 floor.
+  await upsertSavingsAccount({
+    employeeId: employee.id,
+    contributionAmount: 100,
+    createdBy: actor.clerkUserId,
+  });
   await auditLog({
     actor,
     action: "employee.created",

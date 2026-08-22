@@ -4,8 +4,8 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
 import { DataTable } from "@/components/payroll/data-table";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,22 +20,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  SavingsAccountDialog,
-  type EmployeeOption,
-} from "@/components/savings/savings-account-dialog";
+import { SavingsAccountDialog } from "@/components/savings/savings-account-dialog";
 import { SavingsAdjustmentDialog } from "@/components/savings/savings-adjustment-dialog";
 import { SavingsLedger } from "@/components/savings/savings-ledger";
 import { formatDate, formatPeso } from "@/lib/utils/payroll";
 import type { SavingsAccountRow } from "@/lib/types/savings";
 
-export function SavingsTable({
-  rows,
-  employees,
-}: {
-  rows: SavingsAccountRow[];
-  employees: EmployeeOption[];
-}) {
+export function SavingsTable({ rows }: { rows: SavingsAccountRow[] }) {
   const [toEdit, setToEdit] = React.useState<SavingsAccountRow | null>(null);
   const [toAdjust, setToAdjust] = React.useState<SavingsAccountRow | null>(null);
   const [toView, setToView] = React.useState<SavingsAccountRow | null>(null);
@@ -47,7 +38,12 @@ export function SavingsTable({
         header: "Employee",
         cell: ({ row }) => (
           <div>
-            <div className="font-medium">{row.original.employeeName}</div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{row.original.employeeName}</span>
+              {row.original.frozen ? (
+                <Badge variant="secondary">Frozen</Badge>
+              ) : null}
+            </div>
             <div className="text-xs text-muted-foreground">
               {row.original.employeeCode}
             </div>
@@ -70,16 +66,6 @@ export function SavingsTable({
           <span className="font-mono font-semibold">
             {formatPeso(row.original.balance)}
           </span>
-        ),
-      },
-      {
-        accessorKey: "active",
-        header: "Status",
-        enableSorting: false,
-        cell: ({ row }) => (
-          <Badge variant={row.original.active ? "default" : "secondary"}>
-            {row.original.active ? "Active" : "Paused"}
-          </Badge>
         ),
       },
       {
@@ -110,7 +96,10 @@ export function SavingsTable({
               <DropdownMenuItem onClick={() => setToView(row.original)}>
                 View history
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setToEdit(row.original)}>
+              <DropdownMenuItem
+                disabled={row.original.frozen}
+                onClick={() => setToEdit(row.original)}
+              >
                 Edit contribution
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -156,7 +145,6 @@ export function SavingsTable({
 
       <SavingsAccountDialog
         account={toEdit}
-        employees={employees}
         open={toEdit !== null}
         onOpenChange={(open) => !open && setToEdit(null)}
       />
