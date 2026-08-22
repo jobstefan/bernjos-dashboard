@@ -125,14 +125,13 @@ export async function calculateEmployeeDeductions(
   const grossPay = round2(dailyRate.mul(daysWorked));
   const lateDeduction = round2(dailyRate.mul(attendance.deductionDays));
 
-  // Split gross across the branches the employee worked at, so each branch can be
-  // expensed for the pay it incurred. Only meaningful when attendance-tracked;
+  // Days worked per branch, so net pay can be split proportionally per branch once
+  // it's known (see calculatePayrollRun). Only meaningful when attendance-tracked;
   // the default-working-days fallback carries no branch data.
   const branchBreakdown = attendanceTracked
     ? attendance.byBranch.map((b) => ({
         branchId: b.branchId,
         daysWorked: b.daysWorked,
-        grossPay: toNum(round2(dailyRate.mul(b.daysWorked))),
       }))
     : [];
 
@@ -336,6 +335,21 @@ export async function calculatePayrollRun(
 
     const itemNetPay = round2(payAfterDeductions.sub(savingsContribution));
 
+    // Split net pay across branches proportionally to days worked there, so the admin
+    // knows how much cash to pull from each branch's till. The last branch absorbs any
+    // rounding remainder so the slices sum exactly to net.
+    const totalBranchDays = b.branchBreakdown.reduce((sum, br) => sum + br.daysWorked, 0);
+    let allocatedNet = ZERO;
+    const branchRows = b.branchBreakdown.map((br, i) => {
+      const isLast = i === b.branchBreakdown.length - 1;
+      const share =
+        isLast || totalBranchDays === 0
+          ? round2(itemNetPay.sub(allocatedNet))
+          : round2(itemNetPay.mul(br.daysWorked).div(totalBranchDays));
+      allocatedNet = allocatedNet.add(share);
+      return { branchId: br.branchId, daysWorked: br.daysWorked, netPay: share };
+    });
+
     rows.push({
       payrollPeriodId: periodId,
       employeeId: employee.id,
@@ -350,11 +364,7 @@ export async function calculatePayrollRun(
       netPay: itemNetPay,
       status: "included",
       notes: attendanceNote,
-      branches: b.branchBreakdown.map((br) => ({
-        branchId: br.branchId,
-        daysWorked: br.daysWorked,
-        grossPay: br.grossPay,
-      })),
+      branches: branchRows,
     });
     totalGross = totalGross.add(b.grossPay);
     totalDeductions = totalDeductions.add(itemTotalDeductions);
@@ -519,7 +529,7 @@ function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
     branchBreakdown: item.branches.map((b) => ({
       branchName: b.branch?.name ?? "Unassigned",
       daysWorked: toNum(b.daysWorked),
-      grossPay: toNum(b.grossPay),
+      netPay: toNum(b.netPay),
     })),
   };
 }

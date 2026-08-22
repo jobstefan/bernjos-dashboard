@@ -41,7 +41,7 @@ export interface RunItemRow {
   branchBreakdown: {
     branchName: string;
     daysWorked: number;
-    grossPay: number;
+    netPay: number;
   }[];
 }
 

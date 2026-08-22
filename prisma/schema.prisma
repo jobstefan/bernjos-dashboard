@@ -197,16 +197,16 @@ model PayrollRunItem {
   @@map("payroll_run_items")
 }
 
-/// Snapshot of how a run item's gross pay splits across the branches the employee
-/// worked at in the period (gross = daily rate × days worked at that branch). Lets
-/// admins expense each employee's pay against the branch that incurred it.
+/// Snapshot of how a run item's net (take-home) pay splits across the branches the
+/// employee worked at in the period, allocated proportionally to days worked there.
+/// Lets admins pull each employee's cash from the branch that incurred it during payroll.
 /// A null `branchId` buckets days whose branch couldn't be resolved ("Unassigned").
 model PayrollRunItemBranch {
   id         String  @id @default(cuid())
   runItemId  String  @map("run_item_id")
   branchId   String? @map("branch_id")
   daysWorked Decimal @map("days_worked") @db.Decimal(6, 2)
-  grossPay   Decimal @map("gross_pay") @db.Decimal(12, 2)
+  netPay     Decimal @map("net_pay") @db.Decimal(12, 2)
 
   runItem PayrollRunItem @relation(fields: [runItemId], references: [id], onDelete: Cascade)
   branch  Branch?        @relation(fields: [branchId], references: [id])

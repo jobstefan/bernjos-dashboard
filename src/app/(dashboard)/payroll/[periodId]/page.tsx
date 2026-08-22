@@ -50,7 +50,7 @@ export default async function PeriodDetailPage({
     branchBreakdown: item.branches.map((b) => ({
       branchName: b.branch?.name ?? "Unassigned",
       daysWorked: Number(b.daysWorked),
-      grossPay: Number(b.grossPay),
+      netPay: Number(b.netPay),
     })),
   }));
 

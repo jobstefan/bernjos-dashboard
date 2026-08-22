@@ -17,11 +17,11 @@ export interface PayslipView {
   totalDeductions: number;
   netPay: number;
   remarks?: string | null;
-  /** Gross pay attributed to each branch worked (daily rate × days there). */
+  /** Net pay attributed to each branch worked (net × its day-share). */
   branchBreakdown?: {
     branchName: string;
     daysWorked: number;
-    grossPay: number;
+    netPay: number;
   }[];
 }
 
@@ -74,18 +74,6 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
           Earnings
         </div>
         <Line label="Basic (daily rate)" value={payslip.basicSalary} />
-        {payslip.branchBreakdown && payslip.branchBreakdown.length > 0 ? (
-          <>
-            {payslip.branchBreakdown.map((b, i) => (
-              <Line
-                key={`${b.branchName}-${i}`}
-                label={`${b.branchName} (${b.daysWorked} day${b.daysWorked === 1 ? "" : "s"})`}
-                value={b.grossPay}
-              />
-            ))}
-            <Line label="Gross pay" value={payslip.grossPay} emphasis />
-          </>
-        ) : null}
         {payslip.otherEarnings > 0 ? (
           <Line label="Other earnings" value={payslip.otherEarnings} />
         ) : null}
@@ -123,6 +111,28 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
             />
             <p className="pt-1 text-xs text-muted-foreground">
               Held in your savings account — this is your money, not a deduction.
+            </p>
+          </div>
+        </>
+      ) : null}
+
+      {payslip.branchBreakdown && payslip.branchBreakdown.length > 0 ? (
+        <>
+          <Separator />
+          <div>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Net pay by branch
+            </div>
+            {payslip.branchBreakdown.map((b, i) => (
+              <Line
+                key={`${b.branchName}-${i}`}
+                label={`${b.branchName} (${b.daysWorked} day${b.daysWorked === 1 ? "" : "s"})`}
+                value={b.netPay}
+              />
+            ))}
+            <Line label="Net pay" value={payslip.netPay} emphasis />
+            <p className="pt-1 text-xs text-muted-foreground">
+              Take-home split by branch worked — pull each amount from that branch.
             </p>
           </div>
         </>
