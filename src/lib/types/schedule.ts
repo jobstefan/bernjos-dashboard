@@ -20,6 +20,8 @@ export interface ScheduleRow {
   employeeId: string;
   employeeCode: string;
   employeeName: string;
+  /** Employee's department name; drives the row's color accent on the board. */
+  department: string;
   branchId: string | null;
   branchName: string | null;
   startTime: string | null;

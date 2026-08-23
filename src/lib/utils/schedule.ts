@@ -23,6 +23,45 @@ export function formatScheduleDate(dateIso: string): string {
   });
 }
 
+/**
+ * Fixed palette of accent classes for department color-coding. Kept as literal,
+ * complete class strings so Tailwind's compiler picks them up. Each entry pairs a
+ * dot background with a subtle row tint.
+ */
+const DEPARTMENT_ACCENTS = [
+  { dot: "bg-blue-500", tint: "bg-blue-500/5" },
+  { dot: "bg-emerald-500", tint: "bg-emerald-500/5" },
+  { dot: "bg-amber-500", tint: "bg-amber-500/5" },
+  { dot: "bg-violet-500", tint: "bg-violet-500/5" },
+  { dot: "bg-rose-500", tint: "bg-rose-500/5" },
+  { dot: "bg-cyan-500", tint: "bg-cyan-500/5" },
+  { dot: "bg-orange-500", tint: "bg-orange-500/5" },
+  { dot: "bg-lime-500", tint: "bg-lime-500/5" },
+  { dot: "bg-pink-500", tint: "bg-pink-500/5" },
+  { dot: "bg-indigo-500", tint: "bg-indigo-500/5" },
+] as const;
+
+const NEUTRAL_ACCENT = {
+  dot: "bg-muted-foreground/40",
+  tint: "",
+} as const;
+
+/**
+ * Deterministically map a department name to a color accent, so the same
+ * department always gets the same color across renders. Empty/unknown → neutral.
+ */
+export function departmentAccent(department: string): {
+  dot: string;
+  tint: string;
+} {
+  if (!department) return NEUTRAL_ACCENT;
+  let hash = 0;
+  for (let i = 0; i < department.length; i++) {
+    hash = (hash * 31 + department.charCodeAt(i)) >>> 0;
+  }
+  return DEPARTMENT_ACCENTS[hash % DEPARTMENT_ACCENTS.length];
+}
+
 const NO_BRANCH = "Unassigned";
 
 /**

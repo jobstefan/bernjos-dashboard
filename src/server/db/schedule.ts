@@ -4,7 +4,13 @@ import type { Prisma } from "@/generated/prisma/client";
 
 const withRelations = {
   employee: {
-    select: { id: true, employeeCode: true, firstName: true, lastName: true },
+    select: {
+      id: true,
+      employeeCode: true,
+      firstName: true,
+      lastName: true,
+      department: true,
+    },
   },
   branch: { select: { id: true, name: true } },
 } satisfies Prisma.ScheduleEntryInclude;

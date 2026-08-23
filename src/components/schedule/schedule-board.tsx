@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Save } from "lucide-react";
+import { Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/table";
 import { CopyScheduleButton } from "@/components/schedule/copy-schedule-button";
 import { saveDayScheduleAction } from "@/app/actions/schedule.actions";
+import { departmentAccent } from "@/lib/utils/schedule";
 import { cn } from "@/lib/utils";
 import type { BranchRow, ScheduleRow } from "@/lib/types/schedule";
 
@@ -98,6 +99,31 @@ export function ScheduleBoard({
       }),
     [rows, drafts, branches],
   );
+
+  // Display order: group by assigned branch first, then department, then name.
+  // Uses the live draft branch so rows regroup as branches are (re)assigned;
+  // unassigned employees sort to the bottom of each grouping.
+  const sortedRows = React.useMemo<ScheduleRow[]>(() => {
+    const branchNameFor = (row: ScheduleRow): string | null => {
+      const d = drafts[row.employeeId];
+      if (!d || d.branchId === NO_BRANCH) return null;
+      return branches.find((b) => b.id === d.branchId)?.name ?? null;
+    };
+    // Nulls (unassigned / no department) always sort last.
+    const cmp = (a: string | null, b: string | null): number => {
+      if (a === b) return 0;
+      if (!a) return 1;
+      if (!b) return -1;
+      return a.localeCompare(b);
+    };
+    return [...rows].sort((a, b) => {
+      return (
+        cmp(branchNameFor(a), branchNameFor(b)) ||
+        cmp(a.department || null, b.department || null) ||
+        a.employeeName.localeCompare(b.employeeName)
+      );
+    });
+  }, [rows, drafts, branches]);
 
   function onDateChange(value: string) {
     if (value) router.push(`/schedule?date=${value}`);
@@ -187,19 +213,34 @@ export function ScheduleBoard({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row) => {
+            {sortedRows.map((row) => {
               const d = drafts[row.employeeId];
               if (!d) return null;
               const isOff = !d.startTime && !d.endTime;
+              const accent = departmentAccent(row.department);
               return (
                 <TableRow
                   key={row.employeeId}
-                  className={cn(invalid.has(row.employeeId) && "bg-destructive/5")}
+                  className={cn(
+                    invalid.has(row.employeeId)
+                      ? "bg-destructive/5"
+                      : accent.tint,
+                  )}
                 >
                   <TableCell>
-                    <div className="font-medium">{row.employeeName}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "size-2 shrink-0 rounded-full",
+                          accent.dot,
+                        )}
+                        aria-hidden
+                      />
+                      <span className="font-medium">{row.employeeName}</span>
+                    </div>
+                    <div className="pl-4 text-xs text-muted-foreground">
                       {row.employeeCode}
+                      {row.department ? ` · ${row.department}` : ""}
                       {isOff ? " · Day off" : ""}
                     </div>
                   </TableCell>
@@ -250,14 +291,34 @@ export function ScheduleBoard({
                     />
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="time"
-                      value={d.endTime}
-                      disabled={!canEdit}
-                      onChange={(e) =>
-                        update(row.employeeId, { endTime: e.target.value })
-                      }
-                    />
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="time"
+                        value={d.endTime}
+                        disabled={!canEdit}
+                        onChange={(e) =>
+                          update(row.employeeId, { endTime: e.target.value })
+                        }
+                      />
+                      {canEdit ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Clear times (mark day off)"
+                          title="Clear times"
+                          disabled={!d.startTime && !d.endTime}
+                          onClick={() =>
+                            update(row.employeeId, {
+                              startTime: "",
+                              endTime: "",
+                            })
+                          }
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      ) : null}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Input

@@ -19,6 +19,7 @@ import {
   createEmployeeAction,
   updateEmployeeAction,
 } from "@/app/actions/employee.actions";
+import type { DepartmentOption } from "@/lib/types/organization";
 
 export interface EmployeeFormValues {
   id?: string;
@@ -94,9 +95,12 @@ const EMPTY: EmployeeFormValues = {
 export function EmployeeForm({
   mode,
   initial,
+  departments = [],
 }: {
   mode: "create" | "edit";
   initial?: Partial<EmployeeFormValues>;
+  /** Curated departments (with their positions) to populate the dropdowns. */
+  departments?: DepartmentOption[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
@@ -106,9 +110,33 @@ export function EmployeeForm({
   const [selects, setSelects] = React.useState({
     employmentStatus: initial?.employmentStatus ?? EMPTY.employmentStatus,
     payFrequency: initial?.payFrequency ?? EMPTY.payFrequency,
+    department: initial?.department ?? EMPTY.department,
+    position: initial?.position ?? EMPTY.position,
   });
 
   const v = { ...EMPTY, ...initial };
+
+  // Department options, keyed by name (the value stored on the employee). Include
+  // the current value even if it's a legacy free-text name not in the table, so
+  // editing never silently blanks it.
+  const departmentOptions = React.useMemo<[string, string][]>(() => {
+    const names = departments.map((d) => d.name);
+    if (selects.department && !names.includes(selects.department)) {
+      names.push(selects.department);
+    }
+    return names.map((n) => [n, n]);
+  }, [departments, selects.department]);
+
+  // Positions belonging to the selected department, plus the current value as a
+  // fallback so legacy values survive editing.
+  const positionOptions = React.useMemo<[string, string][]>(() => {
+    const dept = departments.find((d) => d.name === selects.department);
+    const names = dept ? dept.positions.map((p) => p.name) : [];
+    if (selects.position && !names.includes(selects.position)) {
+      names.push(selects.position);
+    }
+    return names.map((n) => [n, n]);
+  }, [departments, selects.department, selects.position]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -124,8 +152,8 @@ export function EmployeeForm({
       lastName: get("lastName"),
       middleName: get("middleName"),
       email: get("email"),
-      position: get("position"),
-      department: get("department"),
+      position: selects.position || undefined,
+      department: selects.department || undefined,
       employmentStatus: selects.employmentStatus,
       dateHired: get("dateHired"),
       basicSalary: get("basicSalary"),
@@ -220,8 +248,34 @@ export function EmployeeForm({
 
       <Section title="Employment Details">
         <TextField name="employeeCode" label="Employee code" defaultValue={v.employeeCode} error={errors.employeeCode} />
-        <TextField name="position" label="Position" defaultValue={v.position} error={errors.position} />
-        <TextField name="department" label="Department" defaultValue={v.department} error={errors.department} />
+        <SelectField
+          label="Department"
+          value={selects.department}
+          onChange={(val) =>
+            // Changing department clears any position that isn't under it.
+            setSelects((s) => {
+              const dept = departments.find((d) => d.name === val);
+              const stillValid =
+                dept?.positions.some((p) => p.name === s.position) ?? false;
+              return { ...s, department: val, position: stillValid ? s.position : "" };
+            })
+          }
+          options={departmentOptions}
+          placeholder="Select a department"
+          error={errors.department}
+        />
+        <SelectField
+          label="Position"
+          value={selects.position}
+          onChange={(val) => setSelects((s) => ({ ...s, position: val }))}
+          options={positionOptions}
+          placeholder={
+            selects.department
+              ? "Select a position"
+              : "Select a department first"
+          }
+          error={errors.position}
+        />
         <SelectField
           label="Employment status"
           value={selects.employmentStatus}
@@ -347,18 +401,26 @@ function SelectField({
   value,
   onChange,
   options,
+  placeholder,
+  error,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: [string, string][];
+  placeholder?: string;
+  error?: string[];
 }) {
   return (
     <div className="grid gap-2">
       <Label>{label}</Label>
       <Select value={value} onValueChange={(val) => onChange(val as string)}>
         <SelectTrigger className="w-full">
-          <SelectValue />
+          <SelectValue placeholder={placeholder}>
+            {(val) =>
+              options.find(([v]) => v === val)?.[1] ?? placeholder ?? ""
+            }
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {options.map(([val, labelText]) => (
@@ -368,6 +430,9 @@ function SelectField({
           ))}
         </SelectContent>
       </Select>
+      {error?.length ? (
+        <p className="text-xs text-destructive">{error[0]}</p>
+      ) : null}
     </div>
   );
 }

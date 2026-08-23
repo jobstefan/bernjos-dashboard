@@ -273,6 +273,43 @@ model CashAdvance {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Organization domain (curated departments & positions)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A curated department. The managed source for the department names shown on the
+/// employee form. `Employee.department` remains a plain string that stores the
+/// chosen name (not a foreign key), so legacy free-text values keep working.
+model Department {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  positions Position[]
+
+  @@map("departments")
+}
+
+/// A job position nested under a department. Names are unique within their
+/// department. Like departments, this feeds the employee form's dropdown while
+/// `Employee.position` stays a plain string.
+model Position {
+  id           String    @id @default(cuid())
+  name         String
+  departmentId String    @map("department_id")
+  deletedAt    DateTime? @map("deleted_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([departmentId, name])
+  @@index([departmentId])
+  @@map("positions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Daily schedule domain
 // ─────────────────────────────────────────────────────────────────────────────
 

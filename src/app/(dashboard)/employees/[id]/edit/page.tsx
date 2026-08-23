@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getCurrentRole, isAdmin } from "@/lib/auth/rbac";
 import { getEmployee } from "@/server/services/employee.service";
+import { getDepartmentOptions } from "@/server/services/department.service";
 import {
   EmployeeForm,
   type EmployeeFormValues,
@@ -22,7 +23,10 @@ export default async function EditEmployeePage({
   if (!isAdmin(role)) redirect("/employees");
 
   const { id } = await params;
-  const employee = await getEmployee(id).catch(() => null);
+  const [employee, departments] = await Promise.all([
+    getEmployee(id).catch(() => null),
+    getDepartmentOptions(),
+  ]);
   if (!employee) notFound();
 
   const initial: EmployeeFormValues = {
@@ -69,7 +73,7 @@ export default async function EditEmployeePage({
           {employee.firstName} {employee.lastName} · {employee.employeeCode}
         </p>
       </div>
-      <EmployeeForm mode="edit" initial={initial} />
+      <EmployeeForm mode="edit" initial={initial} departments={departments} />
     </div>
   );
 }

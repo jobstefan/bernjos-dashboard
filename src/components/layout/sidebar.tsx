@@ -12,6 +12,7 @@ import {
   HandCoins,
   CalendarDays,
   Building2,
+  Network,
   PiggyBank,
   Fingerprint,
   LogOut,
@@ -32,6 +33,7 @@ const ICONS = {
   cashAdvance: HandCoins,
   schedule: CalendarDays,
   branch: Building2,
+  department: Network,
   savings: PiggyBank,
   attendance: Fingerprint,
 } as const;
