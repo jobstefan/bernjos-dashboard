@@ -75,7 +75,7 @@ export async function createEmployee(
   actor: Actor,
 ): Promise<{ employee: Employee; username: string }> {
   const username = await uniqueUsername(
-    buildUsername(input.firstName, input.lastName),
+    buildUsername(input.firstName, input.lastName, input.middleName),
     input.employeeCode,
   );
 

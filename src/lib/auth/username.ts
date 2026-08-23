@@ -19,19 +19,21 @@ function sanitize(value: string): string {
 }
 
 /**
- * Build the base login username from a name: initials of every first-name token
- * followed by the full last name, lowercased and stripped of punctuation/spaces.
+ * Build the base login username from a name: initials of every first-name token,
+ * then the initial of the middle name (if provided), followed by the full last name.
  *
- *   "Juan Miguel" + "Dela Cruz" -> "jmdelacruz"
+ *   "Juan Miguel" + "Santos" + "Dela Cruz" -> "jmsdelacruz"
+ *   "Juan Miguel" + null     + "Dela Cruz" -> "jmdelacruz"
  */
-export function buildUsername(firstName: string, lastName: string): string {
-  const initials = firstName
+export function buildUsername(firstName: string, lastName: string, middleName?: string | null): string {
+  const firstInitials = firstName
     .trim()
     .split(/\s+/)
     .filter(Boolean)
     .map((token) => token[0])
     .join("");
-  return sanitize(initials + lastName);
+  const middleInitial = middleName?.trim() ? middleName.trim()[0] : "";
+  return sanitize(firstInitials + middleInitial + lastName);
 }
 
 /**
