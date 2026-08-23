@@ -27,7 +27,8 @@ export const createEmployeeSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required."),
   lastName: z.string().trim().min(1, "Last name is required."),
   middleName: z.string().trim().optional().nullable(),
-  email: z.string().trim().email("Enter a valid email."),
+  // Optional — many employees have no email. Admins enter it here when known.
+  email: z.string().trim().email("Enter a valid email.").optional().nullable(),
   position: z.string().trim().min(1, "Position is required."),
   department: z.string().trim().min(1, "Department is required."),
   employmentStatus: employmentStatusEnum.default("active"),

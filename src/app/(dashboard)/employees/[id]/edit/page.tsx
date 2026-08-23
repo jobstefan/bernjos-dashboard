@@ -31,7 +31,7 @@ export default async function EditEmployeePage({
     firstName: employee.firstName,
     lastName: employee.lastName,
     middleName: employee.middleName ?? "",
-    email: employee.email,
+    email: employee.email ?? "",
     position: employee.position,
     department: employee.department,
     employmentStatus: employee.employmentStatus,

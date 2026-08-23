@@ -31,6 +31,11 @@ const envSchema = z.object({
   DEV_AUTH: z.enum(["true", "false"]).optional(),
   DEV_AUTH_PASSWORD: z.string().optional(),
 
+  // Temporary password set on the Clerk account created for a new employee.
+  // Handed out by the admin; the employee replaces it during first-login
+  // onboarding. Defaults to "1234" (created with skipPasswordChecks).
+  EMPLOYEE_TEMP_PASSWORD: z.string().optional(),
+
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 

@@ -12,6 +12,7 @@ import {
   type PayslipHistoryRow,
 } from "@/components/payroll/payslip-history";
 import { EmptyState } from "@/components/payroll/empty-state";
+import { ResetPasswordButton } from "@/components/employees/reset-password-button";
 import { FileText } from "lucide-react";
 import { formatDate, formatPeso } from "@/lib/utils/payroll";
 
@@ -54,7 +55,7 @@ export default async function EmployeeProfilePage({
   const fields: [string, string][] = [
     ["Employee code", employee.employeeCode],
     ["Full name", `${employee.firstName} ${employee.middleName ?? ""} ${employee.lastName}`.replace(/\s+/g, " ").trim()],
-    ["Email", employee.email],
+    ["Email", employee.email ?? "—"],
     ["Position", employee.position],
     ["Department", employee.department],
     ["Employment status", employee.employmentStatus],
@@ -131,6 +132,35 @@ export default async function EmployeeProfilePage({
           )}
         </TabsContent>
       </Tabs>
+      
+      {canManage && employee.username ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Login credentials</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <div className="space-y-1">
+              <p>
+                Username:{" "}
+                <span className="font-mono font-medium">{employee.username}</span>
+              </p>
+              <p className="text-muted-foreground">
+                Temporary password until first login:{" "}
+                <span className="font-mono">1234</span>. The employee sets a new
+                password on first sign-in.
+              </p>
+              <p className="text-muted-foreground">
+                Forgot their password? Reset it here — the temporary password is
+                restored and they set a new one on next sign-in.
+              </p>
+            </div>
+            {employee.clerkUserId ? (
+              <ResetPasswordButton employeeId={employee.id} />
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
     </div>
   );
 }

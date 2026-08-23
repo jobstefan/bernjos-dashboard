@@ -10,7 +10,14 @@ import {
 } from "@/server/db/employees";
 import { upsertSavingsAccount } from "@/server/db/savings";
 import { auditLog } from "@/server/services/audit.service";
-import { NotFoundError } from "@/lib/errors/payroll";
+import {
+  createEmployeeClerkUser,
+  deleteClerkUser,
+  resetEmployeePassword as resetClerkPassword,
+} from "@/server/services/clerk-account.service";
+import { buildUsername, uniqueUsername } from "@/lib/auth/username";
+import { isDevAuthEnabled } from "@/lib/auth/dev-session";
+import { BadRequestError, NotFoundError } from "@/lib/errors/payroll";
 import type { Actor, Employee, EmployeeFilters } from "@/lib/types/payroll";
 import type {
   CreateEmployeeSchema,
@@ -46,7 +53,7 @@ function toCreateData(input: CreateEmployeeSchema): Prisma.EmployeeCreateInput {
     firstName: input.firstName,
     lastName: input.lastName,
     middleName: input.middleName ?? null,
-    email: input.email,
+    email: input.email ?? null,
     position: input.position,
     department: input.department,
     employmentStatus: input.employmentStatus,
@@ -66,8 +73,35 @@ function toCreateData(input: CreateEmployeeSchema): Prisma.EmployeeCreateInput {
 export async function createEmployee(
   input: CreateEmployeeSchema,
   actor: Actor,
-): Promise<Employee> {
-  const employee = await insertEmployee(toCreateData(input));
+): Promise<{ employee: Employee; username: string }> {
+  const username = await uniqueUsername(
+    buildUsername(input.firstName, input.lastName),
+    input.employeeCode,
+  );
+
+  // In real Clerk mode, provision the login account first so we can link its id.
+  // Dev-cookie mode has no Clerk; the employee simply gets no login account.
+  const clerkUserId = isDevAuthEnabled()
+    ? null
+    : await createEmployeeClerkUser({
+        username,
+        firstName: input.firstName,
+        lastName: input.lastName,
+      });
+
+  let employee: Employee;
+  try {
+    employee = await insertEmployee({
+      ...toCreateData(input),
+      username,
+      clerkUserId,
+    });
+  } catch (error) {
+    // Roll back the orphaned Clerk account if linking the DB row failed.
+    if (clerkUserId) await deleteClerkUser(clerkUserId);
+    throw error;
+  }
+
   // Savings is mandatory: every employee starts with an account at the ₱100 floor.
   await upsertSavingsAccount({
     employeeId: employee.id,
@@ -81,7 +115,7 @@ export async function createEmployee(
     entityId: employee.id,
     after: employee,
   });
-  return employee;
+  return { employee, username };
 }
 
 export async function updateEmployee(
@@ -129,6 +163,26 @@ export async function updateEmployee(
     after: employee,
   });
   return employee;
+}
+
+/**
+ * Reset an employee's login to the temporary password and re-arm onboarding.
+ * Used when an employee (typically one with no email for self-service recovery)
+ * forgets their password: the admin resets it and hands the temp password out.
+ */
+export async function resetEmployeeLogin(id: string, actor: Actor): Promise<void> {
+  const employee = await findEmployeeById(id);
+  if (!employee) throw new NotFoundError("Employee", id);
+  if (!employee.clerkUserId) {
+    throw new BadRequestError("This employee has no login account to reset.");
+  }
+  await resetClerkPassword(employee.clerkUserId);
+  await auditLog({
+    actor,
+    action: "employee.password_reset",
+    entityType: "employee",
+    entityId: id,
+  });
 }
 
 export async function deactivateEmployee(id: string, actor: Actor): Promise<void> {

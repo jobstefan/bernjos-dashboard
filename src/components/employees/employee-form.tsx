@@ -141,12 +141,16 @@ export function EmployeeForm({
           ? await createEmployeeAction(input)
           : await updateEmployeeAction(input);
       if (res.success) {
-        toast.success(
-          mode === "create" ? "Employee created." : "Employee updated.",
-        );
-        router.push(
-          mode === "create" ? "/employees" : `/employees/${res.data.id}`,
-        );
+        if (mode === "create" && "username" in res.data) {
+          toast.success("Employee created.", {
+            description: `Login: username "${res.data.username}", temporary password "1234". Share these with the employee.`,
+            duration: 10000,
+          });
+        } else {
+          toast.success("Employee updated.");
+        }
+        // Land on the detail page so the admin can see the login credentials.
+        router.push(`/employees/${res.data.id}`);
         router.refresh();
       } else {
         const fieldErrors = res.fieldErrors ?? {};
@@ -195,7 +199,13 @@ export function EmployeeForm({
         <TextField name="firstName" label="First name" defaultValue={v.firstName} error={errors.firstName} />
         <TextField name="middleName" label="Middle name" defaultValue={v.middleName} error={errors.middleName} />
         <TextField name="lastName" label="Last name" defaultValue={v.lastName} error={errors.lastName} />
-        <TextField name="email" label="Email" type="email" defaultValue={v.email} error={errors.email} />
+        <TextField
+          name="email"
+          label="Email"
+          type="email"
+          defaultValue={v.email}
+          error={errors.email}
+        />
       </Section>
 
       <Section title="Employment Details">
@@ -245,7 +255,6 @@ export function EmployeeForm({
           type="number"
           defaultValue={v.philhealthAmount}
           error={errors.philhealthAmount}
-          hint="Leave blank or 0 for no PhilHealth deduction."
         />
       </Section>
 
@@ -300,6 +309,7 @@ function TextField({
   defaultValue,
   error,
   hint,
+  disabled,
 }: {
   name: string;
   label: string;
@@ -307,11 +317,12 @@ function TextField({
   defaultValue?: string;
   error?: string[];
   hint?: string;
+  disabled?: boolean;
 }) {
   return (
     <div className="grid gap-2">
       <Label htmlFor={name}>{label}</Label>
-      <Input id={name} name={name} type={type} defaultValue={defaultValue} />
+      <Input id={name} name={name} type={type} defaultValue={defaultValue} disabled={disabled} />
       {error?.length ? (
         <p className="text-xs text-destructive">{error[0]}</p>
       ) : hint ? (

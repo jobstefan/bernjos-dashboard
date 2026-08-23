@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 
 // Next.js 16 renamed Middleware to "Proxy" (this file replaces middleware.ts).
 // Everything except the sign-in/sign-up routes and public assets requires auth.
@@ -12,13 +13,28 @@ function isPublicRoute(req: NextRequest) {
 // here (not imported) so this edge middleware avoids pulling in next/headers.
 const DEV_SESSION_COOKIE = "dev_session";
 
-export default function middleware(req: NextRequest) {
+// Local dev-login mode: a trivial cookie-presence check, no Clerk involved.
+function devMiddleware(req: NextRequest) {
   if (isPublicRoute(req)) return NextResponse.next();
   if (!req.cookies.get(DEV_SESSION_COOKIE)) {
     return NextResponse.redirect(new URL("/sign-in", req.url));
   }
   return NextResponse.next();
 }
+
+// Clerk mode: MUST run clerkMiddleware so the request carries Clerk auth context
+// — otherwise `auth()`/`currentUser()` in server components and actions throw
+// "auth() was called but Clerk can't detect usage of clerkMiddleware()".
+// `auth.protect()` handles the redirect to /sign-in for unauthenticated users.
+const clerkAuthMiddleware = clerkMiddleware(async (auth, req) => {
+  if (!isPublicRoute(req)) await auth.protect();
+});
+
+// Pick the middleware at module load. `DEV_AUTH` is read from the environment
+// once, so switching it requires a dev-server restart.
+export default process.env.DEV_AUTH === "true"
+  ? devMiddleware
+  : clerkAuthMiddleware;
 
 export const config = {
   matcher: [

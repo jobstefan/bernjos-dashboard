@@ -40,6 +40,12 @@ export function findEmployeeByCode(employeeCode: string) {
   return prisma.employee.findFirst({ where: { employeeCode, deletedAt: null } });
 }
 
+/** Username uniqueness spans all rows (including soft-deleted) since the column
+ * is globally unique in the DB. */
+export function findEmployeeByUsername(username: string) {
+  return prisma.employee.findUnique({ where: { username } });
+}
+
 export function findActiveEmployeesByFrequency(
   frequency: "semi_monthly" | "monthly",
 ) {

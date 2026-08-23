@@ -67,11 +67,16 @@ enum CashAdvanceStatus {
 model Employee {
   id                String           @id @default(cuid())
   clerkUserId       String?          @unique @map("clerk_user_id")
+  /// Auto-generated login name (first-name initials + last name) handed to the
+  /// employee. Stored here for admin display and username-collision checks.
+  username          String?          @unique @map("username")
   employeeCode      String           @unique @map("employee_code")
   firstName         String           @map("first_name")
   lastName          String           @map("last_name")
   middleName        String?          @map("middle_name")
-  email             String           @map("email")
+  /// Set by the employee during first-login onboarding (verified Clerk email),
+  /// null at creation. Admins can still edit it later.
+  email             String?          @map("email")
   position          String
   department        String
   employmentStatus  EmploymentStatus @default(active) @map("employment_status")

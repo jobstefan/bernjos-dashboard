@@ -9,6 +9,7 @@ import {
 import {
   createEmployee,
   deactivateEmployee,
+  resetEmployeeLogin,
   updateEmployee,
 } from "@/server/services/employee.service";
 import { toActionError } from "@/server/errors";
@@ -16,7 +17,7 @@ import type { ActionResult } from "@/lib/types/action";
 
 export async function createEmployeeAction(
   input: unknown,
-): Promise<ActionResult<{ id: string }>> {
+): Promise<ActionResult<{ id: string; username: string }>> {
   try {
     const actor = await requireAdmin();
     const parsed = createEmployeeSchema.safeParse(input);
@@ -27,9 +28,9 @@ export async function createEmployeeAction(
         fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
       };
     }
-    const employee = await createEmployee(parsed.data, actor);
+    const { employee, username } = await createEmployee(parsed.data, actor);
     revalidatePath("/employees");
-    return { success: true, data: { id: employee.id } };
+    return { success: true, data: { id: employee.id, username } };
   } catch (error) {
     return { success: false, ...toActionError(error) };
   }
@@ -53,6 +54,19 @@ export async function updateEmployeeAction(
     revalidatePath("/employees");
     revalidatePath(`/employees/${id}`);
     return { success: true, data: { id: employee.id } };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+export async function resetEmployeePasswordAction(
+  id: string,
+): Promise<ActionResult> {
+  try {
+    const actor = await requireAdmin();
+    await resetEmployeeLogin(id, actor);
+    revalidatePath(`/employees/${id}`);
+    return { success: true, data: undefined };
   } catch (error) {
     return { success: false, ...toActionError(error) };
   }
