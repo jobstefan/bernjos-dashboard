@@ -92,6 +92,8 @@ model Employee {
   /// Fixed PhilHealth employee amount deducted per period. 0 (or null) means the
   /// employee does not contribute — no PhilHealth deduction appears on the payslip.
   philhealthAmount  Decimal?         @default(0) @map("philhealth_amount") @db.Decimal(12, 2)
+  contactNumber     String?          @map("contact_number")
+  address           String?
   bankName          String?          @map("bank_name")
   bankAccountNumber String?          @map("bank_account_number")
   deletedAt         DateTime?        @map("deleted_at")

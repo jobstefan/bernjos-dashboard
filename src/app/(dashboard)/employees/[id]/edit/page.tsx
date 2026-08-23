@@ -49,6 +49,8 @@ export default async function EditEmployeePage({
       employee.philhealthAmount != null
         ? String(Number(employee.philhealthAmount))
         : "",
+    contactNumber: employee.contactNumber ?? "",
+    address: employee.address ?? "",
     bankName: employee.bankName ?? "",
     bankAccountNumber: employee.bankAccountNumber ?? "",
   };

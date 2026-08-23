@@ -38,6 +38,8 @@ export interface EmployeeFormValues {
   philhealthNumber: string;
   sssSalaryBasis: string;
   philhealthAmount: string;
+  contactNumber: string;
+  address: string;
   bankName: string;
   bankAccountNumber: string;
 }
@@ -60,6 +62,8 @@ const FIELD_LABELS: Record<string, string> = {
   philhealthNumber: "PhilHealth number",
   sssSalaryBasis: "SSS contribution salary",
   philhealthAmount: "PhilHealth amount",
+  contactNumber: "Contact number",
+  address: "Address",
   bankName: "Bank name",
   bankAccountNumber: "Account number",
 };
@@ -81,6 +85,8 @@ const EMPTY: EmployeeFormValues = {
   philhealthNumber: "",
   sssSalaryBasis: "",
   philhealthAmount: "",
+  contactNumber: "",
+  address: "",
   bankName: "",
   bankAccountNumber: "",
 };
@@ -129,6 +135,8 @@ export function EmployeeForm({
       philhealthNumber: get("philhealthNumber"),
       sssSalaryBasis: get("sssSalaryBasis"),
       philhealthAmount: get("philhealthAmount"),
+      contactNumber: get("contactNumber"),
+      address: get("address"),
       bankName: get("bankName"),
       bankAccountNumber: get("bankAccountNumber"),
     };
@@ -206,6 +214,8 @@ export function EmployeeForm({
           defaultValue={v.email}
           error={errors.email}
         />
+        <TextField name="contactNumber" label="Contact number" defaultValue={v.contactNumber} error={errors.contactNumber} />
+        <TextField name="address" label="Address" defaultValue={v.address} error={errors.address} />
       </Section>
 
       <Section title="Employment Details">

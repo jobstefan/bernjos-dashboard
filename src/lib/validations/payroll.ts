@@ -50,6 +50,8 @@ export const createEmployeeSchema = z.object({
     .nonnegative("PhilHealth amount can't be negative.")
     .optional()
     .nullable(),
+  contactNumber: z.string().trim().optional().nullable(),
+  address: z.string().trim().optional().nullable(),
   bankName: z.string().trim().optional().nullable(),
   bankAccountNumber: z.string().trim().optional().nullable(),
 });

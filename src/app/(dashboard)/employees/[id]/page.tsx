@@ -56,6 +56,8 @@ export default async function EmployeeProfilePage({
     ["Employee code", employee.employeeCode],
     ["Full name", `${employee.firstName} ${employee.middleName ?? ""} ${employee.lastName}`.replace(/\s+/g, " ").trim()],
     ["Email", employee.email ?? "—"],
+    ["Contact number", employee.contactNumber ?? "—"],
+    ["Address", employee.address ?? "—"],
     ["Position", employee.position],
     ["Department", employee.department],
     ["Employment status", employee.employmentStatus],
