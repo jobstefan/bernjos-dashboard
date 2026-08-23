@@ -4,6 +4,7 @@ import { Geist } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
+import { isDevAuthEnabled } from "@/lib/auth/dev-session";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -18,13 +19,21 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const devAuth = isDevAuthEnabled();
   return (
     <html lang="en" className={cn("font-sans", geist.variable)}>
       <body>
-        <ClerkProvider>
-          {children}
-          <Toaster />
-        </ClerkProvider>
+        {devAuth ? (
+          <>
+            {children}
+            <Toaster />
+          </>
+        ) : (
+          <ClerkProvider>
+            {children}
+            <Toaster />
+          </ClerkProvider>
+        )}
       </body>
     </html>
   );

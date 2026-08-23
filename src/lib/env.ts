@@ -11,9 +11,9 @@ const envSchema = z.object({
   // Database (Prisma + PostgreSQL)
   DATABASE_URL: z.string().min(1),
 
-  // Clerk
-  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().min(1),
-  CLERK_SECRET_KEY: z.string().min(1),
+  // Clerk (optional when DEV_AUTH=true)
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().optional(),
+  CLERK_SECRET_KEY: z.string().optional(),
 
   // Inngest (optional locally — required in production)
   INNGEST_EVENT_KEY: z.string().optional(),
