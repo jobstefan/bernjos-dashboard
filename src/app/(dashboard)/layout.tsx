@@ -1,4 +1,4 @@
-import { currentUser } from "@clerk/nextjs/server";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { getCurrentRole } from "@/lib/auth/rbac";
 import { isDevAuthEnabled } from "@/lib/auth/dev-session";
 import { Sidebar, MobileTopbar } from "@/components/layout/sidebar";
@@ -17,7 +17,7 @@ export default async function DashboardLayout({
   // sign-in soft navigation renders a blank page (only a hard refresh recovers).
   // Returning the onboarding UI as normal 200 content avoids that entirely.
   if (!devAuth) {
-    const user = await currentUser();
+    const user = await getCurrentUser();
     if (user?.publicMetadata?.needsOnboarding === true) {
       return (
         <main className="flex min-h-svh items-center justify-center p-6">

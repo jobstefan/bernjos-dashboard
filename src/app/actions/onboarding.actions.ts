@@ -1,7 +1,8 @@
 "use server";
 
-import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/types/action";
 
@@ -52,7 +53,7 @@ export async function setNewPasswordAction(
  */
 export async function completeOnboardingAction(): Promise<ActionResult> {
   try {
-    const user = await currentUser();
+    const user = await getCurrentUser();
     if (!user) {
       return { success: false, error: "You must be signed in." };
     }

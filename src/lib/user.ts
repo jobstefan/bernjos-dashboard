@@ -1,5 +1,5 @@
 import "server-only";
-import { currentUser } from "@clerk/nextjs/server";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { prisma } from "@/lib/db";
 
 /**
@@ -8,7 +8,7 @@ import { prisma } from "@/lib/db";
  * signed in. This is the link between Clerk (auth source of truth) and our DB.
  */
 export async function getOrCreateUser() {
-  const clerkUser = await currentUser();
+  const clerkUser = await getCurrentUser();
   if (!clerkUser) return null;
 
   const email =

@@ -1,5 +1,5 @@
 import "server-only";
-import { currentUser } from "@clerk/nextjs/server";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { UnauthorizedError } from "@/lib/errors/payroll";
 import { isDevAuthEnabled, readDevSession } from "@/lib/auth/dev-session";
 import type { Actor, Role } from "@/lib/types/payroll";
@@ -59,7 +59,7 @@ export async function getActor(): Promise<Actor> {
     };
   }
 
-  const user = await currentUser();
+  const user = await getCurrentUser();
   if (!user) {
     throw new UnauthorizedError("You must be signed in.");
   }
@@ -80,7 +80,7 @@ export async function getCurrentRole(): Promise<Role> {
     return session?.role ?? "employee";
   }
 
-  const user = await currentUser();
+  const user = await getCurrentUser();
   if (!user) return "employee";
   return resolveRole(user.publicMetadata?.role);
 }
