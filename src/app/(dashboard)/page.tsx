@@ -15,11 +15,14 @@ export default async function DashboardHome() {
   const actor = await getActor();
 
   // Sync the Clerk user into the DB; tolerate an unreachable database.
+  // Skip when DEV_AUTH is on — there is no Clerk user to sync.
   let dbError: string | null = null;
-  try {
-    await getOrCreateUser();
-  } catch (err) {
-    dbError = err instanceof Error ? err.message : "Database unavailable";
+  if (process.env.DEV_AUTH !== "true") {
+    try {
+      await getOrCreateUser();
+    } catch (err) {
+      dbError = err instanceof Error ? err.message : "Database unavailable";
+    }
   }
 
   const canPayroll = canViewPayroll(actor.role);
