@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
 import { isDevAuthEnabled } from "@/lib/auth/dev-session";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/next";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -28,12 +29,14 @@ export default function RootLayout({
           <>
             {children}
             <Toaster />
+            <Analytics />
             <SpeedInsights />
           </>
         ) : (
           <ClerkProvider>
             {children}
             <Toaster />
+            <Analytics />
             <SpeedInsights />
           </ClerkProvider>
         )}
