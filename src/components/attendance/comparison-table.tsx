@@ -64,6 +64,11 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
                 Manual
               </Badge>
             ) : null}
+            {row.original.needsReview ? (
+              <Badge variant="destructive" className="text-[10px]">
+                Review
+              </Badge>
+            ) : null}
           </span>
         ),
       },
@@ -83,19 +88,18 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
       },
       {
         id: "variance",
-        header: "Late / Undertime",
+        header: "Late / Undertime / Break",
         enableSorting: false,
         cell: ({ row }) => {
-          const { lateMinutes, undertimeMinutes } = row.original;
-          if (!lateMinutes && !undertimeMinutes)
+          const { lateMinutes, undertimeMinutes, breakMinutes } = row.original;
+          const parts = [
+            lateMinutes ? `${lateMinutes}m late` : null,
+            undertimeMinutes ? `${undertimeMinutes}m under` : null,
+            breakMinutes ? `${breakMinutes}m break` : null,
+          ].filter(Boolean);
+          if (parts.length === 0)
             return <span className="text-muted-foreground">—</span>;
-          return (
-            <span className="text-sm">
-              {lateMinutes ? `${lateMinutes}m late` : ""}
-              {lateMinutes && undertimeMinutes ? " · " : ""}
-              {undertimeMinutes ? `${undertimeMinutes}m under` : ""}
-            </span>
-          );
+          return <span className="text-sm">{parts.join(" · ")}</span>;
         },
       },
       {

@@ -32,6 +32,14 @@ export const editAttendanceSchema = z.object({
   date: z.string().regex(DATE_RE, "Enter a valid date."),
   timeIn: hhmmOrNull,
   timeOut: hhmmOrNull,
+  /** Start of the mid-day gap (first punch-out during the shift). */
+  gapStart: hhmmOrNull,
+  /** End of the mid-day gap (first punch-back-in during the shift). */
+  gapEnd: hhmmOrNull,
+  /** Second mid-day gap start — optional manual add-in. */
+  gap2Start: hhmmOrNull,
+  /** Second mid-day gap end — optional manual add-in. */
+  gap2End: hhmmOrNull,
 });
 
 /** Remove one employee-day's attendance record. */

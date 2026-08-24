@@ -11,6 +11,12 @@ export interface DayComparisonInput {
   timeIn: string | null;
   /** Actual clock-out `HH:MM`. */
   timeOut: string | null;
+  /**
+   * Mid-shift gap minutes (time punched out between first and last punch). `0`
+   * for a clean day; `null` when punches didn't pair and the gap is unresolved —
+   * treated as 0 for the math but surfaced via `needsReview` for a manual add-in.
+   */
+  breakMinutes?: number | null;
 }
 
 export interface DayComparison {
@@ -19,8 +25,12 @@ export interface DayComparison {
   lateMinutes: number;
   /** Minutes clocked out before shift end (0 if none/complete). */
   undertimeMinutes: number;
+  /** Mid-shift gap minutes deducted (time punched out between first and last punch). */
+  breakMinutes: number;
   /** Scheduled shift length in minutes (0 when unscheduled) — for payroll pro-rating. */
   scheduledMinutes: number;
+  /** The employee clocked in but their punches didn't pair — needs a manual gap entry. */
+  needsReview: boolean;
 }
 
 const toMinutes = (hhmm: string): number => {
@@ -40,7 +50,14 @@ export function compareDay(
 
   // No schedule → nothing to measure against (e.g. worked on a day off).
   if (!input.startTime || !input.endTime) {
-    return { status: "no-schedule", lateMinutes: 0, undertimeMinutes: 0, scheduledMinutes: 0 };
+    return {
+      status: "no-schedule",
+      lateMinutes: 0,
+      undertimeMinutes: 0,
+      breakMinutes: 0,
+      scheduledMinutes: 0,
+      needsReview: false,
+    };
   }
 
   const startMin = toMinutes(input.startTime);
@@ -50,7 +67,14 @@ export function compareDay(
 
   // Scheduled but no attendance row → absent.
   if (!input.timeIn) {
-    return { status: "absent", lateMinutes: 0, undertimeMinutes: 0, scheduledMinutes };
+    return {
+      status: "absent",
+      lateMinutes: 0,
+      undertimeMinutes: 0,
+      breakMinutes: 0,
+      scheduledMinutes,
+      needsReview: false,
+    };
   }
 
   const inMin = toMinutes(input.timeIn);
@@ -63,6 +87,10 @@ export function compareDay(
     undertimeMinutes = Math.max(0, endMin - outMin);
   }
 
+  // Unresolved (odd) punches deduct nothing until an admin adds the gap manually.
+  const needsReview = input.breakMinutes === null;
+  const breakMinutes = input.breakMinutes ?? 0;
+
   const status: AttendanceStatus = lateMinutes > grace ? "late" : "present";
-  return { status, lateMinutes, undertimeMinutes, scheduledMinutes };
+  return { status, lateMinutes, undertimeMinutes, breakMinutes, scheduledMinutes, needsReview };
 }

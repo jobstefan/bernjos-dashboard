@@ -2,6 +2,7 @@ import "server-only";
 import * as XLSX from "xlsx";
 import {
   findAttendanceBranches,
+  batchUpsertAttendanceRecords,
   deleteAttendanceRecord,
   deleteImportRow,
   findEmployeeDevice,
@@ -13,7 +14,6 @@ import {
   insertImport,
   manualUpsertAttendanceRecord,
   updateImportRow,
-  upsertAttendanceRecord,
   upsertEmployeeDevice,
 } from "@/server/db/attendance";
 import { findBranchById } from "@/server/db/branches";
@@ -141,36 +141,44 @@ export async function runImport(params: {
     const sheets = readSheets(buffer);
     const records = getAdapter(format).parse(sheets);
 
-    let matched = 0;
+    // Resolve each unique device id once (many day-rows share an id).
+    const uniqueIds = [...new Set(records.map((r) => r.deviceUserId))];
+    const resolvedEntries = await Promise.all(
+      uniqueIds.map(async (id) => [id, await resolveEmployeeId(branchId, id)] as const),
+    );
+    const resolved = new Map(resolvedEntries);
+
     // deviceUserId → the name printed on the export (first non-null seen).
     const unmatched = new Map<string, string | null>();
-    // Resolve each device id once per run (many day-rows share an id).
-    const resolved = new Map<string, string | null>();
+    const toUpsert: Parameters<typeof batchUpsertAttendanceRecords>[0] = [];
 
     for (const rec of records) {
-      let employeeId = resolved.get(rec.deviceUserId);
-      if (employeeId === undefined) {
-        employeeId = await resolveEmployeeId(branchId, rec.deviceUserId);
-        resolved.set(rec.deviceUserId, employeeId);
-      }
+      const employeeId = resolved.get(rec.deviceUserId) ?? null;
       if (!employeeId) {
-        if (!unmatched.get(rec.deviceUserId)) {
+        if (!unmatched.has(rec.deviceUserId)) {
           unmatched.set(rec.deviceUserId, rec.deviceName);
         }
         continue;
       }
-      await upsertAttendanceRecord({
+      toUpsert.push({
         importId,
         employeeId,
         branchId,
         date: new Date(`${rec.date}T00:00:00.000Z`),
         timeIn: rec.timeIn,
         timeOut: rec.timeOut,
-        // Deep-clone the raw row before storing it in the Json column.
+        gapStart: rec.gapStart,
+        gapEnd: rec.gapEnd,
+        gap2Start: null,
+        gap2End: null,
+        breakMinutes: rec.breakMinutes,
         rawRow: structuredClone(rec.raw) as Prisma.InputJsonValue,
       });
-      matched++;
     }
+
+    // Single transaction: one round-trip for all records instead of N sequential awaits.
+    await batchUpsertAttendanceRecords(toUpsert);
+    const matched = toUpsert.length;
 
     const unmatchedIds = [...unmatched].map(([deviceUserId, name]) => ({
       deviceUserId,
@@ -247,12 +255,29 @@ export async function editAttendanceRecord(
     return;
   }
 
+  // Derive breakMinutes from the entered gap times.
+  const { gapStart, gapEnd, gap2Start, gap2End } = input;
+  const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+  const gapMinutes = (s: string | null | undefined, e: string | null | undefined): number | null => {
+    if (s && e) return Math.max(0, toMin(e) - toMin(s));
+    if (s ?? e) return null; // one side only → unresolved
+    return 0;
+  };
+  const g1 = gapMinutes(gapStart, gapEnd);
+  const g2 = gapMinutes(gap2Start, gap2End);
+  const breakMinutes = g1 === null || g2 === null ? null : g1 + g2;
+
   const record = await manualUpsertAttendanceRecord({
     employeeId: input.employeeId,
     branchId: before?.branchId ?? null,
     date,
     timeIn: input.timeIn,
     timeOut: input.timeOut,
+    gapStart: gapStart ?? null,
+    gapEnd: gapEnd ?? null,
+    gap2Start: gap2Start ?? null,
+    gap2End: gap2End ?? null,
+    breakMinutes,
     editedBy: actor.clerkUserId,
   });
   await auditLog({
@@ -295,6 +320,7 @@ export async function getComparison(
       endTime: entry.endTime,
       timeIn: rec?.timeIn ?? null,
       timeOut: rec?.timeOut ?? null,
+      breakMinutes: rec?.breakMinutes ?? null,
     });
     rows.push({
       date: entry.date.toISOString().slice(0, 10),
@@ -305,10 +331,16 @@ export async function getComparison(
       scheduledEnd: entry.endTime,
       actualIn: rec?.timeIn ?? null,
       actualOut: rec?.timeOut ?? null,
+      gapStart: rec?.gapStart ?? null,
+      gapEnd: rec?.gapEnd ?? null,
+      gap2Start: rec?.gap2Start ?? null,
+      gap2End: rec?.gap2End ?? null,
       source: (rec?.source as "biometric" | "manual" | undefined) ?? null,
       status: cmp.status,
       lateMinutes: cmp.lateMinutes,
       undertimeMinutes: cmp.undertimeMinutes,
+      breakMinutes: cmp.breakMinutes,
+      needsReview: cmp.needsReview,
     });
   }
 
@@ -325,10 +357,16 @@ export async function getComparison(
       scheduledEnd: null,
       actualIn: rec.timeIn,
       actualOut: rec.timeOut,
+      gapStart: rec.gapStart ?? null,
+      gapEnd: rec.gapEnd ?? null,
+      gap2Start: rec.gap2Start ?? null,
+      gap2End: rec.gap2End ?? null,
       source: (rec.source as "biometric" | "manual" | undefined) ?? null,
       status: "no-schedule",
       lateMinutes: 0,
       undertimeMinutes: 0,
+      breakMinutes: rec.breakMinutes ?? 0,
+      needsReview: rec.timeIn !== null && rec.breakMinutes === null,
     });
   }
 
@@ -397,6 +435,7 @@ export async function summarizeForPayroll(
   let absentDays = 0;
   let lateMinutes = 0;
   let undertimeMinutes = 0;
+  let breakMinutes = 0;
   let deductionDays = 0;
   // Days worked keyed by the branch that recorded them, for per-branch gross pay.
   const daysByBranch = new Map<string | null, number>();
@@ -409,6 +448,7 @@ export async function summarizeForPayroll(
       endTime: entry.endTime,
       timeIn: rec?.timeIn ?? null,
       timeOut: rec?.timeOut ?? null,
+      breakMinutes: rec?.breakMinutes ?? null,
     });
     if (cmp.status === "absent") {
       absentDays++;
@@ -423,9 +463,11 @@ export async function summarizeForPayroll(
     // shift length so it's a per-minute deduction of the daily rate.
     lateMinutes += cmp.lateMinutes;
     undertimeMinutes += cmp.undertimeMinutes;
+    breakMinutes += cmp.breakMinutes;
     if (cmp.scheduledMinutes > 0) {
       deductionDays +=
-        (cmp.lateMinutes + cmp.undertimeMinutes) / cmp.scheduledMinutes;
+        (cmp.lateMinutes + cmp.undertimeMinutes + cmp.breakMinutes) /
+        cmp.scheduledMinutes;
     }
   }
 
@@ -436,6 +478,7 @@ export async function summarizeForPayroll(
     absentDays,
     lateMinutes,
     undertimeMinutes,
+    breakMinutes,
     deductionDays,
     byBranch: Array.from(daysByBranch, ([branchId, days]) => ({
       branchId,

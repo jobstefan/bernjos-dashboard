@@ -467,6 +467,18 @@ model AttendanceRecord {
   /// Actual clock-in / clock-out as `HH:MM` 24-hour strings (like ScheduleEntry).
   timeIn     String?  @map("time_in")
   timeOut    String?  @map("time_out")
+  /// Total mid-shift gap minutes (time punched out between first and last punch).
+  /// 0 for a clean day; null when punches don't pair (odd count) and the gap must
+  /// be entered manually.
+  breakMinutes Int?    @map("break_minutes")
+  /// First punch-out time during the shift (`HH:MM`), i.e. when the mid-day gap starts.
+  gapStart     String? @map("gap_start")
+  /// First punch-back-in time during the shift (`HH:MM`), i.e. when the mid-day gap ends.
+  gapEnd       String? @map("gap_end")
+  /// Second mid-day gap start — manual add-in only (biometrics only capture one gap).
+  gap2Start    String? @map("gap2_start")
+  /// Second mid-day gap end — manual add-in only.
+  gap2End      String? @map("gap2_end")
   /// "biometric" (parsed from an import) | "manual" (admin edit/override).
   source     String   @default("biometric")
   /// Clerk user id + timestamp of the last manual edit, when `source` is "manual".

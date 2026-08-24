@@ -14,6 +14,16 @@ export interface DailyRecord {
   timeIn: string | null;
   /** Latest punch of the day as `HH:MM` 24-hour, or null if only one punch. */
   timeOut: string | null;
+  /** First punch-out during the shift (`HH:MM`) — the mid-day gap start. */
+  gapStart: string | null;
+  /** First punch-back-in during the shift (`HH:MM`) — the mid-day gap end. */
+  gapEnd: string | null;
+  /**
+   * Total mid-shift gap minutes (time punched out between first and last punch).
+   * `0` for a clean day; `null` when punches don't pair (odd count) and the gap
+   * can't be resolved — that day is flagged for a manual add-in.
+   */
+  breakMinutes: number | null;
   /** JSON-serializable snapshot of what this record was derived from (audit). */
   raw: unknown;
 }

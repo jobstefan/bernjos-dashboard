@@ -10,11 +10,23 @@ export interface AttendanceComparisonRow {
   scheduledEnd: string | null;
   actualIn: string | null;
   actualOut: string | null;
+  /** First punch-out during the shift — the mid-day gap start (`HH:MM`). */
+  gapStart: string | null;
+  /** First punch-back-in during the shift — the mid-day gap end (`HH:MM`). */
+  gapEnd: string | null;
+  /** Second mid-day gap start — manual add-in only. */
+  gap2Start: string | null;
+  /** Second mid-day gap end — manual add-in only. */
+  gap2End: string | null;
   /** Origin of the actual record: parsed from an import, hand-edited, or none. */
   source: "biometric" | "manual" | null;
   status: AttendanceStatus;
   lateMinutes: number;
   undertimeMinutes: number;
+  /** Mid-shift gap minutes (time punched out between first and last punch). */
+  breakMinutes: number;
+  /** Punches didn't pair (odd count) — the mid-shift gap needs a manual add-in. */
+  needsReview: boolean;
 }
 
 /** An enrollment id from an export with no matching employee, plus its printed name. */
@@ -59,7 +71,9 @@ export interface PayrollAttendanceSummary {
   lateMinutes: number;
   /** Early-out minutes, summed across the period. */
   undertimeMinutes: number;
-  /** Late+undertime expressed as fractional days (pro-rated by each shift's length). */
+  /** Mid-shift gap minutes (left and came back), summed across the period. */
+  breakMinutes: number;
+  /** Late+undertime+break expressed as fractional days (pro-rated by each shift's length). */
   deductionDays: number;
   /**
    * Days worked grouped by the branch that recorded them (attendance record's

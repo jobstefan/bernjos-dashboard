@@ -28,6 +28,67 @@ export function findPeriodStart(sheets: SheetGrid[]): PeriodStart | null {
   return null;
 }
 
+const toMinutes = (hhmm: string): number => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+};
+
+/** One clock event: a punch time (`HH:MM`) tagged as a clock-in or clock-out. */
+export interface Punch {
+  time: string;
+  role: "in" | "out";
+}
+
+/**
+ * Tag a chronological list of bare punch times as alternating in/out/in/out…
+ * Used by formats (ZKTeco) that record only the raw times with no in/out column,
+ * where the punches are already ordered through the day.
+ */
+export function chronologicalPunches(times: string[]): Punch[] {
+  return times.map((time, i) => ({ time, role: i % 2 === 0 ? "in" : "out" }));
+}
+
+/**
+ * Reduce a day's ordered punches to time-in, time-out and the total mid-shift gap
+ * (minutes spent punched out between paired work sessions).
+ *
+ * A valid day pairs up as in→out→in→out…: an even count, alternating roles,
+ * starting on an in and ending on an out. Then the gap is the sum of the spans
+ * between one session's out and the next session's in. Anything else — a missing
+ * punch, a lone clock-in, a doubled scan — yields a `null` gap, flagging the day
+ * for a manual add-in rather than guessing.
+ */
+export function summarizePunches(punches: Punch[]): {
+  timeIn: string | null;
+  timeOut: string | null;
+  gapStart: string | null;
+  gapEnd: string | null;
+  breakMinutes: number | null;
+} {
+  if (punches.length === 0) {
+    return { timeIn: null, timeOut: null, gapStart: null, gapEnd: null, breakMinutes: 0 };
+  }
+  const timeIn = punches[0].time;
+  const timeOut =
+    punches.length > 1 ? punches[punches.length - 1].time : null;
+
+  let paired = punches.length % 2 === 0;
+  for (let i = 0; paired && i < punches.length; i++) {
+    if (punches[i].role !== (i % 2 === 0 ? "in" : "out")) paired = false;
+  }
+  if (!paired) return { timeIn, timeOut, gapStart: null, gapEnd: null, breakMinutes: null };
+
+  // First out punch is the gap start; first in-after-out is the gap end.
+  const gapStart = punches.length >= 4 ? punches[1].time : null;
+  const gapEnd = punches.length >= 4 ? punches[2].time : null;
+
+  let gap = 0;
+  for (let i = 1; i + 1 < punches.length; i += 2) {
+    gap += toMinutes(punches[i + 1].time) - toMinutes(punches[i].time);
+  }
+  return { timeIn, timeOut, gapStart, gapEnd, breakMinutes: gap };
+}
+
 /** A day number → full `YYYY-MM-DD`, rolling into the next month when it wraps. */
 export function resolveDate(day: number, start: PeriodStart): string {
   let { year, month } = start;

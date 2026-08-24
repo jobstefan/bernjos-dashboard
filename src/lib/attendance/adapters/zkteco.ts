@@ -1,4 +1,11 @@
-import { findPeriodStart, pad, resolveDate, TIME_RE } from "./shared";
+import {
+  chronologicalPunches,
+  findPeriodStart,
+  pad,
+  resolveDate,
+  summarizePunches,
+  TIME_RE,
+} from "./shared";
 import type { AttendanceAdapter, DailyRecord, SheetGrid } from "./types";
 
 /**
@@ -10,8 +17,9 @@ import type { AttendanceAdapter, DailyRecord, SheetGrid } from "./types";
  * enrollment id follows the label, name/dept further along) and the row(s) beneath
  * it holding that employee's punches, aligned to the same day columns. A day's cell
  * concatenates every punch with no separator, each a fixed 5-char `HH:MM`
- * (`"04:2204:5606:2415:22"` = four punches). We split them, then take the earliest
- * as time-in and the latest as time-out.
+ * (`"04:2204:5606:2415:22"` = four punches). We split them and treat them as
+ * alternating in/out through the day, so a mid-day round trip counts as a gap;
+ * an odd number of punches (a missing scan) flags the day for review.
  */
 
 const LOG_SHEET_RE = /^attendance record report$/i;
@@ -108,12 +116,18 @@ function parse(sheets: SheetGrid[]): DailyRecord[] {
       const times = splitTimes(row[col]);
       if (times.length === 0) continue;
       times.sort();
+      const { timeIn, timeOut, gapStart, gapEnd, breakMinutes } = summarizePunches(
+        chronologicalPunches(times),
+      );
       records.push({
         deviceUserId,
         deviceName,
         date: resolveDate(day, start),
-        timeIn: times[0],
-        timeOut: times.length > 1 ? times[times.length - 1] : null,
+        timeIn,
+        timeOut,
+        gapStart,
+        gapEnd,
+        breakMinutes,
         raw: { sheet: log.name, day, punches: times },
       });
     }

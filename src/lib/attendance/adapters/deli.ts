@@ -1,5 +1,5 @@
-import { findPeriodStart, pad, resolveDate, TIME_RE } from "./shared";
-import type { PeriodStart } from "./shared";
+import { findPeriodStart, pad, resolveDate, summarizePunches, TIME_RE } from "./shared";
+import type { PeriodStart, Punch } from "./shared";
 import type { AttendanceAdapter, DailyRecord, SheetGrid } from "./types";
 
 /**
@@ -8,16 +8,34 @@ import type { AttendanceAdapter, DailyRecord, SheetGrid } from "./types";
  * These workbooks lay out three employees side-by-side per detail sheet in fixed
  * 15-column blocks. Each block has a header area (the enrollment id sits 8 columns
  * after an "ID"/"User ID" label) and a time-card grid: one row per day (`"14 Su"`)
- * with punch times spread across the block's columns (`Before Noon`/`After Noon`/
- * `Overtime`, each with In/Out subcolumns). We read every punch on a day and take
- * the earliest as time-in and the latest as time-out — robust to how many columns
- * actually carry a punch.
+ * with punches in fixed In/Out subcolumns. We read the four core punches — arrival,
+ * mid-day gap start, mid-day gap end, departure — so a mid-day round trip is
+ * captured as a real gap; a day whose punches don't pair up cleanly is flagged for
+ * review. Overtime columns are ignored on purpose: overtime is reconciled against
+ * the schedule feature, not from these punches.
  */
 
 const DAY_RE = /^(\d{1,2})\s+[A-Za-z]{2,3}$/; // "14 Su"
 /** The id label sits this many columns before the block's first (date) column. */
 const ID_LABEL_OFFSET = 8;
 const DEFAULT_BLOCK_WIDTH = 15;
+
+/**
+ * The four core punch subcolumns within a block, as `[offset from the date column,
+ * role]`, in the order they occur through the day so the punches alternate
+ * in→out→in→out:
+ *   +1  Before Noon In  → arrival
+ *   +3  Before Noon Out → mid-day gap start
+ *   +6  After Noon In   → mid-day gap end
+ *   +8  After Noon Out  → departure
+ * The Overtime subcolumns (+10 In, +12 Out) are deliberately skipped.
+ */
+const PUNCH_COLUMNS: ReadonlyArray<readonly [number, Punch["role"]]> = [
+  [1, "in"],
+  [3, "out"],
+  [6, "in"],
+  [8, "out"],
+];
 
 /** Detail sheets carry a "Time Card" marker; summary sheets don't. */
 function isDetailSheet(rows: unknown[][]): boolean {
@@ -91,21 +109,26 @@ function parseSheet(
       const dm = typeof dateCell === "string" && dateCell.match(DAY_RE);
       if (!dm) continue;
 
-      const times: string[] = [];
-      for (let c = block.start + 1; c < end; c++) {
-        const t = normalizeTime(row[c]);
-        if (t) times.push(t);
+      const punches: Punch[] = [];
+      for (const [offset, role] of PUNCH_COLUMNS) {
+        const col = block.start + offset;
+        if (col >= end) break;
+        const t = normalizeTime(row[col]);
+        if (t) punches.push({ time: t, role });
       }
-      if (times.length === 0) continue; // no punches = didn't clock (absent/day off)
+      if (punches.length === 0) continue; // no punches = didn't clock (absent/day off)
 
-      times.sort();
+      const { timeIn, timeOut, gapStart, gapEnd, breakMinutes } = summarizePunches(punches);
       out.push({
         deviceUserId: block.deviceUserId,
         deviceName: block.deviceName,
         date: resolveDate(Number(dm[1]), start),
-        timeIn: times[0],
-        timeOut: times.length > 1 ? times[times.length - 1] : null,
-        raw: { sheet: sheet.name, day: dateCell, punches: times },
+        timeIn,
+        timeOut,
+        gapStart,
+        gapEnd,
+        breakMinutes,
+        raw: { sheet: sheet.name, day: dateCell, punches },
       });
     }
   }
