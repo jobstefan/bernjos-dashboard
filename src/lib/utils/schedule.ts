@@ -102,13 +102,7 @@ export function buildScheduleText(dateIso: string, rows: ScheduleRow[]): string 
   for (const branch of branchNames) {
     lines.push("", `📍 ${branch}`);
     const branchRows = sortRows(groups.get(branch) ?? []);
-    let currentDept: string | null = undefined as unknown as null;
     for (const row of branchRows) {
-      const dept = row.department || null;
-      if (dept !== currentDept) {
-        currentDept = dept;
-        if (dept) lines.push(`  ${dept}`);
-      }
       const times =
         row.startTime && row.endTime
           ? `${formatTime12h(row.startTime)} – ${formatTime12h(row.endTime)}`
