@@ -80,10 +80,16 @@ export function buildScheduleText(dateIso: string, rows: ScheduleRow[]): string 
     groups.set(key, list);
   }
 
-  const branchNames = [...groups.keys()].sort((a, b) => a.localeCompare(b));
-  for (const branch of branchNames) {
-    lines.push("", `📍 ${branch}`);
-    const branchRows = (groups.get(branch) ?? []).slice().sort((a, b) => {
+  const sortRows = (r: ScheduleRow[]) =>
+    r.slice().sort((a, b) => {
+      const da = a.department || null;
+      const db = b.department || null;
+      if (da !== db) {
+        if (!da) return 1;
+        if (!db) return -1;
+        const dc = da.localeCompare(db);
+        if (dc !== 0) return dc;
+      }
       const ta = a.startTime ?? "";
       const tb = b.startTime ?? "";
       if (ta && tb) return ta.localeCompare(tb);
@@ -91,7 +97,18 @@ export function buildScheduleText(dateIso: string, rows: ScheduleRow[]): string 
       if (tb) return 1;
       return a.employeeName.localeCompare(b.employeeName);
     });
+
+  const branchNames = [...groups.keys()].sort((a, b) => a.localeCompare(b));
+  for (const branch of branchNames) {
+    lines.push("", `📍 ${branch}`);
+    const branchRows = sortRows(groups.get(branch) ?? []);
+    let currentDept: string | null = undefined as unknown as null;
     for (const row of branchRows) {
+      const dept = row.department || null;
+      if (dept !== currentDept) {
+        currentDept = dept;
+        if (dept) lines.push(`  ${dept}`);
+      }
       const times =
         row.startTime && row.endTime
           ? `${formatTime12h(row.startTime)} – ${formatTime12h(row.endTime)}`
