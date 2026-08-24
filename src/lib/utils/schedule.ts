@@ -83,7 +83,15 @@ export function buildScheduleText(dateIso: string, rows: ScheduleRow[]): string 
   const branchNames = [...groups.keys()].sort((a, b) => a.localeCompare(b));
   for (const branch of branchNames) {
     lines.push("", `📍 ${branch}`);
-    for (const row of groups.get(branch) ?? []) {
+    const branchRows = (groups.get(branch) ?? []).slice().sort((a, b) => {
+      const ta = a.startTime ?? "";
+      const tb = b.startTime ?? "";
+      if (ta && tb) return ta.localeCompare(tb);
+      if (ta) return -1;
+      if (tb) return 1;
+      return a.employeeName.localeCompare(b.employeeName);
+    });
+    for (const row of branchRows) {
       const times =
         row.startTime && row.endTime
           ? `${formatTime12h(row.startTime)} – ${formatTime12h(row.endTime)}`

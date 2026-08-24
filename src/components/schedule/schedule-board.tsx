@@ -116,10 +116,14 @@ export function ScheduleBoard({
       if (!b) return -1;
       return a.localeCompare(b);
     };
+    const startTimeFor = (row: ScheduleRow): string | null =>
+      drafts[row.employeeId]?.startTime || null;
+
     return [...rows].sort((a, b) => {
       return (
         cmp(branchNameFor(a), branchNameFor(b)) ||
         cmp(a.department || null, b.department || null) ||
+        cmp(startTimeFor(a), startTimeFor(b)) ||
         a.employeeName.localeCompare(b.employeeName)
       );
     });
