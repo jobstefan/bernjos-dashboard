@@ -5,6 +5,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
 import { isDevAuthEnabled } from "@/lib/auth/dev-session";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -27,11 +28,13 @@ export default function RootLayout({
           <>
             {children}
             <Toaster />
+            <SpeedInsights />
           </>
         ) : (
           <ClerkProvider>
             {children}
             <Toaster />
+            <SpeedInsights />
           </ClerkProvider>
         )}
       </body>
