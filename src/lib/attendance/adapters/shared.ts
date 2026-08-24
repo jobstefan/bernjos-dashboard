@@ -76,7 +76,23 @@ export function summarizePunches(punches: Punch[]): {
   for (let i = 0; paired && i < punches.length; i++) {
     if (punches[i].role !== (i % 2 === 0 ? "in" : "out")) paired = false;
   }
-  if (!paired) return { timeIn, timeOut, gapStart: null, gapEnd: null, breakMinutes: null };
+
+  if (!paired) {
+    // Unpaired (odd/missing punch): keep first & last as time-in/out, and place
+    // each mid-day punch by its recorded role — a lunch-out → gap start, an
+    // afternoon-in → gap end. So an afternoon-in with no lunch-out lands in
+    // "mid-day in", not "mid-day out".
+    const middle = punches.slice(1, -1);
+    const gapStart = middle.find((p) => p.role === "out")?.time ?? null;
+    const gapEnd = middle.find((p) => p.role === "in")?.time ?? null;
+
+    // With no mid-day punches there's no gap to resolve, so the break is
+    // unambiguously 0 — accept a plain in→out day even when the two punches were
+    // mis-scanned as in→in (e.g. someone forgot to clock out). Only flag for
+    // review when there *are* unpaired mid-day punches the total can't trust.
+    const breakMinutes = timeOut !== null && middle.length === 0 ? 0 : null;
+    return { timeIn, timeOut, gapStart, gapEnd, breakMinutes };
+  }
 
   // First out punch is the gap start; first in-after-out is the gap end.
   const gapStart = punches.length >= 4 ? punches[1].time : null;
