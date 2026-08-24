@@ -23,6 +23,8 @@ export interface AttendanceComparisonRow {
   status: AttendanceStatus;
   lateMinutes: number;
   undertimeMinutes: number;
+  /** Minutes clocked out after scheduled end (0 if none). */
+  overtimeMinutes: number;
   /** Mid-shift gap minutes (time punched out between first and last punch). */
   breakMinutes: number;
   /** Punches didn't pair (odd count) — the mid-shift gap needs a manual add-in. */
@@ -71,6 +73,8 @@ export interface PayrollAttendanceSummary {
   lateMinutes: number;
   /** Early-out minutes, summed across the period. */
   undertimeMinutes: number;
+  /** Minutes worked past scheduled end, summed across the period. */
+  overtimeMinutes: number;
   /** Mid-shift gap minutes (left and came back), summed across the period. */
   breakMinutes: number;
   /** Late+undertime+break expressed as fractional days (pro-rated by each shift's length). */

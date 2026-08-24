@@ -339,6 +339,7 @@ export async function getComparison(
       status: cmp.status,
       lateMinutes: cmp.lateMinutes,
       undertimeMinutes: cmp.undertimeMinutes,
+      overtimeMinutes: cmp.overtimeMinutes,
       breakMinutes: cmp.breakMinutes,
       needsReview: cmp.needsReview,
     });
@@ -365,6 +366,7 @@ export async function getComparison(
       status: "no-schedule",
       lateMinutes: 0,
       undertimeMinutes: 0,
+      overtimeMinutes: 0,
       breakMinutes: rec.breakMinutes ?? 0,
       needsReview: rec.timeIn !== null && rec.breakMinutes === null,
     });
@@ -435,6 +437,7 @@ export async function summarizeForPayroll(
   let absentDays = 0;
   let lateMinutes = 0;
   let undertimeMinutes = 0;
+  let overtimeMinutes = 0;
   let breakMinutes = 0;
   let deductionDays = 0;
   // Days worked keyed by the branch that recorded them, for per-branch gross pay.
@@ -463,6 +466,7 @@ export async function summarizeForPayroll(
     // shift length so it's a per-minute deduction of the daily rate.
     lateMinutes += cmp.lateMinutes;
     undertimeMinutes += cmp.undertimeMinutes;
+    overtimeMinutes += cmp.overtimeMinutes;
     breakMinutes += cmp.breakMinutes;
     if (cmp.scheduledMinutes > 0) {
       deductionDays +=
@@ -478,6 +482,7 @@ export async function summarizeForPayroll(
     absentDays,
     lateMinutes,
     undertimeMinutes,
+    overtimeMinutes,
     breakMinutes,
     deductionDays,
     byBranch: Array.from(daysByBranch, ([branchId, days]) => ({

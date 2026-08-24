@@ -25,6 +25,8 @@ export interface DayComparison {
   lateMinutes: number;
   /** Minutes clocked out before shift end (0 if none/complete). */
   undertimeMinutes: number;
+  /** Minutes clocked out after shift end (0 if none). */
+  overtimeMinutes: number;
   /** Mid-shift gap minutes deducted (time punched out between first and last punch). */
   breakMinutes: number;
   /** Scheduled shift length in minutes (0 when unscheduled) — for payroll pro-rating. */
@@ -54,6 +56,7 @@ export function compareDay(
       status: "no-schedule",
       lateMinutes: 0,
       undertimeMinutes: 0,
+      overtimeMinutes: 0,
       breakMinutes: 0,
       scheduledMinutes: 0,
       needsReview: false,
@@ -71,6 +74,7 @@ export function compareDay(
       status: "absent",
       lateMinutes: 0,
       undertimeMinutes: 0,
+      overtimeMinutes: 0,
       breakMinutes: 0,
       scheduledMinutes,
       needsReview: false,
@@ -81,10 +85,12 @@ export function compareDay(
   const lateMinutes = Math.max(0, inMin - startMin);
 
   let undertimeMinutes = 0;
+  let overtimeMinutes = 0;
   if (input.timeOut) {
     let outMin = toMinutes(input.timeOut);
     if (outMin < inMin) outMin += 24 * 60; // clocked out past midnight
     undertimeMinutes = Math.max(0, endMin - outMin);
+    overtimeMinutes = Math.max(0, outMin - endMin);
   }
 
   // Unresolved (odd) punches deduct nothing until an admin adds the gap manually.
@@ -92,5 +98,5 @@ export function compareDay(
   const breakMinutes = input.breakMinutes ?? 0;
 
   const status: AttendanceStatus = lateMinutes > grace ? "late" : "present";
-  return { status, lateMinutes, undertimeMinutes, breakMinutes, scheduledMinutes, needsReview };
+  return { status, lateMinutes, undertimeMinutes, overtimeMinutes, breakMinutes, scheduledMinutes, needsReview };
 }

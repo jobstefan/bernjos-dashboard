@@ -88,13 +88,14 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
       },
       {
         id: "variance",
-        header: "Late / Undertime / Break",
+        header: "Late / Undertime / Overtime / Break",
         enableSorting: false,
         cell: ({ row }) => {
-          const { lateMinutes, undertimeMinutes, breakMinutes } = row.original;
+          const { lateMinutes, undertimeMinutes, overtimeMinutes, breakMinutes } = row.original;
           const parts = [
             lateMinutes ? `${lateMinutes}m late` : null,
             undertimeMinutes ? `${undertimeMinutes}m under` : null,
+            overtimeMinutes ? `${overtimeMinutes}m Overtime` : null,
             breakMinutes ? `${breakMinutes}m break` : null,
           ].filter(Boolean);
           if (parts.length === 0)
