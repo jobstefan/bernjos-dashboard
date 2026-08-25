@@ -18,3 +18,5 @@ Dashboard app. Package manager is **pnpm**. Stack and conventions:
 - **Background jobs**: Inngest. Client: `src/inngest/client.ts`; functions: `src/inngest/functions.ts`; served at `src/app/api/inngest/route.ts`. Run `pnpm inngest:dev` next to `pnpm dev`.
 
 Common commands: `pnpm dev`, `pnpm build`, `pnpm db:migrate`, `pnpm db:studio`, `pnpm db:generate`, `pnpm inngest:dev`.
+
+- **Environments**: three isolated tiers — local dev (Docker Postgres), staging (`staging` branch → Vercel Staging env + Neon staging DB), production (`main` branch → Vercel Production + Neon prod DB). Each has its own database and Clerk instance. Deploys and migrations are automatic via Vercel's build command (`db:deploy`). See `docs/deployment.md`.
