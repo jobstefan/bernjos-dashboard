@@ -27,6 +27,7 @@ import { saveDayScheduleAction } from "@/app/actions/schedule.actions";
 import { departmentAccent } from "@/lib/utils/schedule";
 import { cn } from "@/lib/utils";
 import type { BranchRow, ScheduleRow } from "@/lib/types/schedule";
+import type { AbsenceRequestRow } from "@/server/services/absence-request.service";
 
 const NO_BRANCH = "__none__";
 
@@ -51,12 +52,26 @@ export function ScheduleBoard({
   rows,
   branches,
   canEdit,
+  absenceRequests = [],
 }: {
   dateIso: string;
   rows: ScheduleRow[];
   branches: BranchRow[];
   canEdit: boolean;
+  absenceRequests?: AbsenceRequestRow[];
 }) {
+  // Employees with pending or approved absence requests are blocked from scheduling.
+  const blockedEmployees = React.useMemo<
+    Map<string, AbsenceRequestRow>
+  >(
+    () =>
+      new Map(
+        absenceRequests
+          .filter((r) => r.status !== "declined")
+          .map((r) => [r.employeeId, r]),
+      ),
+    [absenceRequests],
+  );
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>(() =>
@@ -119,15 +134,19 @@ export function ScheduleBoard({
     const startTimeFor = (row: ScheduleRow): string | null =>
       drafts[row.employeeId]?.startTime || null;
 
+    const absenceWeight = (row: ScheduleRow): number =>
+      blockedEmployees.has(row.employeeId) ? 1 : 0;
+
     return [...rows].sort((a, b) => {
       return (
+        absenceWeight(a) - absenceWeight(b) ||
         cmp(branchNameFor(a), branchNameFor(b)) ||
         cmp(a.department || null, b.department || null) ||
         cmp(startTimeFor(a), startTimeFor(b)) ||
         a.employeeName.localeCompare(b.employeeName)
       );
     });
-  }, [rows, drafts, branches]);
+  }, [rows, drafts, branches, blockedEmployees]);
 
   function onDateChange(value: string) {
     if (value) router.push(`/schedule?date=${value}`);
@@ -145,6 +164,7 @@ export function ScheduleBoard({
 
     for (const row of rows) {
       const d = drafts[row.employeeId];
+      if (blockedEmployees.has(row.employeeId)) continue; // absence requested — skip
       const hasStart = Boolean(d.startTime);
       const hasEnd = Boolean(d.endTime);
       if (!hasStart && !hasEnd) continue; // day off
@@ -195,7 +215,13 @@ export function ScheduleBoard({
           />
         </div>
         <div className="flex items-center gap-2">
-          <CopyScheduleButton dateIso={dateIso} rows={previewRows} />
+          <CopyScheduleButton
+            dateIso={dateIso}
+            rows={previewRows}
+            absentEmployees={absenceRequests
+              .filter((r) => r.status !== "declined")
+              .map((r) => ({ employeeName: r.employeeName, status: r.status as "pending" | "approved" }))}
+          />
           {canEdit ? (
             <Button type="button" onClick={onSave} disabled={pending}>
               <Save className="size-4" />
@@ -221,14 +247,20 @@ export function ScheduleBoard({
               const d = drafts[row.employeeId];
               if (!d) return null;
               const isOff = !d.startTime && !d.endTime;
+              const absenceReq = blockedEmployees.get(row.employeeId);
+              const isBlocked = Boolean(absenceReq);
               const accent = departmentAccent(row.department);
               return (
                 <TableRow
                   key={row.employeeId}
                   className={cn(
-                    invalid.has(row.employeeId)
-                      ? "bg-destructive/5"
-                      : accent.tint,
+                    isBlocked
+                      ? absenceReq!.status === "approved"
+                        ? "bg-red-50/60 opacity-70"
+                        : "bg-yellow-50/60 opacity-70"
+                      : invalid.has(row.employeeId)
+                        ? "bg-destructive/5"
+                        : accent.tint,
                   )}
                 >
                   <TableCell>
@@ -236,20 +268,40 @@ export function ScheduleBoard({
                       <span
                         className={cn(
                           "size-2 shrink-0 rounded-full",
-                          accent.dot,
+                          isBlocked
+                            ? absenceReq!.status === "approved"
+                              ? "bg-red-400"
+                              : "bg-yellow-400"
+                            : accent.dot,
                         )}
                         aria-hidden
                       />
-                      <span className="font-medium">{row.employeeName}</span>
+                      <span className={cn("font-medium", isBlocked && "line-through text-muted-foreground")}>
+                        {row.employeeName}
+                      </span>
+                      {isBlocked ? (
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-xs font-medium",
+                            absenceReq!.status === "approved"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-yellow-100 text-yellow-800",
+                          )}
+                        >
+                          {absenceReq!.status === "approved"
+                            ? "Approved Absence"
+                            : "Pending Absence"}
+                        </span>
+                      ) : null}
                     </div>
                     <div className="pl-4 text-xs text-muted-foreground">
                       {row.employeeCode}
                       {row.department ? ` · ${row.department}` : ""}
-                      {isOff ? " · Day off" : ""}
+                      {!isBlocked && isOff ? " · Day off" : ""}
                     </div>
                   </TableCell>
                   <TableCell>
-                    {canEdit ? (
+                    {canEdit && !isBlocked ? (
                       <Select
                         value={d.branchId}
                         onValueChange={(v) =>
@@ -276,19 +328,14 @@ export function ScheduleBoard({
                         </SelectContent>
                       </Select>
                     ) : (
-                      <span className="text-sm">
-                        {d.branchId === NO_BRANCH
-                          ? "—"
-                          : (branches.find((b) => b.id === d.branchId)?.name ??
-                            "—")}
-                      </span>
+                      <span className="text-sm text-muted-foreground">—</span>
                     )}
                   </TableCell>
                   <TableCell>
                     <Input
                       type="time"
                       value={d.startTime}
-                      disabled={!canEdit}
+                      disabled={!canEdit || isBlocked}
                       onChange={(e) =>
                         update(row.employeeId, { startTime: e.target.value })
                       }
@@ -299,12 +346,12 @@ export function ScheduleBoard({
                       <Input
                         type="time"
                         value={d.endTime}
-                        disabled={!canEdit}
+                        disabled={!canEdit || isBlocked}
                         onChange={(e) =>
                           update(row.employeeId, { endTime: e.target.value })
                         }
                       />
-                      {canEdit ? (
+                      {canEdit && !isBlocked ? (
                         <Button
                           type="button"
                           variant="ghost"
@@ -327,7 +374,7 @@ export function ScheduleBoard({
                   <TableCell>
                     <Input
                       value={d.note}
-                      disabled={!canEdit}
+                      disabled={!canEdit || isBlocked}
                       placeholder="e.g. half day"
                       onChange={(e) =>
                         update(row.employeeId, { note: e.target.value })

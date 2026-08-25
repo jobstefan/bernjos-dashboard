@@ -5,19 +5,22 @@ import { toast } from "sonner";
 import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { buildScheduleText } from "@/lib/utils/schedule";
+import type { AbsentEntry } from "@/lib/utils/schedule";
 import type { ScheduleRow } from "@/lib/types/schedule";
 
 export function CopyScheduleButton({
   dateIso,
   rows,
+  absentEmployees = [],
 }: {
   dateIso: string;
   rows: ScheduleRow[];
+  absentEmployees?: AbsentEntry[];
 }) {
   const [copied, setCopied] = React.useState(false);
 
   async function onCopy() {
-    const text = buildScheduleText(dateIso, rows);
+    const text = buildScheduleText(dateIso, rows, absentEmployees);
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);

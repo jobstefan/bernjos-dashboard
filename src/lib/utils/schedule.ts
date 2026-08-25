@@ -64,11 +64,21 @@ export function departmentAccent(department: string): {
 
 const NO_BRANCH = "Unassigned";
 
+export interface AbsentEntry {
+  employeeName: string;
+  status: "pending" | "approved";
+}
+
 /**
  * Build a messaging-app-friendly schedule for a day, grouped by branch with the
- * day-off employees collected at the end. Ready to paste into Viber/WhatsApp.
+ * day-off employees collected at the end and absent employees below that.
+ * Ready to paste into Viber/WhatsApp.
  */
-export function buildScheduleText(dateIso: string, rows: ScheduleRow[]): string {
+export function buildScheduleText(
+  dateIso: string,
+  rows: ScheduleRow[],
+  absentEmployees: AbsentEntry[] = [],
+): string {
   const lines: string[] = [`📅 Schedule — ${formatScheduleDate(dateIso)}`];
 
   const working = rows.filter((r) => !r.isDayOff);
@@ -118,6 +128,13 @@ export function buildScheduleText(dateIso: string, rows: ScheduleRow[]): string 
       "",
       `😴 Day off: ${dayOff.map((r) => r.employeeName).join(", ")}`,
     );
+  }
+
+  if (absentEmployees.length > 0) {
+    const names = absentEmployees
+      .map((e) => `${e.employeeName}${e.status === "pending" ? " (pending)" : ""}`)
+      .join(", ");
+    lines.push("", `🚫 Absent: ${names}`);
   }
 
   return lines.join("\n");

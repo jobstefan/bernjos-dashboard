@@ -1,11 +1,16 @@
 import { CalendarDays } from "lucide-react";
 import { getActor } from "@/lib/auth/rbac";
 import { getMyUpcoming } from "@/server/services/schedule.service";
+import { getAbsenceRequestsForEmployee } from "@/server/services/absence-request.service";
+import { getEmployeeByClerkUser } from "@/server/services/employee.service";
 import { EmptyState } from "@/components/payroll/empty-state";
 import { formatScheduleDate, formatTime12h } from "@/lib/utils/schedule";
+import { RequestAbsenceDialog } from "@/components/schedule/request-absence-dialog";
+import { MyAbsenceRequests } from "@/components/schedule/my-absence-requests";
 
 export default async function MySchedulePage() {
   const actor = await getActor();
+  const employee = await getEmployeeByClerkUser(actor.clerkUserId);
 
   let upcoming: Awaited<ReturnType<typeof getMyUpcoming>> = [];
   let error: string | null = null;
@@ -15,13 +20,20 @@ export default async function MySchedulePage() {
     error = e instanceof Error ? e.message : "Couldn't load your schedule.";
   }
 
+  const absenceRequests = employee
+    ? await getAbsenceRequestsForEmployee(employee.id)
+    : [];
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">My Schedule</h1>
-        <p className="text-sm text-muted-foreground">
-          Your upcoming shifts for the next 30 days.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">My Schedule</h1>
+          <p className="text-sm text-muted-foreground">
+            Your upcoming shifts for the next 30 days.
+          </p>
+        </div>
+        {employee ? <RequestAbsenceDialog /> : null}
       </div>
 
       {error ? (
@@ -59,6 +71,10 @@ export default async function MySchedulePage() {
           ))}
         </div>
       )}
+
+      {employee ? (
+        <MyAbsenceRequests requests={absenceRequests} />
+      ) : null}
     </div>
   );
 }
