@@ -212,18 +212,6 @@ export function ScheduleBoard({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Correct for server/client timezone mismatch: if no explicit date param, redirect to client's local today.
-  React.useEffect(() => {
-    if (!searchParams.get("date")) {
-      const now = new Date();
-      const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-      if (localToday !== dateIso) {
-        router.replace(`/schedule?date=${localToday}`);
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const [pending, startTransition] = React.useTransition();
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>(() =>
     Object.fromEntries(rows.map((r) => [r.employeeId, toDraft(r)])),
