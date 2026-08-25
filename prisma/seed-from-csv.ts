@@ -5,7 +5,10 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { createClerkClient } from "@clerk/nextjs/server";
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+// Prefer the DIRECT (non-pooled) connection; fall back to DATABASE_URL locally.
+const adapter = new PrismaPg({
+  connectionString: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
+});
 const prisma = new PrismaClient({ adapter });
 
 const secretKey = process.env.CLERK_SECRET_KEY;
