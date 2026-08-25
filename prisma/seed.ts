@@ -2,8 +2,11 @@ import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-// Seed connects through the same driver adapter as the runtime client.
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+// Seeding is an admin operation — prefer the DIRECT (non-pooled) connection,
+// falling back to DATABASE_URL when DIRECT_URL is unset (e.g. local Docker).
+const adapter = new PrismaPg({
+  connectionString: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
+});
 const prisma = new PrismaClient({ adapter });
 
 // All statutory rows share this effective date. A future rate change is a new

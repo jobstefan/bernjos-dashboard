@@ -29,11 +29,25 @@ work locally  →  push to `staging`  →  test on the Staging URL  →  PR stag
 pnpm run db:generate && pnpm run db:deploy && pnpm run build
 ```
 
-`db:deploy` (`prisma migrate deploy`) applies pending migrations to whatever
-`DATABASE_URL` that Vercel environment provides. So a Staging build migrates the
-staging DB and a Production build migrates the production DB — no branching logic
-needed. Because production already has every migration applied, the first prod
-build after enabling this is a no-op.
+`db:deploy` (`prisma migrate deploy`) applies pending migrations over that
+environment's **`DIRECT_URL`** (see connection split below). So a Staging build
+migrates the staging DB and a Production build migrates the production DB — no
+branching logic needed. Because production already has every migration applied,
+the first prod build after enabling this is a no-op.
+
+### Connection split: pooled vs direct
+
+Each cloud environment has **two** Neon connection strings:
+
+| Variable | Endpoint | Used by |
+|----------|----------|---------|
+| `DATABASE_URL` | **pooled** (`-pooler` host) | the app at runtime (`src/lib/db.ts`) — pooling suits serverless |
+| `DIRECT_URL` | **direct** (no `-pooler`) | migrations (`prisma.config.ts`) and seeds — need a real session |
+
+Prisma's migration engine can't run over a PgBouncer pool (it needs advisory
+locks + DDL), so migrations use `DIRECT_URL`. Both fall back to `DATABASE_URL`
+when `DIRECT_URL` is unset — which is why **local dev only needs `DATABASE_URL`**
+(Docker has no pooler).
 
 > **Migrations must be non-destructive.** They run during the build, before the
 > new code goes live. Prefer additive changes; avoid dropping columns the current
@@ -52,20 +66,25 @@ Create a new **empty** Neon database (a separate project or a fresh branch — d
   the Vercel Staging env.
 
 ### 3. Vercel — environments & variables
-In **Project → Settings → Environments**, create a **Custom Environment** named
-`Staging` bound to the `staging` git branch. Keep the Production Branch as `main`.
+On the free (Hobby) plan there are no named custom environments — use the built-in
+**Preview** environment as staging. Every push to `staging` creates a Preview
+deployment (stable URL `…-git-staging-<scope>.vercel.app`); production stays on
+`main`.
 
-Set variables **per environment** (Project → Settings → Environment Variables):
+Set variables **per scope** (Project → Settings → Environment Variables). Each
+`DATABASE_URL` / `DIRECT_URL` is a **separate row** — a Production row has no Git
+Branch; a Preview row can be scoped to the `staging` branch. Don't reuse one row
+across scopes (editing its scope silently repurposes the value).
 
-| Variable | Production | Staging |
-|----------|-----------|---------|
-| `DATABASE_URL` | prod Neon (direct) | staging Neon (direct) |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk prod | Clerk dev (`pk_test_…`) |
-| `CLERK_SECRET_KEY` | Clerk prod | Clerk dev (`sk_test_…`) |
+| Variable | Production (no branch) | Preview (branch `staging`) |
+|----------|------------------------|----------------------------|
+| `DATABASE_URL` | prod Neon **pooled** | staging Neon **pooled** |
+| `DIRECT_URL` | prod Neon **direct** | staging Neon **direct** |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk prod (`pk_…`) | Clerk dev (`pk_test_…`) |
+| `CLERK_SECRET_KEY` | Clerk prod (`sk_…`) | Clerk dev (`sk_test_…`) |
 | `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` | prod keys | staging keys |
-| `NODE_ENV` | `production` | `production` |
 
-Leave `DEV_AUTH` and `PAYROLL_RBAC_BYPASS` **unset or `false`** in both so real
+Leave `DEV_AUTH` and `PAYROLL_RBAC_BYPASS` set to **`false`** in both so real
 Clerk auth and RBAC are enforced.
 
 ### 4. Git — create the staging branch
@@ -75,11 +94,12 @@ git push -u origin staging
 ```
 
 ### 5. Seed the staging database (once)
-Migrations create the schema on first deploy; load sample (non-PII) data with:
+Migrations create the schema on first deploy; load sample (non-PII) data with the
+staging **direct** URL (migrations/seeds prefer `DIRECT_URL`):
 ```
-DATABASE_URL="<staging-direct-url>" pnpm db:deploy       # schema (also runs on deploy)
-DATABASE_URL="<staging-direct-url>" pnpm db:seed
-DATABASE_URL="<staging-direct-url>" pnpm db:seed:users
+DIRECT_URL="<staging-direct-url>" pnpm db:deploy       # schema (also runs on deploy)
+DIRECT_URL="<staging-direct-url>" pnpm db:seed
+DIRECT_URL="<staging-direct-url>" pnpm db:seed:users
 ```
 
 ## Local development

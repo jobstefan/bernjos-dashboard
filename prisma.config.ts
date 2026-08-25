@@ -10,6 +10,10 @@ export default defineConfig({
     seed: "npx tsx prisma/seed.ts",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Migrations run over a DIRECT (non-pooled) connection — Prisma's migration
+    // engine needs a real session (advisory locks, DDL), which a PgBouncer pool
+    // can't provide. Falls back to DATABASE_URL when DIRECT_URL is unset (e.g.
+    // local Docker, which has no separate pooled endpoint).
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });
