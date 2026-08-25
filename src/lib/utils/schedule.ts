@@ -57,7 +57,7 @@ export function departmentAccent(department: string): {
   if (!department) return NEUTRAL_ACCENT;
   let hash = 0;
   for (let i = 0; i < department.length; i++) {
-    hash = (hash * 31 + department.charCodeAt(i)) >>> 0;
+    hash = (hash * 31 + (department.codePointAt(i) ?? 0)) >>> 0;
   }
   return DEPARTMENT_ACCENTS[hash % DEPARTMENT_ACCENTS.length];
 }

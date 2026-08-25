@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -47,19 +47,156 @@ function toDraft(row: ScheduleRow): Draft {
   };
 }
 
+function rowBgClass(
+  isBlocked: boolean,
+  isApproved: boolean,
+  isInvalid: boolean,
+  accentTint: string,
+): string {
+  if (isBlocked) return isApproved ? "bg-red-50/60 opacity-70" : "bg-yellow-50/60 opacity-70";
+  if (isInvalid) return "bg-destructive/5";
+  return accentTint;
+}
+
+function dotColorClass(isBlocked: boolean, isApproved: boolean, accentDot: string): string {
+  if (!isBlocked) return accentDot;
+  return isApproved ? "bg-red-400" : "bg-yellow-400";
+}
+
+function BoardRow({
+  row,
+  draft,
+  isInvalid,
+  absenceReq,
+  branches,
+  canEdit,
+  onUpdate,
+}: Readonly<{
+  row: ScheduleRow;
+  draft: Draft;
+  isInvalid: boolean;
+  absenceReq: AbsenceRequestRow | undefined;
+  branches: BranchRow[];
+  canEdit: boolean;
+  onUpdate: (patch: Partial<Draft>) => void;
+}>) {
+  const isBlocked = Boolean(absenceReq);
+  const isApproved = absenceReq?.status === "approved";
+  const isOff = !draft.startTime && !draft.endTime;
+  const accent = departmentAccent(row.department);
+
+  return (
+    <TableRow className={cn(rowBgClass(isBlocked, isApproved, isInvalid, accent.tint))}>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <span
+            className={cn("size-2 shrink-0 rounded-full", dotColorClass(isBlocked, isApproved, accent.dot))}
+            aria-hidden
+          />
+          <span className={cn("font-medium", isBlocked && "line-through text-muted-foreground")}>
+            {row.employeeName}
+          </span>
+          {isBlocked ? (
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-xs font-medium",
+                isApproved ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800",
+              )}
+            >
+              {isApproved ? "Approved Absence" : "Pending Absence"}
+            </span>
+          ) : null}
+        </div>
+        <div className="pl-4 text-xs text-muted-foreground">
+          {row.employeeCode}
+          {row.department ? ` · ${row.department}` : ""}
+          {!isBlocked && isOff ? " · Day off" : ""}
+        </div>
+      </TableCell>
+      <TableCell>
+        {canEdit && !isBlocked ? (
+          <Select
+            value={draft.branchId}
+            onValueChange={(v) => onUpdate({ branchId: v ?? NO_BRANCH })}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue>
+                {(value) =>
+                  value === NO_BRANCH
+                    ? "Unassigned"
+                    : (branches.find((b) => b.id === value)?.name ?? "Unassigned")
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_BRANCH}>Unassigned</SelectItem>
+              {branches.map((b) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <span className="text-sm text-muted-foreground">—</span>
+        )}
+      </TableCell>
+      <TableCell>
+        <Input
+          type="time"
+          value={draft.startTime}
+          disabled={!canEdit || isBlocked}
+          onChange={(e) => onUpdate({ startTime: e.target.value })}
+        />
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-1">
+          <Input
+            type="time"
+            value={draft.endTime}
+            disabled={!canEdit || isBlocked}
+            onChange={(e) => onUpdate({ endTime: e.target.value })}
+          />
+          {canEdit && !isBlocked ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Clear times (mark day off)"
+              title="Clear times"
+              disabled={!draft.startTime && !draft.endTime}
+              onClick={() => onUpdate({ startTime: "", endTime: "" })}
+            >
+              <X className="size-4" />
+            </Button>
+          ) : null}
+        </div>
+      </TableCell>
+      <TableCell>
+        <Input
+          value={draft.note}
+          disabled={!canEdit || isBlocked}
+          placeholder="e.g. half day"
+          onChange={(e) => onUpdate({ note: e.target.value })}
+        />
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export function ScheduleBoard({
   dateIso,
   rows,
   branches,
   canEdit,
   absenceRequests = [],
-}: {
+}: Readonly<{
   dateIso: string;
   rows: ScheduleRow[];
   branches: BranchRow[];
   canEdit: boolean;
   absenceRequests?: AbsenceRequestRow[];
-}) {
+}>) {
   // Employees with pending or approved absence requests are blocked from scheduling.
   const blockedEmployees = React.useMemo<
     Map<string, AbsenceRequestRow>
@@ -73,6 +210,20 @@ export function ScheduleBoard({
     [absenceRequests],
   );
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Correct for server/client timezone mismatch: if no explicit date param, redirect to client's local today.
+  React.useEffect(() => {
+    if (!searchParams.get("date")) {
+      const now = new Date();
+      const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      if (localToday !== dateIso) {
+        router.replace(`/schedule?date=${localToday}`);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [pending, startTransition] = React.useTransition();
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>(() =>
     Object.fromEntries(rows.map((r) => [r.employeeId, toDraft(r)])),
@@ -246,142 +397,17 @@ export function ScheduleBoard({
             {sortedRows.map((row) => {
               const d = drafts[row.employeeId];
               if (!d) return null;
-              const isOff = !d.startTime && !d.endTime;
-              const absenceReq = blockedEmployees.get(row.employeeId);
-              const isBlocked = Boolean(absenceReq);
-              const accent = departmentAccent(row.department);
               return (
-                <TableRow
+                <BoardRow
                   key={row.employeeId}
-                  className={cn(
-                    isBlocked
-                      ? absenceReq!.status === "approved"
-                        ? "bg-red-50/60 opacity-70"
-                        : "bg-yellow-50/60 opacity-70"
-                      : invalid.has(row.employeeId)
-                        ? "bg-destructive/5"
-                        : accent.tint,
-                  )}
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          "size-2 shrink-0 rounded-full",
-                          isBlocked
-                            ? absenceReq!.status === "approved"
-                              ? "bg-red-400"
-                              : "bg-yellow-400"
-                            : accent.dot,
-                        )}
-                        aria-hidden
-                      />
-                      <span className={cn("font-medium", isBlocked && "line-through text-muted-foreground")}>
-                        {row.employeeName}
-                      </span>
-                      {isBlocked ? (
-                        <span
-                          className={cn(
-                            "rounded-full px-2 py-0.5 text-xs font-medium",
-                            absenceReq!.status === "approved"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-yellow-100 text-yellow-800",
-                          )}
-                        >
-                          {absenceReq!.status === "approved"
-                            ? "Approved Absence"
-                            : "Pending Absence"}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="pl-4 text-xs text-muted-foreground">
-                      {row.employeeCode}
-                      {row.department ? ` · ${row.department}` : ""}
-                      {!isBlocked && isOff ? " · Day off" : ""}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {canEdit && !isBlocked ? (
-                      <Select
-                        value={d.branchId}
-                        onValueChange={(v) =>
-                          update(row.employeeId, { branchId: v as string })
-                        }
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue>
-                            {(value) =>
-                              value === NO_BRANCH
-                                ? "Unassigned"
-                                : (branches.find((b) => b.id === value)?.name ??
-                                  "Unassigned")
-                            }
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={NO_BRANCH}>Unassigned</SelectItem>
-                          {branches.map((b) => (
-                            <SelectItem key={b.id} value={b.id}>
-                              {b.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="time"
-                      value={d.startTime}
-                      disabled={!canEdit || isBlocked}
-                      onChange={(e) =>
-                        update(row.employeeId, { startTime: e.target.value })
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Input
-                        type="time"
-                        value={d.endTime}
-                        disabled={!canEdit || isBlocked}
-                        onChange={(e) =>
-                          update(row.employeeId, { endTime: e.target.value })
-                        }
-                      />
-                      {canEdit && !isBlocked ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="Clear times (mark day off)"
-                          title="Clear times"
-                          disabled={!d.startTime && !d.endTime}
-                          onClick={() =>
-                            update(row.employeeId, {
-                              startTime: "",
-                              endTime: "",
-                            })
-                          }
-                        >
-                          <X className="size-4" />
-                        </Button>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={d.note}
-                      disabled={!canEdit || isBlocked}
-                      placeholder="e.g. half day"
-                      onChange={(e) =>
-                        update(row.employeeId, { note: e.target.value })
-                      }
-                    />
-                  </TableCell>
-                </TableRow>
+                  row={row}
+                  draft={d}
+                  isInvalid={invalid.has(row.employeeId)}
+                  absenceReq={blockedEmployees.get(row.employeeId)}
+                  branches={branches}
+                  canEdit={canEdit}
+                  onUpdate={(patch) => update(row.employeeId, patch)}
+                />
               );
             })}
           </TableBody>
