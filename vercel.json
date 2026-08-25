@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm run db:generate && pnpm run build",
+  "buildCommand": "pnpm run db:generate && pnpm run db:deploy && pnpm run build",
   "installCommand": "pnpm install --frozen-lockfile",
   "regions": ["sin1"]
 }
