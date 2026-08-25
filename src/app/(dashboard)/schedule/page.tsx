@@ -7,15 +7,7 @@ import { getEmployees } from "@/server/services/employee.service";
 import { ScheduleBoard } from "@/components/schedule/schedule-board";
 import { AbsenceRequestsPanel } from "@/components/schedule/absence-requests-panel";
 import { AddAbsenceDialog } from "@/components/schedule/add-absence-dialog";
-
-/** Local calendar day as `YYYY-MM-DD`. */
-function todayIso(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
+import { TodayRedirect } from "@/components/schedule/today-redirect";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -28,7 +20,11 @@ export default async function SchedulePage({
   if (!canViewSchedule(role)) redirect("/");
 
   const { date } = await searchParams;
-  const dateIso = date && DATE_RE.test(date) ? date : todayIso();
+
+  // No date param: let the client resolve its local today to avoid server/client timezone mismatch.
+  if (!date || !DATE_RE.test(date)) return <TodayRedirect />;
+
+  const dateIso = date;
   const dateObj = new Date(`${dateIso}T00:00:00Z`);
 
   const canManage = canManageSchedule(role);
