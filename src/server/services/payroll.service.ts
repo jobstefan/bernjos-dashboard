@@ -139,7 +139,7 @@ export async function calculateEmployeeDeductions(
   // low bracket can't crash the run or push net pay negative).
   if (daysWorked === 0) {
     return {
-      employeeId,
+      profileId: employeeId,
       periodId,
       frequency,
       basicSalary: toNum(dailyRate),
@@ -200,7 +200,7 @@ export async function calculateEmployeeDeductions(
   const netPay = round2(grossPay.sub(totalDeductions));
 
   return {
-    employeeId,
+    profileId: employeeId,
     periodId,
     frequency,
     basicSalary: toNum(dailyRate),
@@ -352,7 +352,7 @@ export async function calculatePayrollRun(
 
     rows.push({
       payrollPeriodId: periodId,
-      employeeId: employee.id,
+      profileId: employee.id,
       basicSalary: employee.basicSalary,
       grossPay: b.grossPay,
       sssEmployee: b.sssEmployee,
@@ -437,7 +437,7 @@ export async function approvePayrollRun(periodId: string, actor: Actor): Promise
   const items = await findRunItems(periodId);
   for (const item of items) {
     if (!new Decimal(item.savingsContribution).gt(0)) continue;
-    const account = await findSavingsAccountByEmployee(item.employeeId);
+    const account = await findSavingsAccountByEmployee(item.profileId);
     if (!account) continue;
     await insertSavingsTransaction({
       accountId: account.id,
@@ -509,11 +509,11 @@ function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
       status: item.period.status,
     },
     employee: {
-      id: item.employee.id,
-      employeeCode: item.employee.employeeCode,
-      fullName: `${item.employee.firstName} ${item.employee.lastName}`,
-      position: item.employee.position,
-      department: item.employee.department,
+      id: item.profile.id,
+      employeeCode: item.profile.employeeCode,
+      fullName: `${item.profile.firstName} ${item.profile.lastName}`,
+      position: item.profile.position,
+      department: item.profile.department,
     },
     basicSalary: toNum(item.basicSalary),
     grossPay: toNum(item.grossPay),

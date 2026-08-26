@@ -33,9 +33,9 @@ type CashAdvanceWithRelations = Awaited<
 function toRow(advance: NonNullable<CashAdvanceWithRelations>): CashAdvanceRow {
   return {
     id: advance.id,
-    employeeId: advance.employeeId,
-    employeeCode: advance.employee.employeeCode,
-    employeeName: `${advance.employee.firstName} ${advance.employee.lastName}`,
+    employeeId: advance.profileId,
+    employeeCode: advance.profile.employeeCode,
+    employeeName: `${advance.profile.firstName} ${advance.profile.lastName}`,
     amount: Number(advance.amount),
     approvedAmount:
       advance.approvedAmount != null ? Number(advance.approvedAmount) : null,
@@ -60,9 +60,9 @@ export async function getCashAdvances(
 }
 
 export async function getCashAdvancesForEmployee(
-  employeeId: string,
+  profileId: string,
 ): Promise<CashAdvanceRow[]> {
-  const rows = await findCashAdvancesForEmployee(employeeId);
+  const rows = await findCashAdvancesForEmployee(profileId);
   return rows.map(toRow);
 }
 
@@ -76,20 +76,20 @@ export async function getCashAdvance(id: string): Promise<CashAdvanceRow> {
 // Mutations
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** An employee submits a new cash-advance request against their own record. */
+/** A profile submits a new cash-advance request against their own record. */
 export async function requestCashAdvance(
   input: CreateCashAdvanceSchema,
   actor: Actor,
 ) {
-  const employee = await getEmployeeByClerkUser(actor.clerkUserId);
-  if (!employee) {
+  const profile = await getEmployeeByClerkUser(actor.clerkUserId);
+  if (!profile) {
     throw new UnauthorizedError(
       "Your account isn't linked to an employee profile. Please contact HR.",
     );
   }
 
   const advance = await insertCashAdvance({
-    employee: { connect: { id: employee.id } },
+    profile: { connect: { id: profile.id } },
     amount: input.amount,
     reason: input.reason,
     status: "pending",
@@ -171,7 +171,7 @@ export async function declineCashAdvance(
   return after;
 }
 
-/** An employee withdraws their own still-pending request. */
+/** A profile withdraws their own still-pending request. */
 export async function cancelCashAdvance(id: string, actor: Actor) {
   const before = await findCashAdvanceById(id);
   if (!before) throw new NotFoundError("Cash advance", id);

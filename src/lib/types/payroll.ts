@@ -1,6 +1,6 @@
 import type {
   CashAdvanceModel,
-  EmployeeModel,
+  UserProfileModel,
   PayrollPeriodModel,
   PayrollRunItemModel,
 } from "@/generated/prisma/models";
@@ -13,7 +13,9 @@ import type {
 } from "@/generated/prisma/enums";
 
 // Re-export Prisma model + enum types under friendly names for the app layer.
-export type Employee = EmployeeModel;
+export type UserProfile = UserProfileModel;
+/** @deprecated use UserProfile */
+export type Employee = UserProfile;
 export type PayrollPeriod = PayrollPeriodModel;
 export type PayrollRunItem = PayrollRunItemModel;
 export type CashAdvance = CashAdvanceModel;
@@ -25,10 +27,10 @@ export type {
   RunItemStatus,
 };
 
-/** The four payroll roles, read from Clerk `publicMetadata.role`. */
+/** The four payroll roles stored in the DB User table. */
 export type Role = "super_admin" | "admin" | "manager" | "employee";
 
-/** The signed-in actor, resolved from Clerk for RBAC + audit. */
+/** The signed-in actor, resolved from Clerk + DB for RBAC + audit. */
 export interface Actor {
   clerkUserId: string;
   email: string | null;
@@ -36,11 +38,11 @@ export interface Actor {
 }
 
 /**
- * Full, auditable breakdown of one employee's statutory deductions for a period.
+ * Full, auditable breakdown of one profile's statutory deductions for a period.
  * All money values are plain numbers rounded to 2 dp (peso).
  */
 export interface DeductionBreakdown {
-  employeeId: string;
+  profileId: string;
   periodId: string;
   frequency: PayFrequency;
   /** Daily basic-pay rate. */
@@ -49,7 +51,7 @@ export interface DeductionBreakdown {
   daysWorked: number;
   /** Gross for this period (daily rate × days worked). */
   grossPay: number;
-  /** True when days worked came from the employee's schedule + attendance. */
+  /** True when days worked came from the profile's schedule + attendance. */
   attendanceTracked: boolean;
   /** Scheduled days with no attendance record (0 when not tracked). */
   absentDays: number;
@@ -99,13 +101,16 @@ export interface PeriodFilters {
   status?: PayrollStatus;
 }
 
-export interface EmployeeFilters {
+export interface ProfileFilters {
   search?: string;
   department?: string;
   employmentStatus?: EmploymentStatus;
 }
 
-/** A single employee's payslip for one period (run item joined to context). */
+/** @deprecated use ProfileFilters */
+export type EmployeeFilters = ProfileFilters;
+
+/** A single profile's payslip for one period (run item joined to context). */
 export interface Payslip {
   runItemId: string;
   period: {
@@ -130,18 +135,18 @@ export interface Payslip {
   philhealthEmployee: number;
   otherDeductions: number;
   otherEarnings: number;
-  /** Employee savings withheld into their account — not a deduction. */
+  /** User savings withheld into their account — not a deduction. */
   savingsContribution: number;
   totalDeductions: number;
   netPay: number;
   status: RunItemStatus;
   /** Admin-authored remark shown on the payslip (null when none). */
   remarks: string | null;
-  /** Net pay attributed to each branch the employee worked at (empty when none). */
+  /** Net pay attributed to each branch the profile worked at (empty when none). */
   branchBreakdown: BranchNetLine[];
 }
 
-/** One branch's share of an employee's period net (net × its day-share). */
+/** One branch's share of a profile's period net (net × its day-share). */
 export interface BranchNetLine {
   branchName: string;
   daysWorked: number;
@@ -150,7 +155,7 @@ export interface BranchNetLine {
 
 export interface CashAdvanceFilters {
   status?: CashAdvanceStatus;
-  employeeId?: string;
+  profileId?: string;
 }
 
 /** A cash-advance request flattened for display in a table. */

@@ -5,10 +5,9 @@ import { PrismaPg } from "@prisma/adapter-pg";
 
 /**
  * Seed login-capable Clerk users, one per role, so the app's RBAC can be
- * exercised end-to-end. Roles are stored in Clerk `publicMetadata.role` (the
- * source of truth read by `src/lib/auth/rbac.ts`). The `employee` user is also
- * linked to a local Employee record so self-service tabs (payslips, cash
- * advances) resolve.
+ * exercised end-to-end. Roles are stored in the DB `User.role` column (the
+ * source of truth). The `employee` user is also linked to a local UserProfile
+ * record so self-service tabs (payslips, cash advances) resolve.
  *
  * Idempotent: existing users (matched by email) are updated in place, so this
  * can be re-run safely. Requires CLERK_SECRET_KEY (a `sk_test_…` dev key).
@@ -30,18 +29,16 @@ const clerk = createClerkClient({ secretKey });
 
 const PASSWORD = process.env.SEED_USER_PASSWORD ?? "Bernjos-Dev-2026!";
 
-type Role = "super_admin" | "admin" | "manager" | "employee";
+type DbRole = "super_admin" | "admin" | "manager" | "employee";
 
 interface SeedUser {
-  role: Role;
+  role: DbRole;
   email: string;
   username: string;
-  /** Clerk fictional test number (`555-01xx`) — usable in dev instances. */
-  phoneNumber: string;
   firstName: string;
   lastName: string;
-  /** When set, a linked Employee profile is created/updated for this user. */
-  employee?: {
+  /** When set, a linked UserProfile is created/updated for this user. */
+  profile?: {
     employeeCode: string;
     position: string;
     department: string;
@@ -57,7 +54,6 @@ const USERS: SeedUser[] = [
     role: "super_admin",
     email: "superadmin+clerk_test@example.com",
     username: "superadmin",
-    phoneNumber: "+12015550101",
     firstName: "Sam",
     lastName: "Superadmin",
   },
@@ -65,7 +61,6 @@ const USERS: SeedUser[] = [
     role: "admin",
     email: "admin+clerk_test@example.com",
     username: "admin",
-    phoneNumber: "+12015550102",
     firstName: "Andy",
     lastName: "Admin",
   },
@@ -73,18 +68,24 @@ const USERS: SeedUser[] = [
     role: "manager",
     email: "manager+clerk_test@example.com",
     username: "manager",
-    phoneNumber: "+12015550103",
     firstName: "Maria",
     lastName: "Manager",
+    profile: {
+      employeeCode: "EMP-0002",
+      position: "Team Lead",
+      department: "Operations",
+      basicSalary: 1500,
+      payFrequency: "semi_monthly",
+      dateHired: "2024-06-01",
+    },
   },
   {
     role: "employee",
     email: "employee+clerk_test@example.com",
     username: "employee",
-    phoneNumber: "+12015550104",
     firstName: "Ellen",
     lastName: "Employee",
-    employee: {
+    profile: {
       employeeCode: "EMP-0001",
       position: "Staff",
       department: "Operations",
@@ -95,88 +96,84 @@ const USERS: SeedUser[] = [
   },
 ];
 
-/** Find an existing Clerk user by email, or create one. Returns the user id. */
+/** Find an existing Clerk user by email, or create one. Returns the Clerk user id. */
 async function upsertClerkUser(u: SeedUser): Promise<string> {
   const existing = await clerk.users.getUserList({ emailAddress: [u.email] });
   if (existing.data.length > 0) {
     const user = existing.data[0];
-    await clerk.users.updateUserMetadata(user.id, {
-      publicMetadata: { role: u.role },
-    });
-    console.log(`  ↻ updated ${u.email} (role=${u.role})`);
+    console.log(`  ↻ updated ${u.email} (role=${u.role} in DB)`);
     return user.id;
   }
 
   const created = await clerk.users.createUser({
     emailAddress: [u.email],
     username: u.username,
-    phoneNumber: [u.phoneNumber],
     password: PASSWORD,
     firstName: u.firstName,
     lastName: u.lastName,
-    publicMetadata: { role: u.role },
+    publicMetadata: { needsOnboarding: true },
     skipPasswordChecks: true,
   });
-  console.log(`  ＋ created ${u.email} (role=${u.role})`);
+  console.log(`  ＋ created ${u.email} (role=${u.role} in DB)`);
   return created.id;
 }
 
-/** Mirror the Clerk user into the local User table (as getOrCreateUser would). */
+/** Mirror the Clerk user into the local User table with the correct DB role. */
 async function upsertLocalUser(clerkId: string, u: SeedUser) {
-  await prisma.user.upsert({
+  return prisma.user.upsert({
     where: { clerkId },
-    update: { email: u.email, firstName: u.firstName, lastName: u.lastName },
+    update: { email: u.email, firstName: u.firstName, lastName: u.lastName, role: u.role },
     create: {
       clerkId,
       email: u.email,
       firstName: u.firstName,
       lastName: u.lastName,
+      role: u.role,
     },
   });
 }
 
-/** Create/update the linked Employee profile for a self-service user. */
-async function upsertEmployee(clerkUserId: string, u: SeedUser) {
-  if (!u.employee) return;
-  const e = u.employee;
-  await prisma.employee.upsert({
-    where: { employeeCode: e.employeeCode },
+/** Create/update the linked UserProfile for a self-service user. */
+async function upsertUserProfile(userId: string, u: SeedUser) {
+  if (!u.profile) return;
+  const p = u.profile;
+  await prisma.userProfile.upsert({
+    where: { employeeCode: p.employeeCode },
     update: {
-      clerkUserId,
+      userId,
       firstName: u.firstName,
       lastName: u.lastName,
-      email: u.email,
-      position: e.position,
-      department: e.department,
-      basicSalary: e.basicSalary,
-      payFrequency: e.payFrequency,
-      dateHired: new Date(e.dateHired),
+      position: p.position,
+      department: p.department,
+      basicSalary: p.basicSalary,
+      payFrequency: p.payFrequency,
+      dateHired: new Date(p.dateHired),
       employmentStatus: "active",
       deletedAt: null,
     },
     create: {
-      clerkUserId,
-      employeeCode: e.employeeCode,
+      userId,
+      employeeCode: p.employeeCode,
+      username: u.username,
       firstName: u.firstName,
       lastName: u.lastName,
-      email: u.email,
-      position: e.position,
-      department: e.department,
-      basicSalary: e.basicSalary,
-      payFrequency: e.payFrequency,
-      dateHired: new Date(e.dateHired),
+      position: p.position,
+      department: p.department,
+      basicSalary: p.basicSalary,
+      payFrequency: p.payFrequency,
+      dateHired: new Date(p.dateHired),
       employmentStatus: "active",
     },
   });
-  console.log(`     ↳ linked Employee ${e.employeeCode}`);
+  console.log(`     ↳ linked UserProfile ${p.employeeCode}`);
 }
 
 async function main() {
   console.log("Seeding Clerk users for all roles…");
   for (const u of USERS) {
     const clerkId = await upsertClerkUser(u);
-    await upsertLocalUser(clerkId, u);
-    await upsertEmployee(clerkId, u);
+    const dbUser = await upsertLocalUser(clerkId, u);
+    await upsertUserProfile(dbUser.id, u);
   }
 
   console.log("\nDone. Sign in at /sign-in with any of:");

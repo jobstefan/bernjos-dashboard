@@ -34,7 +34,6 @@ export interface EmployeeFormValues {
   dateHired: string;
   basicSalary: string;
   payFrequency: string;
-  clerkUserId: string;
   sssNumber: string;
   philhealthNumber: string;
   sssSalaryBasis: string;
@@ -58,7 +57,6 @@ const FIELD_LABELS: Record<string, string> = {
   dateHired: "Date hired",
   basicSalary: "Basic salary",
   payFrequency: "Pay frequency",
-  clerkUserId: "Clerk user ID",
   sssNumber: "SSS number",
   philhealthNumber: "PhilHealth number",
   sssSalaryBasis: "SSS contribution salary",
@@ -81,7 +79,6 @@ const EMPTY: EmployeeFormValues = {
   dateHired: "",
   basicSalary: "",
   payFrequency: "semi_monthly",
-  clerkUserId: "",
   sssNumber: "",
   philhealthNumber: "",
   sssSalaryBasis: "",
@@ -158,7 +155,6 @@ export function EmployeeForm({
       dateHired: get("dateHired"),
       basicSalary: get("basicSalary"),
       payFrequency: selects.payFrequency,
-      clerkUserId: get("clerkUserId"),
       sssNumber: get("sssNumber"),
       philhealthNumber: get("philhealthNumber"),
       sssSalaryBasis: get("sssSalaryBasis"),
@@ -325,12 +321,6 @@ export function EmployeeForm({
       <Section title="Bank Details">
         <TextField name="bankName" label="Bank name" defaultValue={v.bankName} error={errors.bankName} />
         <TextField name="bankAccountNumber" label="Account number" defaultValue={v.bankAccountNumber} error={errors.bankAccountNumber} />
-        <TextField
-          name="clerkUserId"
-          label="Clerk user ID (for self-service payslips)"
-          defaultValue={v.clerkUserId}
-          error={errors.clerkUserId}
-        />
       </Section>
 
       <div className="flex justify-end gap-2">

@@ -74,7 +74,7 @@ async function resolveEmployeeId(
   deviceUserId: string,
 ): Promise<string | null> {
   const override = await findEmployeeDevice(branchId, deviceUserId);
-  if (override) return override.employeeId;
+  if (override) return override.profileId;
   const employee = await findEmployeeByCode(deviceUserId);
   return employee?.id ?? null;
 }
@@ -305,14 +305,14 @@ export async function getComparison(
     findRecordsForRange(from, to),
   ]);
   const recByKey = new Map(
-    records.map((r) => [dateKey(r.date, r.employeeId), r]),
+    records.map((r) => [dateKey(r.date, r.profileId), r]),
   );
 
   const rows: AttendanceComparisonRow[] = [];
   const seen = new Set<string>();
 
   for (const entry of entries) {
-    const key = dateKey(entry.date, entry.employeeId);
+    const key = dateKey(entry.date, entry.profileId);
     seen.add(key);
     const rec = recByKey.get(key);
     const cmp = compareDay({
@@ -324,9 +324,9 @@ export async function getComparison(
     });
     rows.push({
       date: entry.date.toISOString().slice(0, 10),
-      employeeId: entry.employeeId,
-      employeeCode: entry.employee.employeeCode,
-      employeeName: `${entry.employee.firstName} ${entry.employee.lastName}`,
+      employeeId: entry.profileId,
+      employeeCode: entry.profile.employeeCode,
+      employeeName: `${entry.profile.firstName} ${entry.profile.lastName}`,
       scheduledStart: entry.startTime,
       scheduledEnd: entry.endTime,
       actualIn: rec?.timeIn ?? null,
@@ -347,13 +347,13 @@ export async function getComparison(
 
   // Attendance with no schedule that day (e.g. worked on a day off) — surface it.
   for (const rec of records) {
-    const key = dateKey(rec.date, rec.employeeId);
+    const key = dateKey(rec.date, rec.profileId);
     if (seen.has(key)) continue;
     rows.push({
       date: rec.date.toISOString().slice(0, 10),
-      employeeId: rec.employeeId,
-      employeeCode: rec.employee.employeeCode,
-      employeeName: `${rec.employee.firstName} ${rec.employee.lastName}`,
+      employeeId: rec.profileId,
+      employeeCode: rec.profile.employeeCode,
+      employeeName: `${rec.profile.firstName} ${rec.profile.lastName}`,
       scheduledStart: null,
       scheduledEnd: null,
       actualIn: rec.timeIn,

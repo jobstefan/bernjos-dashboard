@@ -27,7 +27,7 @@ export default async function EmployeesPage() {
     id: e.id,
     employeeCode: e.employeeCode,
     fullName: `${e.firstName} ${e.lastName}`,
-    email: e.email ?? "—",
+    email: e.user?.email ?? "—",
     position: e.position,
     department: e.department,
     employmentStatus: e.employmentStatus,

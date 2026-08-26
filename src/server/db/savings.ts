@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 
 const withRelations = {
-  employee: {
+  profile: {
     select: {
       id: true,
       employeeCode: true,
@@ -19,21 +19,21 @@ const withRelations = {
 } satisfies Prisma.SavingsAccountInclude;
 
 /**
- * Accounts shown in the admin supervision list. Only active employees appear —
+ * Accounts shown in the admin supervision list. Only active profiles appear —
  * frozen accounts (terminated/resigned/inactive) are hidden but their balances
- * are preserved and still reachable by id / employee.
+ * are preserved and still reachable by id / profile.
  */
 export function findSavingsAccounts() {
   return prisma.savingsAccount.findMany({
-    where: { employee: { deletedAt: null, employmentStatus: "active" } },
+    where: { profile: { deletedAt: null, employmentStatus: "active" } },
     include: withRelations,
-    orderBy: { employee: { lastName: "asc" } },
+    orderBy: { profile: { lastName: "asc" } },
   });
 }
 
-export function findSavingsAccountByEmployee(employeeId: string) {
+export function findSavingsAccountByEmployee(profileId: string) {
   return prisma.savingsAccount.findUnique({
-    where: { employeeId },
+    where: { profileId },
     include: withRelations,
   });
 }
@@ -46,8 +46,8 @@ export function findSavingsAccountById(id: string) {
 }
 
 /**
- * Create or update an employee's account with a recurring contribution. One
- * account per employee (enforced by the unique `employeeId`).
+ * Create or update a profile's account with a recurring contribution. One
+ * account per profile (enforced by the unique `profileId`).
  */
 export function upsertSavingsAccount(input: {
   employeeId: string;
@@ -55,9 +55,9 @@ export function upsertSavingsAccount(input: {
   createdBy: string;
 }) {
   return prisma.savingsAccount.upsert({
-    where: { employeeId: input.employeeId },
+    where: { profileId: input.employeeId },
     create: {
-      employee: { connect: { id: input.employeeId } },
+      profile: { connect: { id: input.employeeId } },
       contributionAmount: input.contributionAmount,
       createdBy: input.createdBy,
     },
@@ -88,11 +88,11 @@ export function insertSavingsTransaction(input: {
   });
 }
 
-/** Accounts of non-deleted employees — the set payroll pulls contributions from. */
+/** Accounts of non-deleted profiles — the set payroll pulls contributions from. */
 export function findActiveAccountsForContribution() {
   return prisma.savingsAccount.findMany({
     where: {
-      employee: { deletedAt: null },
+      profile: { deletedAt: null },
     },
   });
 }

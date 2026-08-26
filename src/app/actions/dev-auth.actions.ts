@@ -42,7 +42,11 @@ export async function devLoginAction(
   let clerkUserId = `dev_${role}`;
   if (cfg.employeeCode) {
     const employee = await findEmployeeByCode(cfg.employeeCode);
-    if (employee?.clerkUserId) clerkUserId = employee.clerkUserId;
+    if (employee?.userId) {
+      const { prisma } = await import("@/lib/db");
+      const user = await prisma.user.findUnique({ where: { id: employee.userId }, select: { clerkId: true } });
+      if (user?.clerkId) clerkUserId = user.clerkId;
+    }
   }
 
   const store = await cookies();

@@ -1,20 +1,14 @@
 import "server-only";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { getOrCreateUser } from "@/lib/user";
 import { UnauthorizedError } from "@/lib/errors/payroll";
 import { isDevAuthEnabled, readDevSession } from "@/lib/auth/dev-session";
 import type { Actor, Role } from "@/lib/types/payroll";
 
-const VALID_ROLES: readonly Role[] = [
-  "super_admin",
-  "admin",
-  "manager",
-  "employee",
-];
-
 /**
  * Development RBAC bypass. While enabled, any signed-in user is treated as a
  * `super_admin` so every payroll/employee action (and its UI) is usable without
- * configuring Clerk roles yet. The role logic below is left fully intact — this
+ * configuring roles yet. The role logic below is left fully intact — this
  * only overrides the *resolved* role.
  *
  * Defaults on outside production. Override explicitly with PAYROLL_RBAC_BYPASS:
@@ -28,24 +22,9 @@ function isRbacBypassed(): boolean {
   return process.env.NODE_ENV !== "production";
 }
 
-/** Normalize `super-admin`/`superadmin` etc. to a canonical Role. */
-function normalizeRole(raw: unknown): Role {
-  if (typeof raw !== "string") return "employee";
-  const normalized = raw.trim().toLowerCase().replace(/[-\s]+/g, "_");
-  return (VALID_ROLES as readonly string[]).includes(normalized)
-    ? (normalized as Role)
-    : "employee";
-}
-
-/** The user's effective role, applying the dev bypass. */
-function resolveRole(raw: unknown): Role {
-  if (isRbacBypassed()) return "super_admin";
-  return normalizeRole(raw);
-}
-
 /**
- * Resolve the signed-in user into an {@link Actor}. Role comes from Clerk
- * `publicMetadata.role` (defaults to `employee`). Throws if nobody is signed in.
+ * Resolve the signed-in user into an {@link Actor}. Role comes from the DB
+ * `User.role` column (defaults to `employee`). Throws if nobody is signed in.
  */
 export async function getActor(): Promise<Actor> {
   // Local dev login (Clerk bypassed): resolve the actor from the dev cookie.
@@ -59,17 +38,22 @@ export async function getActor(): Promise<Actor> {
     };
   }
 
-  const user = await getCurrentUser();
-  if (!user) {
+  const clerkUser = await getCurrentUser();
+  if (!clerkUser) {
     throw new UnauthorizedError("You must be signed in.");
   }
+
+  const role: Role = isRbacBypassed()
+    ? "super_admin"
+    : ((await getOrCreateUser())?.role ?? "employee") as Role;
+
   return {
-    clerkUserId: user.id,
+    clerkUserId: clerkUser.id,
     email:
-      user.primaryEmailAddress?.emailAddress ??
-      user.emailAddresses[0]?.emailAddress ??
+      clerkUser.primaryEmailAddress?.emailAddress ??
+      clerkUser.emailAddresses[0]?.emailAddress ??
       null,
-    role: resolveRole(user.publicMetadata?.role),
+    role,
   };
 }
 
@@ -80,9 +64,10 @@ export async function getCurrentRole(): Promise<Role> {
     return session?.role ?? "employee";
   }
 
-  const user = await getCurrentUser();
-  if (!user) return "employee";
-  return resolveRole(user.publicMetadata?.role);
+  if (isRbacBypassed()) return "super_admin";
+
+  const user = await getOrCreateUser();
+  return (user?.role ?? "employee") as Role;
 }
 
 export function hasRole(actor: Actor, ...roles: Role[]): boolean {
@@ -119,7 +104,7 @@ export function canManageAttendance(role: Role): boolean {
 }
 
 /**
- * Only admins and super-admins supervise all employees' savings. Managers, like
+ * Only admins and super-admins supervise all profiles' savings. Managers, like
  * employees, only ever see their own savings (self-service page).
  */
 export function canSuperviseSavings(role: Role): boolean {

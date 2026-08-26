@@ -49,11 +49,11 @@ function toTransactionRow(t: TransactionWithPeriod): SavingsTransactionRow {
 function toAccountRow(account: AccountWithRelations): SavingsAccountRow {
   return {
     accountId: account.id,
-    employeeId: account.employeeId,
-    employeeCode: account.employee.employeeCode,
-    employeeName: `${account.employee.firstName} ${account.employee.lastName}`,
+    employeeId: account.profileId,
+    employeeCode: account.profile.employeeCode,
+    employeeName: `${account.profile.firstName} ${account.profile.lastName}`,
     contributionAmount: Number(account.contributionAmount),
-    frozen: account.employee.employmentStatus !== "active",
+    frozen: account.profile.employmentStatus !== "active",
     balance: computeBalance(account),
     lastActivityAt: account.transactions[0]?.createdAt.toISOString() ?? null,
     transactions: account.transactions.map(toTransactionRow),
@@ -69,19 +69,19 @@ export async function getSavingsAccounts(): Promise<SavingsAccountRow[]> {
   return accounts.map(toAccountRow);
 }
 
-/** The self-service view for one employee (account + full ledger). Returns null
- * if the employee has no savings account yet. */
+/** The self-service view for one profile (account + full ledger). Returns null
+ * if the profile has no savings account yet. */
 export async function getSavingsForEmployee(
-  employeeId: string,
+  profileId: string,
 ): Promise<EmployeeSavings | null> {
-  const account = await findSavingsAccountByEmployee(employeeId);
+  const account = await findSavingsAccountByEmployee(profileId);
   if (!account) return null;
   return {
-    employeeId: account.employeeId,
-    employeeCode: account.employee.employeeCode,
-    employeeName: `${account.employee.firstName} ${account.employee.lastName}`,
+    employeeId: account.profileId,
+    employeeCode: account.profile.employeeCode,
+    employeeName: `${account.profile.firstName} ${account.profile.lastName}`,
     contributionAmount: Number(account.contributionAmount),
-    frozen: account.employee.employmentStatus !== "active",
+    frozen: account.profile.employmentStatus !== "active",
     balance: computeBalance(account),
     transactions: account.transactions.map(toTransactionRow),
   };
@@ -91,14 +91,14 @@ export async function getSavingsForEmployee(
 // Mutations (admin-only; enforced by the action layer)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Create or update an employee's recurring savings contribution. */
+/** Create or update a profile's recurring savings contribution. */
 export async function upsertSavingsAccount(
   input: UpsertSavingsAccountSchema,
   actor: Actor,
 ) {
-  const employee = await findEmployeeById(input.employeeId);
-  if (!employee) throw new NotFoundError("Employee", input.employeeId);
-  if (employee.employmentStatus !== "active") {
+  const profile = await findEmployeeById(input.employeeId);
+  if (!profile) throw new NotFoundError("Employee", input.employeeId);
+  if (profile.employmentStatus !== "active") {
     throw new BadRequestError(
       "This savings account is frozen because the employee is no longer active.",
     );
@@ -156,9 +156,29 @@ export async function recordSavingsAdjustment(
   await auditLog({
     actor,
     action: `savings.${input.type}`,
-    entityType: "savings_transaction",
-    entityId: transaction.id,
+    entityType: "savings_account",
+    entityId: account.id,
     after: transaction,
   });
-  return transaction;
+  return toAccountRow({ ...account, transactions: [transaction as typeof account.transactions[number], ...account.transactions] });
+}
+
+/** Admin view of one employee's account (for the savings detail page). */
+export async function getSavingsAccount(
+  accountId: string,
+): Promise<SavingsAccountRow | null> {
+  const { findSavingsAccountById } = await import("@/server/db/savings");
+  const account = await findSavingsAccountById(accountId);
+  if (!account) return null;
+  return toAccountRow(account);
+}
+
+/** Self-service: get the savings for the profile linked to a Clerk user id. */
+export async function getMySavings(
+  clerkUserId: string,
+): Promise<EmployeeSavings | null> {
+  const { findEmployeeByClerkId } = await import("@/server/db/employees");
+  const profile = await findEmployeeByClerkId(clerkUserId);
+  if (!profile) return null;
+  return getSavingsForEmployee(profile.id);
 }

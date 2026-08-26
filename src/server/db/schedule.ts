@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 
 const withRelations = {
-  employee: {
+  profile: {
     select: {
       id: true,
       employeeCode: true,
@@ -22,15 +22,15 @@ export function findEntriesByDate(date: Date) {
   });
 }
 
-export function findEntriesForEmployee(employeeId: string, from: Date, to: Date) {
+export function findEntriesForEmployee(profileId: string, from: Date, to: Date) {
   return prisma.scheduleEntry.findMany({
-    where: { employeeId, date: { gte: from, lte: to } },
+    where: { profileId, date: { gte: from, lte: to } },
     include: withRelations,
     orderBy: { date: "asc" },
   });
 }
 
-/** Every employee's entries across a date range (for the attendance comparison). */
+/** Every profile's entries across a date range (for the attendance comparison). */
 export function findEntriesForRange(from: Date, to: Date) {
   return prisma.scheduleEntry.findMany({
     where: { date: { gte: from, lte: to } },
@@ -39,7 +39,7 @@ export function findEntriesForRange(from: Date, to: Date) {
   });
 }
 
-/** Data for one working employee's entry on a given day. */
+/** Data for one working profile's entry on a given day. */
 export interface DayEntryData {
   employeeId: string;
   branchId: string | null;
@@ -50,7 +50,7 @@ export interface DayEntryData {
 
 /**
  * Atomically replace a whole day's schedule: drop every existing row for the
- * date, then insert one row per working employee. Employees not in `entries`
+ * date, then insert one row per working profile. Profiles not in `entries`
  * end up with no row = day off.
  */
 export function replaceDaySchedule(
@@ -63,7 +63,7 @@ export function replaceDaySchedule(
     prisma.scheduleEntry.createMany({
       data: entries.map((e) => ({
         date,
-        employeeId: e.employeeId,
+        profileId: e.employeeId,
         branchId: e.branchId,
         startTime: e.startTime,
         endTime: e.endTime,

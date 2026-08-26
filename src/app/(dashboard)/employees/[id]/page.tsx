@@ -55,7 +55,7 @@ export default async function EmployeeProfilePage({
   const fields: [string, string][] = [
     ["Employee code", employee.employeeCode],
     ["Full name", `${employee.firstName} ${employee.middleName ?? ""} ${employee.lastName}`.replace(/\s+/g, " ").trim()],
-    ["Email", employee.email ?? "—"],
+    ["Email", employee.user?.email ?? "—"],
     ["Contact number", employee.contactNumber ?? "—"],
     ["Address", employee.address ?? "—"],
     ["Position", employee.position],
@@ -156,7 +156,7 @@ export default async function EmployeeProfilePage({
                 restored and they set a new one on next sign-in.
               </p>
             </div>
-            {employee.clerkUserId ? (
+            {employee.user?.clerkId ? (
               <ResetPasswordButton employeeId={employee.id} />
             ) : null}
           </CardContent>

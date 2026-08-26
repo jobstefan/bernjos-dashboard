@@ -14,7 +14,8 @@ export interface NavItem {
     | "branch"
     | "department"
     | "savings"
-    | "attendance";
+    | "attendance"
+    | "settings";
   roles: Role[];
 }
 
@@ -96,6 +97,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/departments",
     icon: "department",
     roles: ["super_admin", "admin"],
+  },
+  {
+    label: "Settings",
+    href: "/settings/users",
+    icon: "settings",
+    roles: ["super_admin"],
   },
 ];
 

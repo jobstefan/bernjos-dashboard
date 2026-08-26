@@ -37,7 +37,6 @@ export const createEmployeeSchema = z.object({
     .number()
     .positive("Basic salary must be greater than zero."),
   payFrequency: payFrequencyEnum.default("semi_monthly"),
-  clerkUserId: z.string().trim().optional().nullable(),
   sssNumber: z.string().trim().optional().nullable(),
   philhealthNumber: z.string().trim().optional().nullable(),
   sssSalaryBasis: z.coerce

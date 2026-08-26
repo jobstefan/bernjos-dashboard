@@ -55,15 +55,15 @@ export interface AttendanceRecordData {
   rawRow: Prisma.InputJsonValue;
 }
 
-/** Upsert one employee-day. A re-import for the same day overwrites the prior row. */
+/** Upsert one profile-day. A re-import for the same day overwrites the prior row. */
 export function upsertAttendanceRecord(data: AttendanceRecordData) {
-  const { date, employeeId, importId, branchId, timeIn, timeOut, gapStart, gapEnd, gap2Start, gap2End, breakMinutes, rawRow } =
+  const { date, employeeId: profileId, importId, branchId, timeIn, timeOut, gapStart, gapEnd, gap2Start, gap2End, breakMinutes, rawRow } =
     data;
   return prisma.attendanceRecord.upsert({
-    where: { date_employeeId: { date, employeeId } },
+    where: { date_profileId: { date, profileId } },
     create: {
       importId,
-      employeeId,
+      profileId,
       branchId,
       date,
       timeIn,
@@ -94,7 +94,7 @@ export function upsertAttendanceRecord(data: AttendanceRecordData) {
 }
 
 /**
- * Bulk-upsert many employee-days using a single INSERT … ON CONFLICT DO UPDATE
+ * Bulk-upsert many profile-days using a single INSERT … ON CONFLICT DO UPDATE
  * statement — one round-trip regardless of record count. A re-import for the same
  * day overwrites the prior row (source reset to biometric, edits cleared).
  */
@@ -109,7 +109,7 @@ export async function batchUpsertAttendanceRecords(rows: AttendanceRecordData[])
     const b = params.length; // base index (0-based; SQL params are 1-based)
     params.push(
       row.importId,              // b+1  import_id
-      row.employeeId,            // b+2  employee_id
+      row.employeeId,            // b+2  profile_id
       row.branchId,              // b+3  branch_id
       row.date,                  // b+4  date
       row.timeIn,                // b+5  time_in
@@ -130,11 +130,11 @@ export async function batchUpsertAttendanceRecords(rows: AttendanceRecordData[])
 
   await prisma.$executeRawUnsafe(
     `INSERT INTO attendance_records
-       (id,import_id,employee_id,branch_id,date,time_in,time_out,
+       (id,import_id,profile_id,branch_id,date,time_in,time_out,
         gap_start,gap_end,gap2_start,gap2_end,break_minutes,raw_row,
         source,created_at,updated_at)
      VALUES ${placeholders.join(",")}
-     ON CONFLICT (date,employee_id) DO UPDATE SET
+     ON CONFLICT (date,profile_id) DO UPDATE SET
        import_id     = EXCLUDED.import_id,
        branch_id     = EXCLUDED.branch_id,
        time_in       = EXCLUDED.time_in,
@@ -154,7 +154,7 @@ export async function batchUpsertAttendanceRecords(rows: AttendanceRecordData[])
 }
 
 /**
- * Admin manual edit of one employee-day. Sets `source: "manual"` and records the
+ * Admin manual edit of one profile-day. Sets `source: "manual"` and records the
  * editor. On update it keeps the existing `importId`/`rawRow` (so correcting a
  * biometric row stays linked to its import); on create there is no import.
  */
@@ -171,13 +171,13 @@ export function manualUpsertAttendanceRecord(data: {
   breakMinutes: number | null;
   editedBy: string;
 }) {
-  const { employeeId, branchId, date, timeIn, timeOut, gapStart, gapEnd, gap2Start, gap2End, breakMinutes, editedBy } =
+  const { employeeId: profileId, branchId, date, timeIn, timeOut, gapStart, gapEnd, gap2Start, gap2End, breakMinutes, editedBy } =
     data;
   const editedAt = new Date();
   return prisma.attendanceRecord.upsert({
-    where: { date_employeeId: { date, employeeId } },
+    where: { date_profileId: { date, profileId } },
     create: {
-      employeeId,
+      profileId,
       branchId,
       date,
       timeIn,
@@ -207,22 +207,22 @@ export function manualUpsertAttendanceRecord(data: {
   });
 }
 
-/** One employee's record for a single day, or null. */
+/** One profile's record for a single day, or null. */
 export function findRecordForDay(employeeId: string, date: Date) {
   return prisma.attendanceRecord.findUnique({
-    where: { date_employeeId: { date, employeeId } },
+    where: { date_profileId: { date, profileId: employeeId } },
   });
 }
 
-/** Remove an employee-day record (admin "clear" action). No-op if absent. */
+/** Remove a profile-day record (admin "clear" action). No-op if absent. */
 export function deleteAttendanceRecord(employeeId: string, date: Date) {
   return prisma.attendanceRecord.deleteMany({
-    where: { date, employeeId },
+    where: { date, profileId: employeeId },
   });
 }
 
-const recordWithEmployee = {
-  employee: {
+const recordWithProfile = {
+  profile: {
     select: { id: true, employeeCode: true, firstName: true, lastName: true },
   },
 } satisfies Prisma.AttendanceRecordInclude;
@@ -230,15 +230,15 @@ const recordWithEmployee = {
 export function findRecordsForRange(from: Date, to: Date) {
   return prisma.attendanceRecord.findMany({
     where: { date: { gte: from, lte: to } },
-    include: recordWithEmployee,
+    include: recordWithProfile,
     orderBy: { date: "asc" },
   });
 }
 
-/** One employee's attendance rows across a range (for payroll aggregation). */
-export function findRecordsForEmployee(employeeId: string, from: Date, to: Date) {
+/** One profile's attendance rows across a range (for payroll aggregation). */
+export function findRecordsForEmployee(profileId: string, from: Date, to: Date) {
   return prisma.attendanceRecord.findMany({
-    where: { employeeId, date: { gte: from, lte: to } },
+    where: { profileId, date: { gte: from, lte: to } },
     orderBy: { date: "asc" },
   });
 }
@@ -264,8 +264,8 @@ export function upsertEmployeeDevice(data: {
         deviceUserId: data.deviceUserId,
       },
     },
-    create: data,
-    update: { employeeId: data.employeeId },
+    create: { profileId: data.employeeId, branchId: data.branchId, deviceUserId: data.deviceUserId },
+    update: { profileId: data.employeeId },
   });
 }
 
