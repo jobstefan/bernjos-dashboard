@@ -9,8 +9,8 @@ export interface AbsenceRequestFilters {
   date?: Date;
 }
 
-const withEmployee = {
-  employee: {
+const withProfile = {
+  profile: {
     select: { id: true, employeeCode: true, firstName: true, lastName: true },
   },
 } satisfies Prisma.AbsenceRequestInclude;
@@ -20,7 +20,7 @@ function buildWhere(
 ): Prisma.AbsenceRequestWhereInput {
   const where: Prisma.AbsenceRequestWhereInput = {};
   if (filters?.status) where.status = filters.status;
-  if (filters?.employeeId) where.employeeId = filters.employeeId;
+  if (filters?.employeeId) where.profileId = filters.employeeId;
   if (filters?.date) where.date = filters.date;
   return where;
 }
@@ -28,15 +28,15 @@ function buildWhere(
 export function findAbsenceRequests(filters?: AbsenceRequestFilters) {
   return prisma.absenceRequest.findMany({
     where: buildWhere(filters),
-    include: withEmployee,
+    include: withProfile,
     orderBy: [{ date: "asc" }, { createdAt: "desc" }],
   });
 }
 
-export function findAbsenceRequestsForEmployee(employeeId: string) {
+export function findAbsenceRequestsForEmployee(profileId: string) {
   return prisma.absenceRequest.findMany({
-    where: { employeeId },
-    include: withEmployee,
+    where: { profileId },
+    include: withProfile,
     orderBy: { date: "asc" },
   });
 }
@@ -44,29 +44,29 @@ export function findAbsenceRequestsForEmployee(employeeId: string) {
 export function findAbsenceRequestsForDate(date: Date) {
   return prisma.absenceRequest.findMany({
     where: { date },
-    include: withEmployee,
+    include: withProfile,
   });
 }
 
 export function findAbsenceRequestById(id: string) {
   return prisma.absenceRequest.findFirst({
     where: { id },
-    include: withEmployee,
+    include: withProfile,
   });
 }
 
 export function findAbsenceRequestByEmployeeDate(
-  employeeId: string,
+  profileId: string,
   date: Date,
 ) {
   return prisma.absenceRequest.findFirst({
-    where: { employeeId, date },
-    include: withEmployee,
+    where: { profileId, date },
+    include: withProfile,
   });
 }
 
 export function insertAbsenceRequest(data: Prisma.AbsenceRequestCreateInput) {
-  return prisma.absenceRequest.create({ data, include: withEmployee });
+  return prisma.absenceRequest.create({ data, include: withProfile });
 }
 
 export function updateAbsenceRequest(
@@ -76,7 +76,7 @@ export function updateAbsenceRequest(
   return prisma.absenceRequest.update({
     where: { id },
     data,
-    include: withEmployee,
+    include: withProfile,
   });
 }
 

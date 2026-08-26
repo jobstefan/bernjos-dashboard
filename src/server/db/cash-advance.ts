@@ -7,12 +7,12 @@ import type { CashAdvanceFilters } from "@/lib/types/payroll";
 function buildWhere(filters?: CashAdvanceFilters): Prisma.CashAdvanceWhereInput {
   const where: Prisma.CashAdvanceWhereInput = { deletedAt: null };
   if (filters?.status) where.status = filters.status;
-  if (filters?.employeeId) where.employeeId = filters.employeeId;
+  if (filters?.profileId) where.profileId = filters.profileId;
   return where;
 }
 
 const withRelations = {
-  employee: {
+  profile: {
     select: { id: true, employeeCode: true, firstName: true, lastName: true },
   },
   appliedPeriod: { select: { id: true, periodLabel: true } },
@@ -26,9 +26,9 @@ export function findCashAdvances(filters?: CashAdvanceFilters) {
   });
 }
 
-export function findCashAdvancesForEmployee(employeeId: string) {
+export function findCashAdvancesForEmployee(profileId: string) {
   return prisma.cashAdvance.findMany({
-    where: { employeeId, deletedAt: null },
+    where: { profileId, deletedAt: null },
     include: withRelations,
     orderBy: { createdAt: "desc" },
   });
@@ -41,11 +41,11 @@ export function findCashAdvanceById(id: string) {
   });
 }
 
-/** Approved advances for an employee that have not yet been applied to a run. */
-export function findApprovedUnappliedForEmployee(employeeId: string) {
+/** Approved advances for a profile that have not yet been applied to a run. */
+export function findApprovedUnappliedForEmployee(profileId: string) {
   return prisma.cashAdvance.findMany({
     where: {
-      employeeId,
+      profileId,
       status: "approved",
       appliedPeriodId: null,
       deletedAt: null,

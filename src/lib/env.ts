@@ -23,6 +23,11 @@ const envSchema = z.object({
   // "false" enforces real Clerk roles even in dev; "true" forces the bypass on.
   PAYROLL_RBAC_BYPASS: z.enum(["true", "false"]).optional(),
 
+  // Bootstrap admin accounts on first login. Comma-separated email addresses.
+  // After first login, the DB role is authoritative and these vars are ignored.
+  ADMIN_EMAILS: z.string().optional(),
+  SUPERADMIN_EMAILS: z.string().optional(),
+
   // Password used by the Clerk user seed (`pnpm db:seed:users`). Dev-only.
   SEED_USER_PASSWORD: z.string().optional(),
 

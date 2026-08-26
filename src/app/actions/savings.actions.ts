@@ -60,7 +60,7 @@ export async function recordSavingsAdjustmentAction(
     }
     const transaction = await recordSavingsAdjustment(parsed.data, actor);
     revalidate();
-    return { success: true, data: { id: transaction.id } };
+    return { success: true, data: { id: transaction.accountId } };
   } catch (error) {
     return { success: false, ...toActionError(error) };
   }

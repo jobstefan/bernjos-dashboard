@@ -31,11 +31,11 @@ export default async function PeriodDetailPage({
 
   const rows: RunItemRow[] = items.map((item) => ({
     id: item.id,
-    employeeId: item.employeeId,
-    employeeName: `${item.employee.firstName} ${item.employee.lastName}`,
-    employeeCode: item.employee.employeeCode,
-    position: item.employee.position,
-    department: item.employee.department,
+    employeeId: item.profileId,
+    employeeName: `${item.profile.firstName} ${item.profile.lastName}`,
+    employeeCode: item.profile.employeeCode,
+    position: item.profile.position,
+    department: item.profile.department,
     basicSalary: Number(item.basicSalary),
     grossPay: Number(item.grossPay),
     sssEmployee: Number(item.sssEmployee),

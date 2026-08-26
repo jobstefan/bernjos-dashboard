@@ -22,7 +22,7 @@ export async function createEmployeeClerkUser(params: {
     skipPasswordChecks: true,
     firstName: params.firstName,
     lastName: params.lastName,
-    publicMetadata: { role: "employee", needsOnboarding: true },
+    publicMetadata: { needsOnboarding: true },
   });
   return user.id;
 }

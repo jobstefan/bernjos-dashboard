@@ -20,7 +20,7 @@ import {
 import type { Actor } from "@/lib/types/payroll";
 import type { AbsenceRequestStatus } from "@/generated/prisma/enums";
 
-type AbsenceRequestWithEmployee = Awaited<
+type AbsenceRequestWithProfile = Awaited<
   ReturnType<typeof findAbsenceRequestById>
 >;
 
@@ -37,12 +37,12 @@ export interface AbsenceRequestRow {
   decidedAt: string | null;
 }
 
-function toRow(req: NonNullable<AbsenceRequestWithEmployee>): AbsenceRequestRow {
+function toRow(req: NonNullable<AbsenceRequestWithProfile>): AbsenceRequestRow {
   return {
     id: req.id,
-    employeeId: req.employeeId,
-    employeeCode: req.employee.employeeCode,
-    employeeName: `${req.employee.firstName} ${req.employee.lastName}`,
+    employeeId: req.profileId,
+    employeeCode: req.profile.employeeCode,
+    employeeName: `${req.profile.firstName} ${req.profile.lastName}`,
     date: req.date.toISOString().slice(0, 10),
     reason: req.reason,
     status: req.status,
@@ -66,40 +66,40 @@ export async function getAbsenceRequests(filters?: {
 }
 
 export async function getAbsenceRequestsForEmployee(
-  employeeId: string,
+  profileId: string,
 ): Promise<AbsenceRequestRow[]> {
-  const rows = await findAbsenceRequestsForEmployee(employeeId);
+  const rows = await findAbsenceRequestsForEmployee(profileId);
   return rows.map(toRow);
 }
 
-/** Returns active (pending or approved) requests for a date, keyed by employeeId. */
+/** Returns active (pending or approved) requests for a date, keyed by profileId. */
 export async function getActiveAbsencesForDate(
   date: Date,
 ): Promise<Map<string, AbsenceRequestRow>> {
   const all = await findAbsenceRequestsForDate(date);
   const active = all.filter((r) => r.status !== "declined");
-  return new Map(active.map((r) => [r.employeeId, toRow(r)]));
+  return new Map(active.map((r) => [r.profileId, toRow(r)]));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mutations
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Employee submits a request for their own absence on a given date. */
+/** Profile submits a request for their own absence on a given date. */
 export async function requestAbsence(
   dateIso: string,
   reason: string | null,
   actor: Actor,
 ) {
-  const employee = await getEmployeeByClerkUser(actor.clerkUserId);
-  if (!employee) {
+  const profile = await getEmployeeByClerkUser(actor.clerkUserId);
+  if (!profile) {
     throw new UnauthorizedError(
       "Your account isn't linked to an employee profile. Please contact HR.",
     );
   }
 
   const date = new Date(`${dateIso}T00:00:00Z`);
-  const existing = await findAbsenceRequestByEmployeeDate(employee.id, date);
+  const existing = await findAbsenceRequestByEmployeeDate(profile.id, date);
   if (existing && existing.status !== "declined") {
     throw new BadRequestError(
       "You already have an active absence request for this date.",
@@ -107,7 +107,7 @@ export async function requestAbsence(
   }
 
   const req = await insertAbsenceRequest({
-    employee: { connect: { id: employee.id } },
+    profile: { connect: { id: profile.id } },
     date,
     reason: reason ?? null,
     status: "pending",
@@ -124,15 +124,15 @@ export async function requestAbsence(
   return toRow(req);
 }
 
-/** Admin manually creates an absence request for any employee (auto-approved). */
+/** Admin manually creates an absence request for any profile (auto-approved). */
 export async function createAbsenceRequestAdmin(
-  employeeId: string,
+  profileId: string,
   dateIso: string,
   reason: string | null,
   actor: Actor,
 ) {
   const date = new Date(`${dateIso}T00:00:00Z`);
-  const existing = await findAbsenceRequestByEmployeeDate(employeeId, date);
+  const existing = await findAbsenceRequestByEmployeeDate(profileId, date);
   if (existing && existing.status !== "declined") {
     throw new BadRequestError(
       "This employee already has an active absence request for this date.",
@@ -140,7 +140,7 @@ export async function createAbsenceRequestAdmin(
   }
 
   const req = await insertAbsenceRequest({
-    employee: { connect: { id: employeeId } },
+    profile: { connect: { id: profileId } },
     date,
     reason: reason ?? null,
     status: "approved",
@@ -222,7 +222,7 @@ export async function deleteAbsenceRequest(id: string, actor: Actor) {
   });
 }
 
-/** Employee cancels their own pending request. */
+/** Profile cancels their own pending request. */
 export async function cancelAbsenceRequest(id: string, actor: Actor) {
   const before = await findAbsenceRequestById(id);
   if (!before) throw new NotFoundError("Absence request", id);

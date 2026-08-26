@@ -52,22 +52,22 @@ export function updatePeriod(id: string, data: Prisma.PayrollPeriodUpdateInput) 
 export function findRunItems(periodId: string) {
   return prisma.payrollRunItem.findMany({
     where: { payrollPeriodId: periodId, deletedAt: null },
-    include: { employee: true, branches: { include: { branch: true } } },
-    orderBy: { employee: { lastName: "asc" } },
+    include: { profile: true, branches: { include: { branch: true } } },
+    orderBy: { profile: { lastName: "asc" } },
   });
 }
 
-export function findRunItem(periodId: string, employeeId: string) {
+export function findRunItem(periodId: string, profileId: string) {
   return prisma.payrollRunItem.findFirst({
-    where: { payrollPeriodId: periodId, employeeId, deletedAt: null },
-    include: { employee: true, period: true, branches: { include: { branch: true } } },
+    where: { payrollPeriodId: periodId, profileId, deletedAt: null },
+    include: { profile: true, period: true, branches: { include: { branch: true } } },
   });
 }
 
 export function findRunItemById(id: string) {
   return prisma.payrollRunItem.findFirst({
     where: { id, deletedAt: null },
-    include: { employee: true, period: true, branches: { include: { branch: true } } },
+    include: { profile: true, period: true, branches: { include: { branch: true } } },
   });
 }
 
@@ -75,14 +75,14 @@ export function updateRunItem(id: string, data: Prisma.PayrollRunItemUpdateInput
   return prisma.payrollRunItem.update({ where: { id }, data });
 }
 
-export function findRunItemsForEmployee(employeeId: string) {
+export function findRunItemsForEmployee(profileId: string) {
   return prisma.payrollRunItem.findMany({
     where: {
-      employeeId,
+      profileId,
       deletedAt: null,
       period: { deletedAt: null },
     },
-    include: { employee: true, period: true, branches: { include: { branch: true } } },
+    include: { profile: true, period: true, branches: { include: { branch: true } } },
     orderBy: { period: { periodStart: "desc" } },
   });
 }

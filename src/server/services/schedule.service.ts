@@ -22,10 +22,10 @@ type EntryWithRelations = Awaited<ReturnType<typeof findEntriesByDate>>[number];
 
 function entryToRow(entry: EntryWithRelations): ScheduleRow {
   return {
-    employeeId: entry.employeeId,
-    employeeCode: entry.employee.employeeCode,
-    employeeName: `${entry.employee.firstName} ${entry.employee.lastName}`,
-    department: entry.employee.department,
+    employeeId: entry.profileId,
+    employeeCode: entry.profile.employeeCode,
+    employeeName: `${entry.profile.firstName} ${entry.profile.lastName}`,
+    department: entry.profile.department,
     branchId: entry.branchId,
     branchName: entry.branch?.name ?? null,
     startTime: entry.startTime,
@@ -36,19 +36,19 @@ function entryToRow(entry: EntryWithRelations): ScheduleRow {
 }
 
 /**
- * The full board for a day: one row per active employee. Employees without an
+ * The full board for a day: one row per active profile. Profiles without an
  * entry are returned as day-off rows so the grid and copy-text list everyone.
  */
 export async function getDaySchedule(date: Date): Promise<ScheduleRow[]> {
   const dateOnly = toDateOnly(date);
-  const [employees, entries] = await Promise.all([
+  const [profiles, entries] = await Promise.all([
     findEmployees({ employmentStatus: "active" }),
     findEntriesByDate(dateOnly),
   ]);
-  const byEmployee = new Map(entries.map((e) => [e.employeeId, e]));
+  const byProfile = new Map(entries.map((e) => [e.profileId, e]));
 
-  return employees.map((emp) => {
-    const entry = byEmployee.get(emp.id);
+  return profiles.map((emp) => {
+    const entry = byProfile.get(emp.id);
     if (entry) return entryToRow(entry);
     return {
       employeeId: emp.id,
@@ -65,13 +65,13 @@ export async function getDaySchedule(date: Date): Promise<ScheduleRow[]> {
   });
 }
 
-/** An employee's own upcoming entries (today through the next `days` days). */
+/** A profile's own upcoming entries (today through the next `days` days). */
 export async function getMyUpcoming(
   clerkUserId: string,
   days = 30,
 ): Promise<{ date: string; row: ScheduleRow }[]> {
-  const employee = await findEmployeeByClerkId(clerkUserId);
-  if (!employee) {
+  const profile = await findEmployeeByClerkId(clerkUserId);
+  if (!profile) {
     throw new UnauthorizedError(
       "Your account isn't linked to an employee profile. Please contact HR.",
     );
@@ -80,7 +80,7 @@ export async function getMyUpcoming(
   const to = new Date(from);
   to.setUTCDate(to.getUTCDate() + days);
 
-  const entries = await findEntriesForEmployee(employee.id, from, to);
+  const entries = await findEntriesForEmployee(profile.id, from, to);
   return entries.map((entry) => ({
     date: entry.date.toISOString().slice(0, 10),
     row: entryToRow(entry),
@@ -89,7 +89,7 @@ export async function getMyUpcoming(
 
 /**
  * Replace a whole day's schedule with the given working entries (admin action).
- * Employees omitted from `entries` become day off (their row is removed).
+ * Profiles omitted from `entries` become day off (their row is removed).
  */
 export async function saveDaySchedule(
   date: Date,

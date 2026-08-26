@@ -56,7 +56,7 @@ async function uniqueUsername(base: string, employeeCode: string): Promise<strin
   const root = candidate;
   for (let suffix = 0; ; suffix++) {
     const name = suffix === 0 ? root : `${root}${suffix + 1}`;
-    const existing = await prisma.employee.findFirst({ where: { username: name } });
+    const existing = await prisma.userProfile.findFirst({ where: { username: name } });
     if (!existing) return name;
   }
 }
@@ -126,10 +126,17 @@ async function main() {
   for (const row of rows) {
     const { employeeCode, firstName, lastName, dailyRate } = row;
     try {
-      const existing = await prisma.employee.findUnique({ where: { employeeCode } });
+      const existingProfile = await prisma.userProfile.findUnique({ where: { employeeCode } });
 
-      let clerkUserId = existing?.clerkUserId ?? null;
-      let username = existing?.username ?? null;
+      // Resolve or create the Clerk account
+      let clerkUserId: string | null = null;
+      let username = existingProfile?.username ?? null;
+
+      if (existingProfile?.userId) {
+        // Profile already linked to a User — find the Clerk id from User table
+        const user = await prisma.user.findUnique({ where: { id: existingProfile.userId } });
+        clerkUserId = user?.clerkId ?? null;
+      }
 
       if (!clerkUserId) {
         username = await uniqueUsername(buildUsername(firstName, lastName), employeeCode);
@@ -139,19 +146,32 @@ async function main() {
           skipPasswordChecks: true,
           firstName,
           lastName,
-          publicMetadata: { role: "employee", needsOnboarding: true },
+          publicMetadata: { needsOnboarding: true },
         });
         clerkUserId = clerkUser.id;
       }
 
-      const employee = await prisma.employee.upsert({
+      // Upsert the User identity record
+      const user = await prisma.user.upsert({
+        where: { clerkId: clerkUserId },
+        create: {
+          clerkId: clerkUserId,
+          firstName,
+          lastName,
+          role: "employee",
+        },
+        update: { firstName, lastName },
+      });
+
+      // Upsert the UserProfile (HR data)
+      const profile = await prisma.userProfile.upsert({
         where: { employeeCode },
         create: {
           employeeCode,
           firstName,
           lastName,
           username: username!,
-          clerkUserId,
+          userId: user.id,
           basicSalary: dailyRate,
           position: "Employee",
           department: "General",
@@ -163,17 +183,18 @@ async function main() {
           firstName,
           lastName,
           basicSalary: dailyRate,
-          ...(clerkUserId && !existing?.clerkUserId ? { clerkUserId, username: username! } : {}),
+          userId: user.id,
+          ...(username && !existingProfile ? { username } : {}),
         },
       });
 
       await prisma.savingsAccount.upsert({
-        where: { employeeId: employee.id },
-        create: { employeeId: employee.id, contributionAmount: 100, createdBy: "seed-from-csv" },
+        where: { profileId: profile.id },
+        create: { profileId: profile.id, contributionAmount: 100, createdBy: "seed-from-csv" },
         update: {},
       });
 
-      if (existing) {
+      if (existingProfile) {
         console.log(`  updated  ${employeeCode} — ${lastName}, ${firstName}`);
         updated++;
       } else {
