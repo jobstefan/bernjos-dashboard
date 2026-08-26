@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getActor, isAdmin } from "@/lib/auth/rbac";
+import { getActor } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import type { Role } from "@/lib/types/payroll";
 
 export default async function UsersSettingsPage() {
   const actor = await getActor();
-  if (!isAdmin(actor.role)) redirect("/");
+  if (actor.role !== "super_admin") redirect("/");
 
   const users = await prisma.user.findMany({
     include: {
@@ -85,7 +85,6 @@ export default async function UsersSettingsPage() {
                     <RoleSelect
                       userId={user.id}
                       currentRole={user.role as Role}
-                      actorRole={actor.role}
                       isSelf={isSelf}
                     />
                   </div>

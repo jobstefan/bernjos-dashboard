@@ -2,11 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/rbac";
+import { requireRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/server/services/audit.service";
 import { toActionError } from "@/server/errors";
-import { UnauthorizedError } from "@/lib/errors/payroll";
 import type { ActionResult } from "@/lib/types/action";
 import type { Role } from "@/lib/types/payroll";
 
@@ -19,7 +18,7 @@ export async function updateUserRoleAction(
   input: unknown,
 ): Promise<ActionResult> {
   try {
-    const actor = await requireAdmin();
+    const actor = await requireRole("super_admin");
 
     const parsed = updateRoleSchema.safeParse(input);
     if (!parsed.success) {
@@ -42,12 +41,7 @@ export async function updateUserRoleAction(
 
     // Cannot change own role
     if (target.clerkId === actor.clerkUserId) {
-      throw new UnauthorizedError("You cannot change your own role.");
-    }
-
-    // Admin cannot assign admin or super_admin — only super_admin can
-    if (actor.role === "admin" && (role === "admin" || role === "super_admin")) {
-      throw new UnauthorizedError("Only a super admin can assign the admin or super admin role.");
+      return { success: false, error: "You cannot change your own role." };
     }
 
     const before = { role: target.role };

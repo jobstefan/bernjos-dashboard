@@ -18,12 +18,10 @@ const ALL_ROLES: Role[] = ["super_admin", "admin", "manager", "employee"];
 export function RoleSelect({
   userId,
   currentRole,
-  actorRole,
   isSelf,
 }: {
   userId: string;
   currentRole: Role;
-  actorRole: Role;
   isSelf: boolean;
 }) {
   const [pending, startTransition] = useTransition();
@@ -63,17 +61,11 @@ export function RoleSelect({
         <SelectValue>{roleLabel(currentRole)}</SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {ALL_ROLES.map((role) => {
-          // Admins cannot assign admin/super_admin — only super_admin can
-          const restricted =
-            actorRole === "admin" &&
-            (role === "admin" || role === "super_admin");
-          return (
-            <SelectItem key={role} value={role} disabled={restricted}>
-              {roleLabel(role)}
-            </SelectItem>
-          );
-        })}
+        {ALL_ROLES.map((role) => (
+          <SelectItem key={role} value={role}>
+            {roleLabel(role)}
+          </SelectItem>
+        ))}
       </SelectContent>
     </Select>
   );
