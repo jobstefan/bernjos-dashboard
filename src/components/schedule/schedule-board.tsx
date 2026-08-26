@@ -382,22 +382,40 @@ export function ScheduleBoard({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedRows.map((row) => {
-              const d = drafts[row.employeeId];
-              if (!d) return null;
-              return (
-                <BoardRow
-                  key={row.employeeId}
-                  row={row}
-                  draft={d}
-                  isInvalid={invalid.has(row.employeeId)}
-                  absenceReq={blockedEmployees.get(row.employeeId)}
-                  branches={branches}
-                  canEdit={canEdit}
-                  onUpdate={(patch) => update(row.employeeId, patch)}
-                />
-              );
-            })}
+            {(() => {
+              const SENTINEL = "__sentinel__";
+              let lastBranchId: string = SENTINEL;
+              return sortedRows.flatMap((row) => {
+                const d = drafts[row.employeeId];
+                if (!d) return [];
+                const currentBranchId = d.branchId === NO_BRANCH ? null : d.branchId;
+                const key = currentBranchId ?? "none";
+                const groupChanged = key !== lastBranchId;
+                lastBranchId = key;
+                const branchName = currentBranchId
+                  ? (branches.find((b) => b.id === currentBranchId)?.name ?? "Unknown Branch")
+                  : "Unassigned";
+                return [
+                  groupChanged ? (
+                    <TableRow key={`grp-${key}`} className="hover:bg-transparent">
+                      <TableCell colSpan={5} className="py-1 pl-4 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground bg-muted/40 border-t-2 border-border/50">
+                        {branchName}
+                      </TableCell>
+                    </TableRow>
+                  ) : null,
+                  <BoardRow
+                    key={row.employeeId}
+                    row={row}
+                    draft={d}
+                    isInvalid={invalid.has(row.employeeId)}
+                    absenceReq={blockedEmployees.get(row.employeeId)}
+                    branches={branches}
+                    canEdit={canEdit}
+                    onUpdate={(patch) => update(row.employeeId, patch)}
+                  />,
+                ].filter(Boolean);
+              });
+            })()}
           </TableBody>
         </Table>
       </div>
