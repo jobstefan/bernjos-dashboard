@@ -11,10 +11,13 @@ import {
 import { upsertSavingsAccount } from "@/server/db/savings";
 import { auditLog } from "@/server/services/audit.service";
 import {
+  banClerkUser,
   createEmployeeClerkUser,
   deleteClerkUser,
   resetEmployeePassword as resetClerkPassword,
+  unbanClerkUser,
 } from "@/server/services/clerk-account.service";
+import type { EmploymentStatus } from "@/generated/prisma/enums";
 import { buildUsername, uniqueUsername } from "@/lib/auth/username";
 import { isDevAuthEnabled } from "@/lib/auth/dev-session";
 import { prisma } from "@/lib/db";
@@ -25,6 +28,23 @@ import type {
   UpdateEmployeeSchema,
 } from "@/lib/validations/payroll";
 import type { Prisma } from "@/generated/prisma/client";
+
+const TERMINAL_STATUSES: EmploymentStatus[] = ["resigned", "terminated", "inactive"];
+
+/** Resolve the Clerk user id for a profile (returns null if dev-auth or no account). */
+async function clerkIdForProfile(profileId: string): Promise<string | null> {
+  if (isDevAuthEnabled()) return null;
+  const profile = await prisma.userProfile.findUnique({
+    where: { id: profileId },
+    select: { userId: true },
+  });
+  if (!profile?.userId) return null;
+  const user = await prisma.user.findUnique({
+    where: { id: profile.userId },
+    select: { clerkId: true },
+  });
+  return user?.clerkId ?? null;
+}
 
 export function getEmployees(filters?: ProfileFilters) {
   return findEmployees(filters);
@@ -185,6 +205,19 @@ export async function updateEmployee(
   }
 
   const profile = await updateEmployeeRow(id, data);
+
+  // Sync Clerk ban state when employment status crosses the active/terminal boundary.
+  if (input.employmentStatus && input.employmentStatus !== before.employmentStatus) {
+    const clerkId = await clerkIdForProfile(id);
+    if (clerkId) {
+      if (TERMINAL_STATUSES.includes(input.employmentStatus as EmploymentStatus)) {
+        await banClerkUser(clerkId);
+      } else if (input.employmentStatus === "active") {
+        await unbanClerkUser(clerkId);
+      }
+    }
+  }
+
   await auditLog({
     actor,
     action: "employee.updated",
@@ -225,6 +258,10 @@ export async function deactivateEmployee(id: string, actor: Actor): Promise<void
   const before = await findEmployeeById(id);
   if (!before) throw new NotFoundError("Employee", id);
   const after = await softDeleteEmployee(id);
+
+  const clerkId = await clerkIdForProfile(id);
+  if (clerkId) await banClerkUser(clerkId);
+
   await auditLog({
     actor,
     action: "employee.deactivated",

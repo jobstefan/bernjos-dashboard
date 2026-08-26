@@ -35,8 +35,6 @@ interface SeedUser {
   role: DbRole;
   email: string;
   username: string;
-  /** Clerk fictional test number (`555-01xx`) — usable in dev instances. */
-  phoneNumber: string;
   firstName: string;
   lastName: string;
   /** When set, a linked UserProfile is created/updated for this user. */
@@ -56,7 +54,6 @@ const USERS: SeedUser[] = [
     role: "super_admin",
     email: "superadmin+clerk_test@example.com",
     username: "superadmin",
-    phoneNumber: "+12015550101",
     firstName: "Sam",
     lastName: "Superadmin",
   },
@@ -64,7 +61,6 @@ const USERS: SeedUser[] = [
     role: "admin",
     email: "admin+clerk_test@example.com",
     username: "admin",
-    phoneNumber: "+12015550102",
     firstName: "Andy",
     lastName: "Admin",
   },
@@ -72,15 +68,21 @@ const USERS: SeedUser[] = [
     role: "manager",
     email: "manager+clerk_test@example.com",
     username: "manager",
-    phoneNumber: "+12015550103",
     firstName: "Maria",
     lastName: "Manager",
+    profile: {
+      employeeCode: "EMP-0002",
+      position: "Team Lead",
+      department: "Operations",
+      basicSalary: 1500,
+      payFrequency: "semi_monthly",
+      dateHired: "2024-06-01",
+    },
   },
   {
     role: "employee",
     email: "employee+clerk_test@example.com",
     username: "employee",
-    phoneNumber: "+12015550104",
     firstName: "Ellen",
     lastName: "Employee",
     profile: {
@@ -106,7 +108,6 @@ async function upsertClerkUser(u: SeedUser): Promise<string> {
   const created = await clerk.users.createUser({
     emailAddress: [u.email],
     username: u.username,
-    phoneNumber: [u.phoneNumber],
     password: PASSWORD,
     firstName: u.firstName,
     lastName: u.lastName,

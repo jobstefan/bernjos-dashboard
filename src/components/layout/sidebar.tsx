@@ -17,6 +17,7 @@ import {
   Fingerprint,
   LogOut,
   Menu,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ const ICONS = {
   department: Network,
   savings: PiggyBank,
   attendance: Fingerprint,
+  settings: Settings,
 } as const;
 
 function isActive(pathname: string, href: string): boolean {

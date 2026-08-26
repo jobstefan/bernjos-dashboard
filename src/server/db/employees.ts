@@ -3,9 +3,14 @@ import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import type { ProfileFilters } from "@/lib/types/payroll";
 
-/** Build a Prisma where-clause from profile filters (always excludes soft-deleted). */
+/** Profiles linked to admin/super_admin Users are excluded from all employee queries. */
+const EXCLUDE_ELEVATED: Prisma.UserProfileWhereInput = {
+  OR: [{ userId: null }, { user: { role: { notIn: ["admin", "super_admin"] } } }],
+};
+
+/** Build a Prisma where-clause from profile filters (always excludes soft-deleted and elevated roles). */
 function buildWhere(filters?: ProfileFilters): Prisma.UserProfileWhereInput {
-  const where: Prisma.UserProfileWhereInput = { deletedAt: null };
+  const where: Prisma.UserProfileWhereInput = { deletedAt: null, ...EXCLUDE_ELEVATED };
   if (filters?.department) where.department = filters.department;
   if (filters?.employmentStatus) where.employmentStatus = filters.employmentStatus;
   if (filters?.search) {
@@ -35,7 +40,7 @@ export function findEmployees(filters?: ProfileFilters) {
 
 export function findEmployeeById(id: string) {
   return prisma.userProfile.findFirst({
-    where: { id, deletedAt: null },
+    where: { id, deletedAt: null, ...EXCLUDE_ELEVATED },
     include: withUser,
   });
 }
@@ -65,6 +70,7 @@ export function findActiveEmployeesByFrequency(
       deletedAt: null,
       employmentStatus: "active",
       payFrequency: frequency,
+      ...EXCLUDE_ELEVATED,
     },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   });
@@ -89,7 +95,7 @@ export function softDeleteEmployee(id: string) {
 /** List distinct department names for filter dropdowns. */
 export async function findDepartments(): Promise<string[]> {
   const rows = await prisma.userProfile.findMany({
-    where: { deletedAt: null },
+    where: { deletedAt: null, ...EXCLUDE_ELEVATED },
     distinct: ["department"],
     select: { department: true },
     orderBy: { department: "asc" },
