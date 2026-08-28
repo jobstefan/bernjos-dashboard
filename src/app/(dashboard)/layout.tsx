@@ -4,6 +4,7 @@ import { getActor, getCurrentRole } from "@/lib/auth/rbac";
 import { isDevAuthEnabled } from "@/lib/auth/dev-session";
 import { AppShell } from "@/components/shell/app-shell";
 import { OnboardingFlow } from "@/components/auth/onboarding-flow";
+import { AuthShell } from "@/components/auth/auth-shell";
 import type { Role } from "@/lib/types/payroll";
 
 export default async function DashboardLayout({
@@ -22,9 +23,9 @@ export default async function DashboardLayout({
     const user = await getCurrentUser();
     if (user?.publicMetadata?.needsOnboarding === true) {
       return (
-        <main className="flex min-h-svh items-center justify-center p-6">
+        <AuthShell>
           <OnboardingFlow />
-        </main>
+        </AuthShell>
       );
     }
   }

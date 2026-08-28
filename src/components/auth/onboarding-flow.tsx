@@ -1,27 +1,94 @@
 "use client";
 
 import * as React from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Eye, EyeOff, KeyRound, AlertCircle, CheckCircle2 } from "lucide-react";
 import {
   setNewPasswordAction,
   completeOnboardingAction,
 } from "@/app/actions/onboarding.actions";
 
+function StrengthBar({ password }: { password: string }) {
+  const score =
+    (password.length >= 8 ? 1 : 0) +
+    (/[A-Z]/.test(password) ? 1 : 0) +
+    (/[0-9]/.test(password) ? 1 : 0) +
+    (/[^A-Za-z0-9]/.test(password) ? 1 : 0);
+
+  const colors = ["bg-red-500", "bg-orange-400", "bg-amber-400", "bg-green-400"];
+  const labels = ["Weak", "Fair", "Good", "Strong"];
+
+  if (!password) return null;
+
+  return (
+    <div className="mt-1.5 space-y-1">
+      <div className="flex gap-1">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className={[
+              "h-1 flex-1 rounded-full transition-colors",
+              i < score ? colors[score - 1] : "bg-white/10",
+            ].join(" ")}
+          />
+        ))}
+      </div>
+      <p className="text-xs text-[#b5a898]">{labels[score - 1] ?? ""}</p>
+    </div>
+  );
+}
+
+function PasswordInput({
+  id,
+  value,
+  onChange,
+  label,
+  autoComplete,
+}: {
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  label: string;
+  autoComplete: string;
+}) {
+  const [show, setShow] = React.useState(false);
+  return (
+    <div className="grid gap-1.5">
+      <label htmlFor={id} className="text-xs font-medium text-[#ede8dd]">
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          id={id}
+          type={show ? "text" : "password"}
+          autoComplete={autoComplete}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          required
+          className="w-full rounded-lg border border-white/15 bg-[#3a2c1e] py-2.5 pl-9 pr-10 text-sm text-[#ede8dd] placeholder-[#7a6e60] outline-none ring-[#e5a44a]/50 transition focus:border-[#e5a44a]/60 focus:ring-2"
+          placeholder="••••••••"
+        />
+        <KeyRound className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[#7a6e60]" />
+        <button
+          type="button"
+          onClick={() => setShow((s) => !s)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7a6e60] hover:text-[#b5a898]"
+          aria-label={show ? "Hide password" : "Show password"}
+        >
+          {show ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function OnboardingFlow() {
   const [pending, setPending] = React.useState(false);
+  const [done, setDone] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-
   const [password, setPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
+
+  const mismatch = confirm.length > 0 && password !== confirm;
 
   async function onPassword(e: React.FormEvent) {
     e.preventDefault();
@@ -37,60 +104,73 @@ export function OnboardingFlow() {
       setPending(false);
       return;
     }
-    // Password set — clear the onboarding flag and land on the dashboard.
     const done = await completeOnboardingAction();
     if (!done.success) {
       setError(done.error);
       setPending(false);
       return;
     }
-    // Hard navigation (not router.push): a soft RSC navigation here stalls, and
-    // a full load reliably re-reads the cleared onboarding flag on the server.
-    // Keep `pending` true — the page is reloading.
+    setDone(true);
+    // Hard navigation — reliably re-reads cleared onboarding flag server-side.
     window.location.href = "/";
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Create your password</CardTitle>
-        <CardDescription>
+    <div className="rounded-2xl border border-white/10 bg-[#2e2219] p-7 shadow-2xl">
+      <div className="mb-6 space-y-1">
+        <h1 className="text-base font-semibold text-[#ede8dd]">Create your password</h1>
+        <p className="text-sm text-[#b5a898]">
           Replace the temporary password you were given to finish signing in.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {error ? (
-          <p className="mb-4 text-sm text-destructive">{error}</p>
-        ) : null}
+        </p>
+      </div>
 
-        <form onSubmit={onPassword} className="space-y-4">
-          <div className="grid gap-2">
-            <Label htmlFor="password">New password</Label>
-            <Input
+      {done ? (
+        <div className="flex flex-col items-center gap-3 py-4 text-center">
+          <CheckCircle2 className="size-8 text-green-400" />
+          <p className="text-sm text-[#ede8dd]">Password set! Taking you to the dashboard…</p>
+        </div>
+      ) : (
+        <form onSubmit={onPassword} className="grid gap-4">
+          <div>
+            <PasswordInput
               id="password"
-              type="password"
+              label="New password"
               autoComplete="new-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
+              onChange={setPassword}
             />
+            <StrengthBar password={password} />
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="confirm">Confirm password</Label>
-            <Input
+
+          <div>
+            <PasswordInput
               id="confirm"
-              type="password"
+              label="Confirm password"
               autoComplete="new-password"
               value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              required
+              onChange={setConfirm}
             />
+            {mismatch ? (
+              <p className="mt-1 text-xs text-red-400">Passwords don't match.</p>
+            ) : null}
           </div>
-          <Button type="submit" className="w-full" disabled={pending}>
+
+          {error ? (
+            <div className="flex items-start gap-2 rounded-lg border border-red-800/40 bg-red-900/20 px-3 py-2 text-sm text-red-300">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={pending || mismatch || !password || !confirm}
+            className="mt-1 w-full rounded-lg bg-[#e5a44a] px-4 py-2.5 text-sm font-semibold text-[#1e1610] transition hover:bg-[#d4913a] disabled:opacity-50"
+          >
             {pending ? "Saving…" : "Finish setup"}
-          </Button>
+          </button>
         </form>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }
