@@ -1,17 +1,22 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Plus, Users } from "lucide-react";
+import { Plus, Users, UserCheck, BarChart2 } from "lucide-react";
 import { getCurrentRole, canViewPayroll, isAdmin } from "@/lib/auth/rbac";
 import {
   getDepartments,
   getEmployees,
 } from "@/server/services/employee.service";
+import { getWorkforceStats } from "@/server/services/analytics.service";
 import { Button } from "@/components/ui/button";
 import {
   EmployeesTable,
   type EmployeeRow,
 } from "@/components/employees/employees-table";
 import { EmptyState } from "@/components/payroll/empty-state";
+import { KpiCard } from "@/components/ui/kpi-card";
+import { ChartCard } from "@/components/charts/chart-card";
+import { BarSeries } from "@/components/charts/bar-series";
+import { SEMANTIC_COLORS } from "@/components/charts/colors";
 
 export default async function EmployeesPage() {
   const role = await getCurrentRole();
@@ -34,6 +39,15 @@ export default async function EmployeesPage() {
     basicSalary: Number(e.basicSalary),
   }));
 
+  let workforce: Awaited<ReturnType<typeof getWorkforceStats>> | null = null;
+  try {
+    workforce = await getWorkforceStats();
+  } catch {
+    // Tolerate
+  }
+
+  const activeCount = rows.filter((r) => r.employmentStatus === "active").length;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -49,6 +63,28 @@ export default async function EmployeesPage() {
           </Button>
         ) : null}
       </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <KpiCard label="Total Employees" value={rows.length} icon={<Users />} sheen />
+        <KpiCard label="Active" value={activeCount} icon={<UserCheck />} sheen={false} />
+        <KpiCard
+          label="Departments"
+          value={departments.length}
+          icon={<BarChart2 />}
+          sheen={false}
+        />
+      </div>
+
+      {workforce && workforce.byDepartment.length > 0 && (
+        <ChartCard title="Headcount by Department" description="All employees">
+          <BarSeries
+            data={workforce.byDepartment}
+            xKey="department"
+            series={[{ key: "count", label: "Employees", color: SEMANTIC_COLORS.net }]}
+            format="count"
+          />
+        </ChartCard>
+      )}
 
       {rows.length === 0 ? (
         <EmptyState

@@ -29,6 +29,8 @@ interface DataTableProps<TData, TValue> {
   onRowClick?: (row: TData) => void;
   pageSize?: number;
   initialSorting?: SortingState;
+  /** When provided, renders a card stack on mobile (<md) instead of the full table. */
+  renderCard?: (row: TData) => React.ReactNode;
 }
 
 export function DataTable<TData, TValue>({
@@ -37,6 +39,7 @@ export function DataTable<TData, TValue>({
   onRowClick,
   pageSize = 25,
   initialSorting = [],
+  renderCard,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>(initialSorting);
 
@@ -53,7 +56,25 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto rounded-xl border border-border bg-white">
+      {/* Card stack — mobile only, when renderCard is provided */}
+      {renderCard ? (
+        <div className="space-y-3 md:hidden">
+          {table.getRowModel().rows.length ? (
+            table.getRowModel().rows.map((row) => (
+              <React.Fragment key={row.id}>
+                {renderCard(row.original)}
+              </React.Fragment>
+            ))
+          ) : (
+            <div className="rounded-xl border border-border bg-card py-12 text-center text-sm text-muted-foreground">
+              No results.
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {/* Table view — always on md+, hidden on mobile when renderCard is set */}
+      <div className={cn("overflow-x-auto rounded-xl border border-border bg-card", renderCard && "hidden md:block")}>
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

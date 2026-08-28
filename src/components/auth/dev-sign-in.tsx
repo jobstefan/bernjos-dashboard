@@ -2,17 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { AlertCircle } from "lucide-react";
 import { devLoginAction } from "@/app/actions/dev-auth.actions";
 import { roleLabel } from "@/components/layout/nav";
 import type { Role } from "@/lib/types/payroll";
@@ -42,59 +32,68 @@ export function DevSignIn() {
   }
 
   return (
-    <div className="w-full max-w-sm rounded-2xl border border-border bg-white p-6 shadow-sm">
-      <div className="mb-6 flex items-center gap-2">
-        <div className="flex size-9 items-center justify-center rounded-lg bg-[#2563EB] text-white">
-          <ShieldCheck className="size-5" />
-        </div>
-        <div className="leading-tight">
-          <div className="text-base font-semibold">Bernjos Payroll</div>
-          <div className="text-xs text-muted-foreground">Development login</div>
-        </div>
+    <div className="rounded-2xl border border-white/10 bg-[#2e2219] p-7 shadow-2xl">
+      <div className="mb-6 space-y-1">
+        <h1 className="text-base font-semibold text-[#ede8dd]">Sign in</h1>
+        <p className="text-sm text-[#b5a898]">Development mode · Clerk bypassed</p>
       </div>
 
       <form onSubmit={onSubmit} className="grid gap-4">
-        <div className="grid gap-2">
-          <Label>Sign in as</Label>
-          <Select value={role} onValueChange={(v) => setRole(v as Role)}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ROLES.map((r) => (
-                <SelectItem key={r} value={r}>
-                  {roleLabel(r)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Role picker */}
+        <div className="grid gap-1.5">
+          <label className="text-xs font-medium text-[#ede8dd]">Sign in as</label>
+          <div className="grid grid-cols-2 gap-2">
+            {ROLES.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRole(r)}
+                className={[
+                  "rounded-lg border px-3 py-2 text-left text-xs transition-colors",
+                  role === r
+                    ? "border-[#e5a44a]/60 bg-[#e5a44a]/10 text-[#e5a44a]"
+                    : "border-white/10 text-[#b5a898] hover:border-white/20 hover:text-[#ede8dd]",
+                ].join(" ")}
+              >
+                {roleLabel(r)}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="grid gap-2">
-          <Label>Password</Label>
-          <Input
+        {/* Password */}
+        <div className="grid gap-1.5">
+          <label htmlFor="dev-password" className="text-xs font-medium text-[#ede8dd]">
+            Password
+          </label>
+          <input
+            id="dev-password"
             name="password"
             type="password"
             defaultValue="1234"
-            placeholder="Password"
             autoComplete="off"
+            className="w-full rounded-lg border border-white/15 bg-[#3a2c1e] px-3 py-2.5 text-sm text-[#ede8dd] placeholder-[#7a6e60] outline-none ring-[#e5a44a]/50 transition focus:border-[#e5a44a]/60 focus:ring-2"
           />
         </div>
 
         {error ? (
-          <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          <div className="flex items-start gap-2 rounded-lg border border-red-800/40 bg-red-900/20 px-3 py-2 text-sm text-red-300">
             <AlertCircle className="mt-0.5 size-4 shrink-0" />
             <span>{error}</span>
           </div>
         ) : null}
 
-        <Button type="submit" disabled={pending}>
+        <button
+          type="submit"
+          disabled={pending}
+          className="w-full rounded-lg bg-[#e5a44a] px-4 py-2.5 text-sm font-semibold text-[#1e1610] transition hover:bg-[#d4913a] disabled:opacity-60"
+        >
           {pending ? "Signing in…" : "Sign in"}
-        </Button>
+        </button>
       </form>
 
-      <p className="mt-4 text-center text-xs text-muted-foreground">
-        Dev mode — Clerk is bypassed. Password is <code>1234</code>.
+      <p className="mt-5 text-center text-xs text-[#7a6e60]">
+        Password is <code className="font-mono text-[#b5a898]">1234</code>
       </p>
     </div>
   );

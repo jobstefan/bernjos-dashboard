@@ -4,13 +4,8 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/payroll/data-table";
+import { DetailDrawer } from "@/components/ui/detail-drawer";
 import { StatusBadge } from "@/components/payroll/status-badge";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import {
   PayslipBreakdown,
   type PayslipView,
@@ -76,19 +71,13 @@ export function PayslipHistory({ rows }: { rows: PayslipHistoryRow[] }) {
         onRowClick={(row) => setSelected(row)}
         initialSorting={[{ id: "payDate", desc: true }]}
       />
-      <Sheet
+      <DetailDrawer
         open={selected !== null}
         onOpenChange={(open) => !open && setSelected(null)}
+        title="Payslip"
       >
-        <SheetContent side="right" className="w-full sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle>Payslip</SheetTitle>
-          </SheetHeader>
-          <div className="overflow-y-auto px-4 pb-6">
-            {selected ? <PayslipBreakdown payslip={selected} /> : null}
-          </div>
-        </SheetContent>
-      </Sheet>
+        {selected ? <PayslipBreakdown payslip={selected} /> : null}
+      </DetailDrawer>
     </>
   );
 }

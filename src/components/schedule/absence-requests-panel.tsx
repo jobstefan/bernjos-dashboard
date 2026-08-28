@@ -5,34 +5,22 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Check, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   approveAbsenceRequestAction,
   declineAbsenceRequestAction,
   deleteAbsenceRequestAction,
 } from "@/app/actions/absence-request.actions";
 import { formatScheduleDate } from "@/lib/utils/schedule";
+import { toneClass } from "@/lib/utils/tone";
 import type { AbsenceRequestRow } from "@/server/services/absence-request.service";
 
 function statusBadge(status: AbsenceRequestRow["status"]) {
-  if (status === "approved") {
-    return (
-      <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-        Approved
-      </Badge>
-    );
-  }
-  if (status === "declined") {
-    return (
-      <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
-        Declined
-      </Badge>
-    );
-  }
+  const tone = status === "approved" ? "success" : status === "declined" ? "danger" : "warning";
+  const label = status === "approved" ? "Approved" : status === "declined" ? "Declined" : "Pending";
   return (
-    <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
-      Pending
-    </Badge>
+    <span className={"inline-flex rounded-full border px-2 py-0.5 text-xs font-medium " + toneClass(tone)}>
+      {label}
+    </span>
   );
 }
 
@@ -151,7 +139,7 @@ export function AbsenceRequestsPanel({
   if (requests.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-border bg-white">
+    <div className="rounded-xl border border-border bg-card">
       <div className="border-b border-border px-4 py-3">
         <h2 className="text-sm font-semibold">Absence Requests</h2>
         <p className="text-xs text-muted-foreground">

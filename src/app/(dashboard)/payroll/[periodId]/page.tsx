@@ -4,15 +4,19 @@ import { ArrowLeft, Users } from "lucide-react";
 import { getCurrentRole, canViewPayroll, isAdmin } from "@/lib/auth/rbac";
 import { findPeriodById } from "@/server/db/payroll";
 import { getPayrollRunItems } from "@/server/services/payroll.service";
+import { getPeriodDeductionMix } from "@/server/services/analytics.service";
 import { StatusBadge } from "@/components/payroll/status-badge";
-import { SummaryCard } from "@/components/payroll/summary-card";
+import { KpiCard } from "@/components/ui/kpi-card";
 import { PeriodActions } from "@/components/payroll/period-actions";
+import { ChartCard } from "@/components/charts/chart-card";
+import { Donut } from "@/components/charts/donut";
 import {
   RunItemsTable,
   type RunItemRow,
 } from "@/components/payroll/run-items-table";
 import { EmptyState } from "@/components/payroll/empty-state";
 import { formatDate, formatPeso } from "@/lib/utils/payroll";
+import { Wallet, PiggyBank, TrendingDown } from "lucide-react";
 
 export default async function PeriodDetailPage({
   params,
@@ -64,6 +68,13 @@ export default async function PeriodDetailPage({
     { gross: 0, deductions: 0, net: 0 },
   );
 
+  let deductionMix: Awaited<ReturnType<typeof getPeriodDeductionMix>> = [];
+  try {
+    deductionMix = await getPeriodDeductionMix(periodId);
+  } catch {
+    // Tolerate analytics failures
+  }
+
   return (
     <div className="space-y-6">
       <Link
@@ -100,15 +111,23 @@ export default async function PeriodDetailPage({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard title="Total Gross" value={formatPeso(totals.gross)} />
-        <SummaryCard
-          title="Total Deductions"
-          value={formatPeso(totals.deductions)}
-          hint="SSS + PhilHealth"
-        />
-        <SummaryCard title="Total Net Pay" value={formatPeso(totals.net)} />
-        <SummaryCard title="Employees" value={String(rows.length)} />
+        <KpiCard label="Total Gross" value={formatPeso(totals.gross)} icon={<Wallet />} sheen />
+        <KpiCard label="Total Deductions" value={formatPeso(totals.deductions)} icon={<TrendingDown />} sheen={false} hint="SSS + PhilHealth + other" />
+        <KpiCard label="Total Net Pay" value={formatPeso(totals.net)} icon={<Wallet />} sheen={false} />
+        <KpiCard label="Employees" value={rows.length} icon={<Users />} sheen={false} />
       </div>
+
+      {deductionMix.length > 0 && (
+        <div className="lg:max-w-sm">
+          <ChartCard title="Deduction Mix" description="Breakdown for this period">
+            <Donut
+              data={deductionMix}
+              centerLabel="Deductions"
+              centerValue={formatPeso(totals.deductions)}
+            />
+          </ChartCard>
+        </div>
+      )}
 
       {rows.length === 0 ? (
         <EmptyState

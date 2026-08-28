@@ -206,7 +206,7 @@ export function UnmatchedPanel({
   return (
     <div className="space-y-3">
       {imports.map((imp) => (
-        <div key={imp.id} className="rounded-xl border border-border bg-white p-4">
+        <div key={imp.id} className="rounded-xl border border-border bg-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="font-medium">{imp.fileName}</div>

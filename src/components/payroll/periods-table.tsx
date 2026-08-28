@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/payroll/data-table";
+import { DataCard } from "@/components/ui/data-card";
 import { StatusBadge } from "@/components/payroll/status-badge";
 import { formatDate, formatPeso } from "@/lib/utils/payroll";
 import type { PayrollStatus } from "@/lib/types/payroll";
@@ -83,6 +84,20 @@ export function PeriodsTable({ rows }: { rows: PeriodRow[] }) {
       data={rows}
       onRowClick={(row) => router.push(`/payroll/${row.id}`)}
       initialSorting={[{ id: "periodLabel", desc: true }]}
+      renderCard={(row) => (
+        <DataCard
+          title={row.periodLabel}
+          subtitle={`${formatDate(row.periodStart)} – ${formatDate(row.periodEnd)}`}
+          fields={[
+            { label: "Pay date", value: formatDate(row.payDate) },
+            { label: "Frequency", value: row.frequency === "semi_monthly" ? "Semi-monthly" : "Monthly" },
+            { label: "Employees", value: <span className="font-mono">{row.employeeCount}</span> },
+            { label: "Total Net", value: <span className="font-mono">{formatPeso(row.totalNet)}</span> },
+          ]}
+          actions={<StatusBadge status={row.status} />}
+          onClick={() => router.push(`/payroll/${row.id}`)}
+        />
+      )}
     />
   );
 }

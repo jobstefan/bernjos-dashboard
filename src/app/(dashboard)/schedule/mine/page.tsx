@@ -49,7 +49,7 @@ export default async function MySchedulePage() {
           description="When the owner publishes your schedule, your shifts will show up here."
         />
       ) : (
-        <div className="divide-y divide-border rounded-xl border border-border bg-white">
+        <div className="divide-y divide-border rounded-xl border border-border bg-card">
           {upcoming.map(({ date, row }) => (
             <div
               key={date}

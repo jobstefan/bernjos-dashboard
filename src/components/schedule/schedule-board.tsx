@@ -25,7 +25,10 @@ import {
 import { CopyScheduleButton } from "@/components/schedule/copy-schedule-button";
 import { saveDayScheduleAction } from "@/app/actions/schedule.actions";
 import { departmentAccent } from "@/lib/utils/schedule";
+import { toneClass } from "@/lib/utils/tone";
 import { cn } from "@/lib/utils";
+import { CalendarOff } from "lucide-react";
+import { EmptyState } from "@/components/payroll/empty-state";
 import type { BranchRow, ScheduleRow } from "@/lib/types/schedule";
 import type { AbsenceRequestRow } from "@/server/services/absence-request.service";
 
@@ -53,7 +56,9 @@ function rowBgClass(
   isInvalid: boolean,
   accentTint: string,
 ): string {
-  if (isBlocked) return isApproved ? "bg-red-50/60 opacity-70" : "bg-yellow-50/60 opacity-70";
+  if (isBlocked) return isApproved
+    ? "bg-red-50/60 dark:bg-red-950/30 opacity-70"
+    : "bg-yellow-50/60 dark:bg-yellow-950/30 opacity-70";
   if (isInvalid) return "bg-destructive/5";
   return accentTint;
 }
@@ -99,8 +104,8 @@ function BoardRow({
           {isBlocked ? (
             <span
               className={cn(
-                "rounded-full px-2 py-0.5 text-xs font-medium",
-                isApproved ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800",
+                "inline-flex rounded-full border px-2 py-0.5 text-xs font-medium",
+                toneClass(isApproved ? "danger" : "warning"),
               )}
             >
               {isApproved ? "Approved Absence" : "Pending Absence"}
@@ -340,6 +345,30 @@ export function ScheduleBoard({
     });
   }
 
+  if (rows.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="grid gap-2">
+            <Label htmlFor="schedule-date">Day</Label>
+            <Input
+              id="schedule-date"
+              type="date"
+              value={dateIso}
+              className="w-48"
+              onChange={(e) => onDateChange(e.target.value)}
+            />
+          </div>
+        </div>
+        <EmptyState
+          icon={CalendarOff}
+          title="No employees to schedule"
+          description="Add employees first, then return here to build the day's schedule."
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -370,7 +399,7 @@ export function ScheduleBoard({
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-white">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
         <Table>
           <TableHeader>
             <TableRow>

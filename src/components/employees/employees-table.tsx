@@ -4,9 +4,10 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
-import { MoreHorizontal, Search } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { DataTable } from "@/components/payroll/data-table";
-import { Input } from "@/components/ui/input";
+import { DataCard } from "@/components/ui/data-card";
+import { DataToolbar } from "@/components/ui/data-toolbar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,13 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { exportToCsv } from "@/lib/utils/csv";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { deactivateEmployeeAction } from "@/app/actions/employee.actions";
 import { formatPeso } from "@/lib/utils/payroll";
+import { toneClass, type Tone } from "@/lib/utils/tone";
 
 export interface EmployeeRow {
   id: string;
@@ -48,11 +44,11 @@ export interface EmployeeRow {
 
 const ALL = "__all__";
 
-const STATUS_STYLES: Record<string, string> = {
-  active: "border-green-200 bg-green-50 text-green-700",
-  inactive: "border-slate-200 bg-slate-100 text-slate-600",
-  resigned: "border-amber-200 bg-amber-50 text-amber-700",
-  terminated: "border-red-200 bg-red-50 text-red-700",
+const EMP_STATUS_TONE: Record<string, Tone> = {
+  active: "success",
+  inactive: "neutral",
+  resigned: "warning",
+  terminated: "danger",
 };
 
 export function EmployeesTable({
@@ -133,8 +129,7 @@ export function EmployeesTable({
           <span
             className={
               "inline-flex rounded-full border px-2 py-0.5 text-xs font-medium capitalize " +
-              (STATUS_STYLES[row.original.employmentStatus] ??
-                "border-slate-200 bg-slate-100 text-slate-600")
+              toneClass(EMP_STATUS_TONE[row.original.employmentStatus] ?? "neutral")
             }
           >
             {row.original.employmentStatus}
@@ -193,42 +188,62 @@ export function EmployeesTable({
     return base;
   }, [router, canManage]);
 
+  const CSV_COLUMNS = [
+    { header: "Name", accessor: (r: EmployeeRow) => r.fullName },
+    { header: "Code", accessor: (r: EmployeeRow) => r.employeeCode },
+    { header: "Position", accessor: (r: EmployeeRow) => r.position },
+    { header: "Department", accessor: (r: EmployeeRow) => r.department },
+    { header: "Daily Rate", accessor: (r: EmployeeRow) => r.basicSalary },
+    { header: "Status", accessor: (r: EmployeeRow) => r.employmentStatus },
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search name, code, email…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8"
-          />
-        </div>
-        <FilterSelect
-          value={department}
-          onChange={setDepartment}
-          placeholder="Department"
-          options={departments.map((d) => [d, d] as [string, string])}
-        />
-        <FilterSelect
-          value={status}
-          onChange={setStatus}
-          placeholder="Status"
-          options={[
-            ["active", "Active"],
-            ["inactive", "Inactive"],
-            ["resigned", "Resigned"],
-            ["terminated", "Terminated"],
-          ]}
-        />
-      </div>
+      <DataToolbar
+        search={{ value: search, onChange: setSearch, placeholder: "Search name, code, email…" }}
+        filters={[
+          {
+            value: department,
+            onChange: (v) => setDepartment(v ?? ALL),
+            placeholder: "Department",
+            options: departments.map((d) => [d, d] as [string, string]),
+          },
+          {
+            value: status,
+            onChange: (v) => setStatus(v ?? ALL),
+            placeholder: "Status",
+            options: [
+              ["active", "Active"],
+              ["inactive", "Inactive"],
+              ["resigned", "Resigned"],
+              ["terminated", "Terminated"],
+            ],
+          },
+        ]}
+        onExport={() => exportToCsv("employees", CSV_COLUMNS, filtered)}
+      />
 
       <DataTable
         columns={columns}
         data={filtered}
         onRowClick={(row) => router.push(`/employees/${row.id}`)}
         initialSorting={[{ id: "fullName", desc: false }]}
+        renderCard={(row) => (
+          <DataCard
+            title={row.fullName}
+            subtitle={`${row.employeeCode} · ${row.position}`}
+            fields={[
+              { label: "Department", value: row.department },
+              { label: "Daily Rate", value: <span className="font-mono">{formatPeso(row.basicSalary)}</span> },
+            ]}
+            actions={
+              <span className={"inline-flex rounded-full border px-2 py-0.5 text-xs font-medium capitalize " + toneClass(EMP_STATUS_TONE[row.employmentStatus] ?? "neutral")}>
+                {row.employmentStatus}
+              </span>
+            }
+            onClick={() => router.push(`/employees/${row.id}`)}
+          />
+        )}
       />
 
       <AlertDialog
@@ -263,30 +278,3 @@ export function EmployeesTable({
   );
 }
 
-function FilterSelect({
-  value,
-  onChange,
-  placeholder,
-  options,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  options: [string, string][];
-}) {
-  return (
-    <Select value={value} onValueChange={(v) => onChange(v as string)}>
-      <SelectTrigger className="w-40">
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={ALL}>All {placeholder.toLowerCase()}</SelectItem>
-        {options.map(([val, labelText]) => (
-          <SelectItem key={val} value={val}>
-            {labelText}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}

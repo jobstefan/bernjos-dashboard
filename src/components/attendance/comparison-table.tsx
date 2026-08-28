@@ -4,6 +4,7 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Pencil } from "lucide-react";
 import { DataTable } from "@/components/payroll/data-table";
+import { DataCard } from "@/components/ui/data-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AttendanceEditDialog } from "@/components/attendance/attendance-edit-dialog";
@@ -129,6 +130,27 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
         columns={columns}
         data={rows}
         initialSorting={[{ id: "date", desc: true }]}
+        renderCard={(row) => {
+          const meta = STATUS_META[row.status];
+          const variance = [
+            row.lateMinutes ? `${row.lateMinutes}m late` : null,
+            row.undertimeMinutes ? `${row.undertimeMinutes}m under` : null,
+            row.overtimeMinutes ? `${row.overtimeMinutes}m OT` : null,
+          ].filter(Boolean).join(" · ") || "—";
+          return (
+            <DataCard
+              title={row.employeeName}
+              subtitle={`${row.employeeCode} · ${row.date}`}
+              fields={[
+                { label: "Scheduled", value: <span className="text-muted-foreground">{row.scheduledStart && row.scheduledEnd ? `${row.scheduledStart} – ${row.scheduledEnd}` : "—"}</span> },
+                { label: "Actual", value: <span className="text-muted-foreground">{row.actualIn && row.actualOut ? `${row.actualIn} – ${row.actualOut}` : "—"}</span> },
+                { label: "Variance", value: variance },
+              ]}
+              actions={<Badge variant={meta.variant}>{meta.label}{row.status === "late" ? ` ${row.lateMinutes}m` : ""}</Badge>}
+              onClick={() => setEditingRow(row)}
+            />
+          );
+        }}
       />
       {editingRow ? (
         <AttendanceEditDialog

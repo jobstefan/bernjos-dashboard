@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { SignOutButton, UserButton } from "@clerk/nextjs";
+import { SignOutButton } from "@clerk/nextjs";
 import {
   LayoutDashboard,
   Wallet,
@@ -16,17 +14,20 @@ import {
   PiggyBank,
   Fingerprint,
   LogOut,
-  Menu,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { navForRole, roleLabel, type NavItem } from "@/components/layout/nav";
+import { Logo } from "@/components/layout/logo";
+import {
+  navGroupsForRole,
+  roleLabel,
+  type NavIcon,
+} from "@/components/layout/nav";
 import { devLogoutAction } from "@/app/actions/dev-auth.actions";
 import type { Role } from "@/lib/types/payroll";
 
-const ICONS = {
+const ICONS: Record<NavIcon, React.ComponentType<{ className?: string }>> = {
   dashboard: LayoutDashboard,
   payroll: Wallet,
   employees: Users,
@@ -38,152 +39,136 @@ const ICONS = {
   savings: PiggyBank,
   attendance: Fingerprint,
   settings: Settings,
-} as const;
+};
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function NavLinks({
-  items,
-  pathname,
-  onNavigate,
-}: {
-  items: NavItem[];
-  pathname: string;
-  onNavigate?: () => void;
-}) {
-  return (
-    <nav className="flex flex-1 flex-col gap-1 px-3">
-      {items.map((item) => {
-        const Icon = ICONS[item.icon];
-        const active = isActive(pathname, item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={onNavigate}
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-              active
-                ? "bg-white/10 text-white"
-                : "text-slate-300 hover:bg-white/5 hover:text-white",
-            )}
-          >
-            <Icon className="size-4 shrink-0" />
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
-function SidebarBody({
+export function SidebarBody({
   role,
   pathname,
   onNavigate,
   devAuth,
+  collapsed = false,
+  displayName = "",
 }: {
   role: Role;
   pathname: string;
   onNavigate?: () => void;
   devAuth?: boolean;
+  collapsed?: boolean;
+  displayName?: string;
 }) {
-  const items = navForRole(role);
+  const groups = navGroupsForRole(role);
   return (
-    <div className="flex h-full flex-col bg-[#0F172A] text-white">
-      <div className="flex h-16 items-center gap-2 px-6">
-        <div className="flex size-8 items-center justify-center rounded-md bg-[#2563EB] font-bold">
-          B
-        </div>
-        <div className="leading-tight">
-          <div className="text-sm font-semibold">Bernjos</div>
-          <div className="text-xs text-slate-400">Payroll</div>
-        </div>
-      </div>
-      <div className="mt-2 flex-1 overflow-y-auto">
-        <NavLinks items={items} pathname={pathname} onNavigate={onNavigate} />
-      </div>
-      <div className="flex items-center gap-3 border-t border-white/10 px-4 py-4">
-        {devAuth ? (
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-sm font-semibold text-white">
-            {roleLabel(role).charAt(0)}
-          </div>
-        ) : (
-          <UserButton />
+    <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+      <div
+        className={cn(
+          "flex h-16 items-center px-5",
+          collapsed && "justify-center px-0",
         )}
-        <div className="text-xs">
-          <div className="font-medium text-white">Signed in</div>
-          <div className="text-slate-400">{roleLabel(role)}</div>
-        </div>
-        {devAuth ? (
-          <form action={devLogoutAction} className="ml-auto">
-            <Button
-              type="submit"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Log out"
-              title="Log out"
-              className="text-slate-300 hover:bg-white/5 hover:text-white"
-            >
-              <LogOut className="size-4" />
-            </Button>
-          </form>
-        ) : (
-          <SignOutButton>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Log out"
-              title="Log out"
-              className="ml-auto text-slate-300 hover:bg-white/5 hover:text-white"
-            >
-              <LogOut className="size-4" />
-            </Button>
-          </SignOutButton>
+      >
+        <Logo collapsed={collapsed} />
+      </div>
+
+      <div className="mt-1 flex-1 overflow-y-auto px-3 pb-4">
+        <nav className="flex flex-col gap-4" aria-label="Main">
+          {groups.map((group, gi) => (
+            <div key={group.label ?? `group-${gi}`} className="flex flex-col gap-1">
+              {group.label && !collapsed ? (
+                <div className="px-3 pt-2 pb-1 text-[0.68rem] font-semibold tracking-wider text-sidebar-foreground/45 uppercase">
+                  {group.label}
+                </div>
+              ) : null}
+              {group.label && collapsed && gi > 0 ? (
+                <div className="mx-auto my-1 h-px w-6 bg-sidebar-border" />
+              ) : null}
+              {group.items.map((item) => {
+                const Icon = ICONS[item.icon];
+                const active = isActive(pathname, item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={onNavigate}
+                    title={collapsed ? item.label : undefined}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      collapsed && "justify-center px-0",
+                      active
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                    )}
+                  >
+                    {active ? (
+                      <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-sidebar-primary" />
+                    ) : null}
+                    <Icon className="size-4 shrink-0" />
+                    {!collapsed ? item.label : null}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+      </div>
+
+      <div
+        className={cn(
+          "flex items-center gap-3 border-t border-sidebar-border px-4 py-4",
+          collapsed && "justify-center px-0",
         )}
-      </div>
-    </div>
-  );
-}
+      >
+        {/* Avatar — initial from name, falls back to role label initial */}
+        <div
+          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/15 text-sm font-semibold text-sidebar-primary"
+          aria-hidden
+        >
+          {(displayName || roleLabel(role)).charAt(0).toUpperCase()}
+        </div>
 
-export function Sidebar({ role, devAuth }: { role: Role; devAuth?: boolean }) {
-  const pathname = usePathname();
-  return (
-    <aside className="hidden w-64 shrink-0 md:block">
-      <div className="fixed inset-y-0 left-0 w-64">
-        <SidebarBody role={role} pathname={pathname} devAuth={devAuth} />
+        {!collapsed ? (
+          <>
+            <div className="min-w-0 flex-1 text-xs">
+              <div className="truncate font-medium text-sidebar-foreground">
+                {displayName || roleLabel(role)}
+              </div>
+              <div className="truncate text-sidebar-foreground/60">
+                {roleLabel(role)}
+              </div>
+            </div>
+            {devAuth ? (
+              <form action={devLogoutAction} className="shrink-0">
+                <Button
+                  type="submit"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Log out"
+                  title="Log out"
+                  className="text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                >
+                  <LogOut className="size-4" />
+                </Button>
+              </form>
+            ) : (
+              <SignOutButton>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Log out"
+                  title="Log out"
+                  className="shrink-0 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                >
+                  <LogOut className="size-4" />
+                </Button>
+              </SignOutButton>
+            )}
+          </>
+        ) : null}
       </div>
-    </aside>
-  );
-}
-
-export function MobileTopbar({ role, devAuth }: { role: Role; devAuth?: boolean }) {
-  const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="flex h-14 items-center gap-3 border-b border-border bg-white px-4 md:hidden">
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger
-          render={
-            <Button variant="ghost" size="icon" aria-label="Open menu">
-              <Menu className="size-5" />
-            </Button>
-          }
-        />
-        <SheetContent side="left" className="w-64 p-0">
-          <SheetTitle className="sr-only">Navigation</SheetTitle>
-          <SidebarBody
-            role={role}
-            pathname={pathname}
-            devAuth={devAuth}
-            onNavigate={() => setOpen(false)}
-          />
-        </SheetContent>
-      </Sheet>
-      <span className="font-semibold">Bernjos Payroll</span>
     </div>
   );
 }

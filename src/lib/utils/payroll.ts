@@ -1,4 +1,5 @@
 import type { CashAdvanceStatus, PayrollStatus } from "@/lib/types/payroll";
+import { toneClass } from "@/lib/utils/tone";
 
 const pesoFormatter = new Intl.NumberFormat("en-PH", {
   minimumFractionDigits: 2,
@@ -35,25 +36,14 @@ export function getPayrollStatusLabel(status: PayrollStatus): string {
   }
 }
 
-/**
- * Tailwind classes (bg tint + text) for a status pill. Uses the palette from the
- * design system: draft=gray, calculated=blue, pending=amber, approved=green,
- * paid=emerald.
- */
 export function getPayrollStatusColor(status: PayrollStatus): string {
   switch (status) {
-    case "draft":
-      return "bg-slate-100 text-slate-700 border-slate-200";
-    case "calculated":
-      return "bg-blue-50 text-blue-700 border-blue-200";
-    case "pending_approval":
-      return "bg-amber-50 text-amber-700 border-amber-200";
-    case "approved":
-      return "bg-green-50 text-green-700 border-green-200";
-    case "paid":
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    default:
-      return "bg-slate-100 text-slate-700 border-slate-200";
+    case "draft":           return toneClass("neutral");
+    case "calculated":      return toneClass("info");
+    case "pending_approval": return toneClass("warning");
+    case "approved":        return toneClass("success");
+    case "paid":            return toneClass("success");
+    default:                return toneClass("neutral");
   }
 }
 
@@ -74,24 +64,14 @@ export function getCashAdvanceStatusLabel(status: CashAdvanceStatus): string {
   }
 }
 
-/**
- * Tailwind classes (bg tint + text + border) for a cash-advance status pill.
- * pending=amber, approved=green, declined=rose, applied=emerald, cancelled=slate.
- */
 export function getCashAdvanceStatusColor(status: CashAdvanceStatus): string {
   switch (status) {
-    case "pending":
-      return "bg-amber-50 text-amber-700 border-amber-200";
-    case "approved":
-      return "bg-green-50 text-green-700 border-green-200";
-    case "declined":
-      return "bg-rose-50 text-rose-700 border-rose-200";
-    case "applied":
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    case "cancelled":
-      return "bg-slate-100 text-slate-600 border-slate-200";
-    default:
-      return "bg-slate-100 text-slate-700 border-slate-200";
+    case "pending":   return toneClass("warning");
+    case "approved":  return toneClass("success");
+    case "declined":  return toneClass("danger");
+    case "applied":   return toneClass("success");
+    case "cancelled": return toneClass("neutral");
+    default:          return toneClass("neutral");
   }
 }
 

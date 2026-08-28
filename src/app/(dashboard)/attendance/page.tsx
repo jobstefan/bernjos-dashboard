@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { CalendarClock } from "lucide-react";
+import { CalendarClock, UserCheck, Clock, UserX } from "lucide-react";
 import { canManageAttendance, getCurrentRole } from "@/lib/auth/rbac";
 import {
   getComparison,
@@ -11,6 +11,12 @@ import { UploadAttendanceButton } from "@/components/attendance/upload-dialog";
 import { ComparisonTable } from "@/components/attendance/comparison-table";
 import { UnmatchedPanel } from "@/components/attendance/unmatched-panel";
 import { EmptyState } from "@/components/payroll/empty-state";
+import { KpiCard } from "@/components/ui/kpi-card";
+import { ChartCard } from "@/components/charts/chart-card";
+import { AreaTrend } from "@/components/charts/area-trend";
+import { BarSeries } from "@/components/charts/bar-series";
+import { SEMANTIC_COLORS } from "@/components/charts/colors";
+import type { AttendanceComparisonRow } from "@/lib/types/attendance";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -18,6 +24,46 @@ function isoDaysAgo(days: number): string {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() - days);
   return d.toISOString().slice(0, 10);
+}
+
+function buildAttendanceStats(rows: AttendanceComparisonRow[]) {
+  const byDate = new Map<string, { present: number; late: number; absent: number; total: number }>();
+  const lateByEmployee = new Map<string, { name: string; minutes: number }>();
+
+  for (const row of rows) {
+    if (!byDate.has(row.date)) byDate.set(row.date, { present: 0, late: 0, absent: 0, total: 0 });
+    const d = byDate.get(row.date)!;
+    d.total++;
+    if (row.status === "present") d.present++;
+    else if (row.status === "late") { d.late++; d.present++; }
+    else if (row.status === "absent") d.absent++;
+
+    if (row.lateMinutes > 0) {
+      const ex = lateByEmployee.get(row.employeeId);
+      if (ex) ex.minutes += row.lateMinutes;
+      else lateByEmployee.set(row.employeeId, { name: row.employeeName, minutes: row.lateMinutes });
+    }
+  }
+
+  const points = Array.from(byDate.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, d]) => ({
+      date: date.slice(5),
+      presentRate: d.total > 0 ? Math.round((d.present / d.total) * 100) : 0,
+      lateCount: d.late,
+      absentCount: d.absent,
+    }));
+
+  const totalPresent = rows.filter((r) => r.status === "present" || r.status === "late").length;
+  const totalLate = rows.filter((r) => r.status === "late").length;
+  const totalAbsent = rows.filter((r) => r.status === "absent").length;
+
+  const topLate = Array.from(lateByEmployee.values())
+    .sort((a, b) => b.minutes - a.minutes)
+    .slice(0, 6)
+    .map((e) => ({ employeeName: e.name, lateMinutes: e.minutes }));
+
+  return { points, topLate, totalPresent, totalLate, totalAbsent };
 }
 
 export default async function AttendancePage({
@@ -48,15 +94,15 @@ export default async function AttendancePage({
     name: `${e.firstName} ${e.lastName}`,
   }));
 
+  const stats = rows.length > 0 ? buildAttendanceStats(rows) : null;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Attendance</h1>
           <p className="text-sm text-muted-foreground">
-            Biometric actuals vs the schedule — {rows.length} day
-            {rows.length === 1 ? "" : "s"} in range. Records are stored in the
-            dashboard database (not the uploaded file) and can be edited by hand.
+            Biometric actuals vs the schedule — {rows.length} record{rows.length === 1 ? "" : "s"} in range.
           </p>
         </div>
         <UploadAttendanceButton branches={branches} />
@@ -69,7 +115,7 @@ export default async function AttendancePage({
             type="date"
             name="from"
             defaultValue={fromIso}
-            className="h-9 rounded-md border border-border bg-white px-3 text-sm"
+            className="h-9 rounded-md border border-border bg-card px-3 text-sm text-foreground"
           />
         </div>
         <div className="grid gap-1">
@@ -78,7 +124,7 @@ export default async function AttendancePage({
             type="date"
             name="to"
             defaultValue={toIso}
-            className="h-9 rounded-md border border-border bg-white px-3 text-sm"
+            className="h-9 rounded-md border border-border bg-card px-3 text-sm text-foreground"
           />
         </div>
         <button
@@ -88,6 +134,45 @@ export default async function AttendancePage({
           Apply
         </button>
       </form>
+
+      {stats && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <KpiCard label="Present" value={stats.totalPresent} icon={<UserCheck />} sheen />
+            <KpiCard label="Late" value={stats.totalLate} icon={<Clock />} sheen={false} />
+            <KpiCard label="Absent" value={stats.totalAbsent} icon={<UserX />} sheen={false} />
+          </div>
+
+          {stats.points.length > 1 && (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <ChartCard title="Presence Rate" description="Daily % present over range">
+                <AreaTrend
+                  data={stats.points}
+                  xKey="date"
+                  series={[
+                    { key: "presentRate", label: "Present %", color: SEMANTIC_COLORS.net },
+                    { key: "lateCount", label: "Late", color: SEMANTIC_COLORS.deductions },
+                  ]}
+                  format="count"
+                />
+              </ChartCard>
+
+              {stats.topLate.length > 0 && (
+                <ChartCard title="Most Late" description="Total late minutes in range">
+                  <BarSeries
+                    data={stats.topLate}
+                    xKey="employeeName"
+                    layout="vertical"
+                    series={[{ key: "lateMinutes", label: "Late min", color: SEMANTIC_COLORS.deductions }]}
+                    format="minutes"
+                    height={stats.topLate.length * 40 + 20}
+                  />
+                </ChartCard>
+              )}
+            </div>
+          )}
+        </>
+      )}
 
       {rows.length === 0 ? (
         <EmptyState

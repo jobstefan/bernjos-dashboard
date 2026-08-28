@@ -1,8 +1,11 @@
 import { getCurrentUser } from "@/lib/auth/current-user";
-import { getCurrentRole } from "@/lib/auth/rbac";
+import { getActor, getCurrentRole } from "@/lib/auth/rbac";
+
 import { isDevAuthEnabled } from "@/lib/auth/dev-session";
-import { Sidebar, MobileTopbar } from "@/components/layout/sidebar";
+import { AppShell } from "@/components/shell/app-shell";
 import { OnboardingFlow } from "@/components/auth/onboarding-flow";
+import { AuthShell } from "@/components/auth/auth-shell";
+import type { Role } from "@/lib/types/payroll";
 
 export default async function DashboardLayout({
   children,
@@ -20,24 +23,36 @@ export default async function DashboardLayout({
     const user = await getCurrentUser();
     if (user?.publicMetadata?.needsOnboarding === true) {
       return (
-        <main className="flex min-h-svh items-center justify-center p-6">
+        <AuthShell>
           <OnboardingFlow />
-        </main>
+        </AuthShell>
       );
     }
   }
 
-  const role = await getCurrentRole();
+  // Resolve role + display name for the shell; tolerate an unreachable database.
+  let role: Role = "employee";
+  let displayName = "";
+  try {
+    const actor = await getActor();
+    role = actor.role;
+    if (!devAuth) {
+      const clerkUser = await getCurrentUser();
+      displayName =
+        clerkUser?.fullName ??
+        clerkUser?.firstName ??
+        actor.email ??
+        "";
+    } else {
+      displayName = actor.email ?? "";
+    }
+  } catch {
+    role = await getCurrentRole();
+  }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Sidebar role={role} devAuth={devAuth} />
-      <div className="md:pl-64">
-        <MobileTopbar role={role} devAuth={devAuth} />
-        <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          {children}
-        </main>
-      </div>
-    </div>
+    <AppShell role={role} devAuth={devAuth} displayName={displayName}>
+      {children}
+    </AppShell>
   );
 }
