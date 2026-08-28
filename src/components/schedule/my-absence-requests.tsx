@@ -7,26 +7,15 @@ import { CalendarOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cancelAbsenceRequestAction } from "@/app/actions/absence-request.actions";
 import { formatScheduleDate } from "@/lib/utils/schedule";
+import { toneClass } from "@/lib/utils/tone";
 import type { AbsenceRequestRow } from "@/server/services/absence-request.service";
 
 function statusLabel(status: AbsenceRequestRow["status"]) {
-  if (status === "approved") {
-    return (
-      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-        Approved
-      </span>
-    );
-  }
-  if (status === "declined") {
-    return (
-      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
-        Declined
-      </span>
-    );
-  }
+  const tone = status === "approved" ? "success" : status === "declined" ? "danger" : "warning";
+  const label = status === "approved" ? "Approved" : status === "declined" ? "Declined" : "Pending";
   return (
-    <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">
-      Pending
+    <span className={"inline-flex rounded-full border px-2 py-0.5 text-xs font-medium " + toneClass(tone)}>
+      {label}
     </span>
   );
 }

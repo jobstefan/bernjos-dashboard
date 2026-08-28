@@ -27,6 +27,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { KpiCard } from "@/components/ui/kpi-card";
+import { Stagger, StaggerItem } from "@/components/ui/motion";
 import { ChartCard } from "@/components/charts/chart-card";
 import { AreaTrend } from "@/components/charts/area-trend";
 import { BarSeries } from "@/components/charts/bar-series";
@@ -108,49 +109,57 @@ async function AdminDashboard({ actor }: { actor: Awaited<ReturnType<typeof getA
       {dbError && <DbErrorCard error={dbError} />}
 
       {/* KPI row */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          label="Net Payroll (Latest)"
-          value={headline ? formatPeso(headline.net) : "—"}
-          delta={headline?.netDelta ?? undefined}
-          icon={<Wallet />}
-          sheen
-        >
-          {netSparkline.length > 1 && (
-            <Sparkline data={netSparkline} color={SEMANTIC_COLORS.net} />
-          )}
-        </KpiCard>
+      <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StaggerItem>
+          <KpiCard
+            label="Net Payroll (Latest)"
+            value={headline ? formatPeso(headline.net) : "—"}
+            delta={headline?.netDelta ?? undefined}
+            icon={<Wallet />}
+            sheen
+          >
+            {netSparkline.length > 1 && (
+              <Sparkline data={netSparkline} color={SEMANTIC_COLORS.net} />
+            )}
+          </KpiCard>
+        </StaggerItem>
 
-        <KpiCard
-          label="Active Employees"
-          value={workforce?.headcount ?? "—"}
-          icon={<Users />}
-          sheen={false}
-        />
+        <StaggerItem>
+          <KpiCard
+            label="Active Employees"
+            value={workforce?.headcount ?? "—"}
+            icon={<Users />}
+            sheen={false}
+          />
+        </StaggerItem>
 
-        <KpiCard
-          label="Next Pay Date"
-          value={
-            headline?.nextPayDate
-              ? formatDate(headline.nextPayDate)
-              : "None scheduled"
-          }
-          icon={<CalendarClock />}
-          sheen={false}
-        />
+        <StaggerItem>
+          <KpiCard
+            label="Next Pay Date"
+            value={
+              headline?.nextPayDate
+                ? formatDate(headline.nextPayDate)
+                : "None scheduled"
+            }
+            icon={<CalendarClock />}
+            sheen={false}
+          />
+        </StaggerItem>
 
-        <KpiCard
-          label="Pending Approvals"
-          value={totalPending}
-          icon={<CheckCircle2 />}
-          sheen={false}
-          hint={
-            totalPending > 0
-              ? `${approvals?.absenceCount ?? 0} absence · ${approvals?.advanceCount ?? 0} advance`
-              : undefined
-          }
-        />
-      </div>
+        <StaggerItem>
+          <KpiCard
+            label="Pending Approvals"
+            value={totalPending}
+            icon={<CheckCircle2 />}
+            sheen={false}
+            hint={
+              totalPending > 0
+                ? `${approvals?.absenceCount ?? 0} absence · ${approvals?.advanceCount ?? 0} advance`
+                : undefined
+            }
+          />
+        </StaggerItem>
+      </Stagger>
 
       {/* Payroll trend */}
       {trend.length > 0 && (

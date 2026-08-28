@@ -6,6 +6,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { MoreHorizontal } from "lucide-react";
 import { DataTable } from "@/components/payroll/data-table";
+import { DataCard } from "@/components/ui/data-card";
 import { DataToolbar } from "@/components/ui/data-toolbar";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { deactivateEmployeeAction } from "@/app/actions/employee.actions";
 import { formatPeso } from "@/lib/utils/payroll";
+import { toneClass, type Tone } from "@/lib/utils/tone";
 
 export interface EmployeeRow {
   id: string;
@@ -42,11 +44,11 @@ export interface EmployeeRow {
 
 const ALL = "__all__";
 
-const STATUS_STYLES: Record<string, string> = {
-  active: "border-green-200 bg-green-50 text-green-700",
-  inactive: "border-slate-200 bg-slate-100 text-slate-600",
-  resigned: "border-amber-200 bg-amber-50 text-amber-700",
-  terminated: "border-red-200 bg-red-50 text-red-700",
+const EMP_STATUS_TONE: Record<string, Tone> = {
+  active: "success",
+  inactive: "neutral",
+  resigned: "warning",
+  terminated: "danger",
 };
 
 export function EmployeesTable({
@@ -127,8 +129,7 @@ export function EmployeesTable({
           <span
             className={
               "inline-flex rounded-full border px-2 py-0.5 text-xs font-medium capitalize " +
-              (STATUS_STYLES[row.original.employmentStatus] ??
-                "border-slate-200 bg-slate-100 text-slate-600")
+              toneClass(EMP_STATUS_TONE[row.original.employmentStatus] ?? "neutral")
             }
           >
             {row.original.employmentStatus}
@@ -227,6 +228,22 @@ export function EmployeesTable({
         data={filtered}
         onRowClick={(row) => router.push(`/employees/${row.id}`)}
         initialSorting={[{ id: "fullName", desc: false }]}
+        renderCard={(row) => (
+          <DataCard
+            title={row.fullName}
+            subtitle={`${row.employeeCode} · ${row.position}`}
+            fields={[
+              { label: "Department", value: row.department },
+              { label: "Daily Rate", value: <span className="font-mono">{formatPeso(row.basicSalary)}</span> },
+            ]}
+            actions={
+              <span className={"inline-flex rounded-full border px-2 py-0.5 text-xs font-medium capitalize " + toneClass(EMP_STATUS_TONE[row.employmentStatus] ?? "neutral")}>
+                {row.employmentStatus}
+              </span>
+            }
+            onClick={() => router.push(`/employees/${row.id}`)}
+          />
+        )}
       />
 
       <AlertDialog

@@ -17,10 +17,12 @@ const COLLAPSE_KEY = "bernjos:sidebar-collapsed";
 export function AppShell({
   role,
   devAuth,
+  displayName = "",
   children,
 }: {
   role: Role;
   devAuth: boolean;
+  displayName?: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -67,6 +69,7 @@ export function AppShell({
           pathname={pathname}
           devAuth={devAuth}
           collapsed={collapsed}
+          displayName={displayName}
         />
       </aside>
 
@@ -88,6 +91,7 @@ export function AppShell({
                 role={role}
                 pathname={pathname}
                 devAuth={devAuth}
+                displayName={displayName}
                 onNavigate={() => setMobileOpen(false)}
               />
             </SheetContent>

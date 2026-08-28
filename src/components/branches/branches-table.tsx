@@ -6,6 +6,9 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { MoreHorizontal } from "lucide-react";
 import { DataTable } from "@/components/payroll/data-table";
+import { DataCard } from "@/components/ui/data-card";
+import { DataToolbar } from "@/components/ui/data-toolbar";
+import { exportToCsv } from "@/lib/utils/csv";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -37,9 +40,26 @@ export function BranchesTable({
   canManage?: boolean;
 }) {
   const router = useRouter();
+  const [search, setSearch] = React.useState("");
   const [toEdit, setToEdit] = React.useState<BranchRow | null>(null);
   const [toDelete, setToDelete] = React.useState<BranchRow | null>(null);
   const [pending, startTransition] = React.useTransition();
+
+  const filtered = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        (r.address ?? "").toLowerCase().includes(q),
+    );
+  }, [rows, search]);
+
+  const CSV_COLUMNS = [
+    { header: "Branch", accessor: (r: BranchRow) => r.name },
+    { header: "Address", accessor: (r: BranchRow) => r.address ?? "" },
+    { header: "Added", accessor: (r: BranchRow) => formatDate(r.createdAt) },
+  ];
 
   const columns = React.useMemo<ColumnDef<BranchRow>[]>(() => {
     const cols: ColumnDef<BranchRow>[] = [
@@ -107,10 +127,23 @@ export function BranchesTable({
 
   return (
     <div className="space-y-4">
+      <DataToolbar
+        search={{ value: search, onChange: setSearch, placeholder: "Search branch or address…" }}
+        onExport={() => exportToCsv("branches", CSV_COLUMNS, filtered)}
+      />
       <DataTable
         columns={columns}
-        data={rows}
+        data={filtered}
         initialSorting={[{ id: "name", desc: false }]}
+        renderCard={(row) => (
+          <DataCard
+            title={row.name}
+            subtitle={row.address ?? "No address"}
+            fields={[
+              { label: "Added", value: formatDate(row.createdAt) },
+            ]}
+          />
+        )}
       />
 
       <BranchDialog

@@ -52,12 +52,14 @@ export function SidebarBody({
   onNavigate,
   devAuth,
   collapsed = false,
+  displayName = "",
 }: {
   role: Role;
   pathname: string;
   onNavigate?: () => void;
   devAuth?: boolean;
   collapsed?: boolean;
+  displayName?: string;
 }) {
   const groups = navGroupsForRole(role);
   return (
@@ -72,7 +74,7 @@ export function SidebarBody({
       </div>
 
       <div className="mt-1 flex-1 overflow-y-auto px-3 pb-4">
-        <nav className="flex flex-col gap-4">
+        <nav className="flex flex-col gap-4" aria-label="Main">
           {groups.map((group, gi) => (
             <div key={group.label ?? `group-${gi}`} className="flex flex-col gap-1">
               {group.label && !collapsed ? (
@@ -120,17 +122,26 @@ export function SidebarBody({
           collapsed && "justify-center px-0",
         )}
       >
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/15 text-sm font-semibold text-sidebar-primary">
-          {roleLabel(role).charAt(0)}
+        {/* Avatar — initial from name, falls back to role label initial */}
+        <div
+          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/15 text-sm font-semibold text-sidebar-primary"
+          aria-hidden
+        >
+          {(displayName || roleLabel(role)).charAt(0).toUpperCase()}
         </div>
+
         {!collapsed ? (
           <>
-            <div className="text-xs">
-              <div className="font-medium text-sidebar-foreground">Signed in</div>
-              <div className="text-sidebar-foreground/60">{roleLabel(role)}</div>
+            <div className="min-w-0 flex-1 text-xs">
+              <div className="truncate font-medium text-sidebar-foreground">
+                {displayName || roleLabel(role)}
+              </div>
+              <div className="truncate text-sidebar-foreground/60">
+                {roleLabel(role)}
+              </div>
             </div>
             {devAuth ? (
-              <form action={devLogoutAction} className="ml-auto">
+              <form action={devLogoutAction} className="shrink-0">
                 <Button
                   type="submit"
                   variant="ghost"
@@ -149,7 +160,7 @@ export function SidebarBody({
                   size="icon-sm"
                   aria-label="Log out"
                   title="Log out"
-                  className="ml-auto text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                  className="shrink-0 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                 >
                   <LogOut className="size-4" />
                 </Button>

@@ -4,6 +4,7 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
 import { DataTable } from "@/components/payroll/data-table";
+import { DataCard } from "@/components/ui/data-card";
 import { DataToolbar } from "@/components/ui/data-toolbar";
 import { DetailDrawer } from "@/components/ui/detail-drawer";
 import { Badge } from "@/components/ui/badge";
@@ -152,6 +153,19 @@ export function SavingsTable({ rows }: { rows: SavingsAccountRow[] }) {
         columns={columns}
         data={filtered}
         initialSorting={[{ id: "employeeName", desc: false }]}
+        renderCard={(row) => (
+          <DataCard
+            title={row.employeeName}
+            subtitle={row.employeeCode}
+            fields={[
+              { label: "Per period", value: <span className="font-mono">{formatPeso(row.contributionAmount)}</span> },
+              { label: "Balance", value: <span className="font-mono font-semibold">{formatPeso(row.balance)}</span> },
+              { label: "Status", value: row.frozen ? "Frozen" : "Active" },
+              { label: "Last activity", value: row.lastActivityAt ? formatDate(row.lastActivityAt) : "—" },
+            ]}
+            onClick={() => setToView(row)}
+          />
+        )}
       />
 
       <DetailDrawer

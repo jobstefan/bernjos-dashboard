@@ -4,6 +4,7 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { DataTable } from "@/components/payroll/data-table";
+import { DataCard } from "@/components/ui/data-card";
 import { DataToolbar } from "@/components/ui/data-toolbar";
 import { DetailDrawer } from "@/components/ui/detail-drawer";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import {
 import { updatePayslipRemarksAction } from "@/app/actions/payroll.actions";
 import { formatPeso } from "@/lib/utils/payroll";
 import { exportToCsv } from "@/lib/utils/csv";
+import { toneClass } from "@/lib/utils/tone";
 
 export interface RunItemRow {
   id: string;
@@ -139,9 +141,7 @@ export function RunItemsTable({
           <span
             className={
               "inline-flex rounded-full border px-2 py-0.5 text-xs font-medium " +
-              (row.original.status === "included"
-                ? "border-green-200 bg-green-50 text-green-700"
-                : "border-slate-200 bg-slate-100 text-slate-600")
+              toneClass(row.original.status === "included" ? "success" : "neutral")
             }
           >
             {row.original.status}
@@ -196,6 +196,23 @@ export function RunItemsTable({
         data={filtered}
         onRowClick={(row) => setSelected(row)}
         initialSorting={[{ id: "employeeName", desc: false }]}
+        renderCard={(row) => (
+          <DataCard
+            title={row.employeeName}
+            subtitle={`${row.employeeCode} · ${row.department}`}
+            fields={[
+              { label: "Gross", value: <span className="font-mono">{formatPeso(row.grossPay)}</span> },
+              { label: "Net Pay", value: <span className="font-mono font-semibold">{formatPeso(row.netPay)}</span> },
+              { label: "Daily Rate", value: <span className="font-mono">{formatPeso(row.basicSalary)}</span> },
+            ]}
+            actions={
+              <span className={"inline-flex rounded-full border px-2 py-0.5 text-xs font-medium " + toneClass(row.status === "included" ? "success" : "neutral")}>
+                {row.status}
+              </span>
+            }
+            onClick={() => setSelected(row)}
+          />
+        )}
       />
       <DetailDrawer
         open={selected !== null}

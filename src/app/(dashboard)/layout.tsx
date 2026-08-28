@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { getActor, getCurrentRole } from "@/lib/auth/rbac";
+
 import { isDevAuthEnabled } from "@/lib/auth/dev-session";
 import { AppShell } from "@/components/shell/app-shell";
 import { OnboardingFlow } from "@/components/auth/onboarding-flow";
@@ -28,17 +29,28 @@ export default async function DashboardLayout({
     }
   }
 
-  // Resolve role for the shell; tolerate an unreachable database.
+  // Resolve role + display name for the shell; tolerate an unreachable database.
   let role: Role = "employee";
+  let displayName = "";
   try {
     const actor = await getActor();
     role = actor.role;
+    if (!devAuth) {
+      const clerkUser = await getCurrentUser();
+      displayName =
+        clerkUser?.fullName ??
+        clerkUser?.firstName ??
+        actor.email ??
+        "";
+    } else {
+      displayName = actor.email ?? "";
+    }
   } catch {
     role = await getCurrentRole();
   }
 
   return (
-    <AppShell role={role} devAuth={devAuth}>
+    <AppShell role={role} devAuth={devAuth} displayName={displayName}>
       {children}
     </AppShell>
   );

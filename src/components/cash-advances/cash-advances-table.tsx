@@ -6,6 +6,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { MoreHorizontal } from "lucide-react";
 import { DataTable } from "@/components/payroll/data-table";
+import { DataCard } from "@/components/ui/data-card";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -273,6 +274,18 @@ export function CashAdvancesTable({
         columns={columns}
         data={filtered}
         initialSorting={[{ id: "requestedAt", desc: true }]}
+        renderCard={(row) => (
+          <DataCard
+            title={mode === "admin" ? row.employeeName : formatPeso(row.approvedAmount ?? row.amount)}
+            subtitle={mode === "admin" ? row.employeeCode : formatDate(row.requestedAt)}
+            fields={[
+              { label: "Amount", value: <span className="font-mono">{formatPeso(row.approvedAmount ?? row.amount)}</span> },
+              { label: "Reason", value: <span className="line-clamp-2 text-xs">{row.reason}</span> },
+              { label: "Requested", value: formatDate(row.requestedAt) },
+            ]}
+            actions={<StatusPill status={row.status} />}
+          />
+        )}
       />
 
       <ApproveDialog
