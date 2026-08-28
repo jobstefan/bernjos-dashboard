@@ -72,6 +72,7 @@ export function BarSeries({
               tickLine={false}
               axisLine={false}
               tick={{ fontSize: 11 }}
+              allowDecimals={format !== "count"}
               tickFormatter={(v: number) => {
                 if (format === "peso") {
                   if (v >= 1_000_000) return `₱${(v / 1_000_000).toFixed(1)}M`;

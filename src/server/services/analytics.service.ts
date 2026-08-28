@@ -9,6 +9,29 @@ import { findAbsenceRequests } from "@/server/db/absence-request";
 
 // ─── Admin / Manager ────────────────────────────────────────────────────────
 
+export interface SavingsStats {
+  totalBalance: number;
+  memberCount: number;
+  avgContribution: number;
+  topBalances: { name: string; balance: number }[];
+}
+
+export async function getSavingsStats(): Promise<SavingsStats> {
+  const accounts = await getSavingsAccounts();
+  const active = accounts.filter((a) => !a.frozen);
+  const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
+  const avgContribution =
+    active.length > 0
+      ? active.reduce((s, a) => s + a.contributionAmount, 0) / active.length
+      : 0;
+  const topBalances = accounts
+    .slice()
+    .sort((a, b) => b.balance - a.balance)
+    .slice(0, 6)
+    .map((a) => ({ name: a.employeeName, balance: a.balance }));
+  return { totalBalance, memberCount: accounts.length, avgContribution, topBalances };
+}
+
 export interface PayrollTrendPoint {
   periodId: string;
   label: string;
@@ -19,6 +42,24 @@ export interface PayrollTrendPoint {
   philhealth: number;
   other: number;
   savings: number;
+}
+
+/** Deduction mix for a specific period (not just "latest"). */
+export async function getPeriodDeductionMix(periodId: string): Promise<DeductionMixSlice[]> {
+  const items = await getPayrollRunItems(periodId);
+  let sss = 0, philhealth = 0, other = 0, savings = 0;
+  for (const item of items) {
+    sss += Number(item.sssEmployee);
+    philhealth += Number(item.philhealthEmployee);
+    other += Number(item.otherDeductions);
+    savings += Number(item.savingsContribution);
+  }
+  return [
+    { key: "sss", label: "SSS", value: sss, color: "var(--chart-1)" },
+    { key: "philhealth", label: "PhilHealth", value: philhealth, color: "var(--chart-2)" },
+    { key: "other", label: "Other", value: other, color: "var(--chart-3)" },
+    { key: "savings", label: "Savings", value: savings, color: "var(--chart-5)" },
+  ].filter((s) => s.value > 0);
 }
 
 /** Last `limit` periods that have been calculated (have run items), oldest→newest. */

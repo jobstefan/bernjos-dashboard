@@ -4,9 +4,9 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
-import { MoreHorizontal, Search } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { DataTable } from "@/components/payroll/data-table";
-import { Input } from "@/components/ui/input";
+import { DataToolbar } from "@/components/ui/data-toolbar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,13 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { exportToCsv } from "@/lib/utils/csv";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -193,36 +187,40 @@ export function EmployeesTable({
     return base;
   }, [router, canManage]);
 
+  const CSV_COLUMNS = [
+    { header: "Name", accessor: (r: EmployeeRow) => r.fullName },
+    { header: "Code", accessor: (r: EmployeeRow) => r.employeeCode },
+    { header: "Position", accessor: (r: EmployeeRow) => r.position },
+    { header: "Department", accessor: (r: EmployeeRow) => r.department },
+    { header: "Daily Rate", accessor: (r: EmployeeRow) => r.basicSalary },
+    { header: "Status", accessor: (r: EmployeeRow) => r.employmentStatus },
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search name, code, email…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8"
-          />
-        </div>
-        <FilterSelect
-          value={department}
-          onChange={setDepartment}
-          placeholder="Department"
-          options={departments.map((d) => [d, d] as [string, string])}
-        />
-        <FilterSelect
-          value={status}
-          onChange={setStatus}
-          placeholder="Status"
-          options={[
-            ["active", "Active"],
-            ["inactive", "Inactive"],
-            ["resigned", "Resigned"],
-            ["terminated", "Terminated"],
-          ]}
-        />
-      </div>
+      <DataToolbar
+        search={{ value: search, onChange: setSearch, placeholder: "Search name, code, email…" }}
+        filters={[
+          {
+            value: department,
+            onChange: (v) => setDepartment(v ?? ALL),
+            placeholder: "Department",
+            options: departments.map((d) => [d, d] as [string, string]),
+          },
+          {
+            value: status,
+            onChange: (v) => setStatus(v ?? ALL),
+            placeholder: "Status",
+            options: [
+              ["active", "Active"],
+              ["inactive", "Inactive"],
+              ["resigned", "Resigned"],
+              ["terminated", "Terminated"],
+            ],
+          },
+        ]}
+        onExport={() => exportToCsv("employees", CSV_COLUMNS, filtered)}
+      />
 
       <DataTable
         columns={columns}
@@ -263,30 +261,3 @@ export function EmployeesTable({
   );
 }
 
-function FilterSelect({
-  value,
-  onChange,
-  placeholder,
-  options,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  options: [string, string][];
-}) {
-  return (
-    <Select value={value} onValueChange={(v) => onChange(v as string)}>
-      <SelectTrigger className="w-40">
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={ALL}>All {placeholder.toLowerCase()}</SelectItem>
-        {options.map(([val, labelText]) => (
-          <SelectItem key={val} value={val}>
-            {labelText}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}

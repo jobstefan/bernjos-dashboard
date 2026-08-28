@@ -4,12 +4,8 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { DataTable } from "@/components/payroll/data-table";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { DataToolbar } from "@/components/ui/data-toolbar";
+import { DetailDrawer } from "@/components/ui/detail-drawer";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +15,7 @@ import {
 } from "@/components/payroll/payslip-breakdown";
 import { updatePayslipRemarksAction } from "@/app/actions/payroll.actions";
 import { formatPeso } from "@/lib/utils/payroll";
+import { exportToCsv } from "@/lib/utils/csv";
 
 export interface RunItemRow {
   id: string;
@@ -59,6 +56,18 @@ export function RunItemsTable({
   canEditRemarks?: boolean;
 }) {
   const [selected, setSelected] = React.useState<RunItemRow | null>(null);
+  const [search, setSearch] = React.useState("");
+
+  const filtered = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(
+      (r) =>
+        r.employeeName.toLowerCase().includes(q) ||
+        r.employeeCode.toLowerCase().includes(q) ||
+        r.department.toLowerCase().includes(q),
+    );
+  }, [rows, search]);
 
   const columns = React.useMemo<ColumnDef<RunItemRow>[]>(
     () => [
@@ -143,44 +152,60 @@ export function RunItemsTable({
     [],
   );
 
-  const view: PayslipView | null = selected
-    ? { ...selected, periodLabel }
-    : null;
+  const view: PayslipView | null = selected ? { ...selected, periodLabel } : null;
+
+  const CSV_COLUMNS = [
+    { header: "Employee", accessor: (r: RunItemRow) => r.employeeName },
+    { header: "Code", accessor: (r: RunItemRow) => r.employeeCode },
+    { header: "Position", accessor: (r: RunItemRow) => r.position },
+    { header: "Department", accessor: (r: RunItemRow) => r.department },
+    { header: "Daily Rate", accessor: (r: RunItemRow) => r.basicSalary },
+    { header: "Gross Pay", accessor: (r: RunItemRow) => r.grossPay },
+    { header: "SSS", accessor: (r: RunItemRow) => r.sssEmployee },
+    { header: "PhilHealth", accessor: (r: RunItemRow) => r.philhealthEmployee },
+    { header: "Other Deductions", accessor: (r: RunItemRow) => r.otherDeductions },
+    { header: "Other Earnings", accessor: (r: RunItemRow) => r.otherEarnings },
+    { header: "Savings", accessor: (r: RunItemRow) => r.savingsContribution },
+    { header: "Total Deductions", accessor: (r: RunItemRow) => r.totalDeductions },
+    { header: "Net Pay", accessor: (r: RunItemRow) => r.netPay },
+    { header: "Status", accessor: (r: RunItemRow) => r.status },
+    { header: "Remarks", accessor: (r: RunItemRow) => r.remarks ?? "" },
+  ];
+
+  const remarksFooter = selected && canEditRemarks ? (
+    <RemarksEditor
+      key={selected.id}
+      runItemId={selected.id}
+      initial={selected.remarks}
+      onSaved={(remarks) =>
+        setSelected((cur) =>
+          cur && cur.id === selected.id ? { ...cur, remarks } : cur,
+        )
+      }
+    />
+  ) : null;
 
   return (
-    <>
+    <div className="space-y-4">
+      <DataToolbar
+        search={{ value: search, onChange: setSearch, placeholder: "Search employee, code, department…" }}
+        onExport={() => exportToCsv(`${periodLabel}-payroll`, CSV_COLUMNS, filtered)}
+      />
       <DataTable
         columns={columns}
-        data={rows}
+        data={filtered}
         onRowClick={(row) => setSelected(row)}
         initialSorting={[{ id: "employeeName", desc: false }]}
       />
-      <Sheet
+      <DetailDrawer
         open={selected !== null}
         onOpenChange={(open) => !open && setSelected(null)}
+        title="Payslip"
+        footer={remarksFooter}
       >
-        <SheetContent side="right" className="w-full sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle>Payslip</SheetTitle>
-          </SheetHeader>
-          <div className="space-y-6 overflow-y-auto px-4 pb-6">
-            {view ? <PayslipBreakdown payslip={view} /> : null}
-            {selected && canEditRemarks ? (
-              <RemarksEditor
-                key={selected.id}
-                runItemId={selected.id}
-                initial={selected.remarks}
-                onSaved={(remarks) =>
-                  setSelected((cur) =>
-                    cur && cur.id === selected.id ? { ...cur, remarks } : cur,
-                  )
-                }
-              />
-            ) : null}
-          </div>
-        </SheetContent>
-      </Sheet>
-    </>
+        {view ? <PayslipBreakdown payslip={view} /> : null}
+      </DetailDrawer>
+    </div>
   );
 }
 
@@ -210,7 +235,7 @@ function RemarksEditor({
   }
 
   return (
-    <div className="space-y-2 border-t pt-4">
+    <div className="space-y-2">
       <Label htmlFor="payslip-remarks" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         Remarks
       </Label>

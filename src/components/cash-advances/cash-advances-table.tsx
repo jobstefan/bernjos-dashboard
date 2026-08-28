@@ -14,13 +14,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { DataToolbar } from "@/components/ui/data-toolbar";
+import { exportToCsv } from "@/lib/utils/csv";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -84,16 +79,21 @@ export function CashAdvancesTable({
 }) {
   const router = useRouter();
   const [status, setStatus] = React.useState(ALL);
+  const [search, setSearch] = React.useState("");
   const [toApprove, setToApprove] = React.useState<CashAdvanceRow | null>(null);
   const [toDecline, setToDecline] = React.useState<CashAdvanceRow | null>(null);
   const [toCancel, setToCancel] = React.useState<CashAdvanceRow | null>(null);
   const [toDelete, setToDelete] = React.useState<CashAdvanceRow | null>(null);
   const [pending, startTransition] = React.useTransition();
 
-  const filtered = React.useMemo(
-    () => (status === ALL ? rows : rows.filter((r) => r.status === status)),
-    [rows, status],
-  );
+  const filtered = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (status !== ALL && r.status !== status) return false;
+      if (q && !r.employeeName.toLowerCase().includes(q) && !r.employeeCode.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [rows, status, search]);
 
   function runAction(
     action: () => Promise<{ success: boolean; error?: string }>,
@@ -247,23 +247,27 @@ export function CashAdvancesTable({
     return cols;
   }, [mode, canApprove, canDelete]);
 
+  const CSV_COLUMNS = [
+    { header: "Employee", accessor: (r: CashAdvanceRow) => r.employeeName },
+    { header: "Code", accessor: (r: CashAdvanceRow) => r.employeeCode },
+    { header: "Amount", accessor: (r: CashAdvanceRow) => r.approvedAmount ?? r.amount },
+    { header: "Reason", accessor: (r: CashAdvanceRow) => r.reason },
+    { header: "Status", accessor: (r: CashAdvanceRow) => r.status },
+    { header: "Requested", accessor: (r: CashAdvanceRow) => r.requestedAt.slice(0, 10) },
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Select value={status} onValueChange={(v) => setStatus(v as string)}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All statuses</SelectItem>
-            {STATUS_OPTIONS.map(([val, labelText]) => (
-              <SelectItem key={val} value={val}>
-                {labelText}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <DataToolbar
+        search={mode === "admin" ? { value: search, onChange: setSearch, placeholder: "Search employee…" } : undefined}
+        filters={[{
+          value: status,
+          onChange: (v) => setStatus(v ?? ALL),
+          placeholder: "Status",
+          options: STATUS_OPTIONS,
+        }]}
+        onExport={() => exportToCsv("cash-advances", CSV_COLUMNS, filtered)}
+      />
 
       <DataTable
         columns={columns}
