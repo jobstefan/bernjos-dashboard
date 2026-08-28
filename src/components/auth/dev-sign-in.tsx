@@ -42,7 +42,7 @@ export function DevSignIn() {
   }
 
   return (
-    <div className="w-full max-w-sm rounded-2xl border border-border bg-white p-6 shadow-sm">
+    <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-sm">
       <div className="mb-6 flex items-center gap-2">
         <div className="flex size-9 items-center justify-center rounded-lg bg-[#2563EB] text-white">
           <ShieldCheck className="size-5" />

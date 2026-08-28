@@ -91,7 +91,7 @@ export function MyAbsenceRequests({
     return (
       <div className="space-y-3">
         <h2 className="text-base font-semibold">Absence Requests</h2>
-        <div className="flex items-center gap-2 rounded-xl border border-border bg-white px-4 py-6 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
           <CalendarOff className="size-4 shrink-0" />
           No absence requests yet. Use &ldquo;Request Absence&rdquo; to submit one.
         </div>
@@ -102,7 +102,7 @@ export function MyAbsenceRequests({
   return (
     <div className="space-y-3">
       <h2 className="text-base font-semibold">Absence Requests</h2>
-      <div className="divide-y divide-border rounded-xl border border-border bg-white">
+      <div className="divide-y divide-border rounded-xl border border-border bg-card">
         {active.map((req) => (
           <AbsenceRow key={req.id} req={req} />
         ))}

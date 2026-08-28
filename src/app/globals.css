@@ -5,8 +5,14 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: var(--font-sans);
+    --font-heading: var(--font-display);
     --font-sans: var(--font-sans);
+    /* Brand ramp — exposed as bg-brand-*, text-brand-*, etc. */
+    --color-brand-amber: var(--brand-amber);
+    --color-brand-orange: var(--brand-orange);
+    --color-brand-red: var(--brand-red);
+    --color-brand-cream: var(--brand-cream);
+    --color-brand-espresso: var(--brand-espresso);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,73 +54,96 @@
 }
 
 :root {
-    /* Bernjos payroll palette — clean, data-dense, trustworthy corporate blue. */
-    --background: #f8f9fb;
-    --foreground: #0f172a;
-    --card: #ffffff;
-    --card-foreground: #0f172a;
-    --popover: #ffffff;
-    --popover-foreground: #0f172a;
-    --primary: #2563eb;
-    --primary-foreground: #ffffff;
-    --secondary: #f1f5f9;
-    --secondary-foreground: #0f172a;
-    --muted: #f1f5f9;
-    --muted-foreground: #64748b;
-    --accent: #eff6ff;
-    --accent-foreground: #1e3a8a;
-    --destructive: #dc2626;
-    --border: #e2e8f0;
-    --input: #e2e8f0;
-    --ring: #2563eb;
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    /* ── BernJos brand ramp (theme-independent) ─────────────────────────
+       Derived from the "BernJos Bread & Pastries" logo:
+       golden-amber wall, orange "Bern", red "Jos". */
+    --brand-amber: oklch(0.80 0.15 78);
+    --brand-amber-strong: oklch(0.74 0.16 72);
+    --brand-orange: oklch(0.68 0.19 45);
+    --brand-red: oklch(0.55 0.21 27);
+    --brand-cream: oklch(0.98 0.008 85);
+    --brand-espresso: oklch(0.17 0.015 50);
+
+    /* ── Warm light theme (sibling of the espresso-dark hero) ─────────── */
+    --background: oklch(0.985 0.008 85);
+    --foreground: oklch(0.24 0.02 50);
+    --card: oklch(0.995 0.004 85);
+    --card-foreground: oklch(0.24 0.02 50);
+    --popover: oklch(0.995 0.004 85);
+    --popover-foreground: oklch(0.24 0.02 50);
+    --primary: oklch(0.66 0.18 45);
+    --primary-foreground: oklch(0.99 0.005 85);
+    --secondary: oklch(0.94 0.015 80);
+    --secondary-foreground: oklch(0.28 0.03 50);
+    --muted: oklch(0.95 0.012 82);
+    --muted-foreground: oklch(0.50 0.02 55);
+    --accent: oklch(0.95 0.02 75);
+    --accent-foreground: oklch(0.32 0.06 45);
+    --destructive: oklch(0.52 0.20 27);
+    --border: oklch(0.90 0.015 75);
+    --input: oklch(0.90 0.015 75);
+    --ring: oklch(0.66 0.18 45);
+    /* Warm, on-brand chart sequence: amber, orange, red, gold, clay */
+    --chart-1: oklch(0.80 0.15 78);
+    --chart-2: oklch(0.68 0.19 45);
+    --chart-3: oklch(0.55 0.21 27);
+    --chart-4: oklch(0.75 0.12 95);
+    --chart-5: oklch(0.58 0.06 55);
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar: oklch(0.97 0.012 82);
+    --sidebar-foreground: oklch(0.26 0.02 50);
+    --sidebar-primary: oklch(0.66 0.18 45);
+    --sidebar-primary-foreground: oklch(0.99 0.005 85);
+    --sidebar-accent: oklch(0.93 0.02 78);
+    --sidebar-accent-foreground: oklch(0.28 0.04 45);
+    --sidebar-border: oklch(0.90 0.015 75);
+    --sidebar-ring: oklch(0.66 0.18 45);
+
+    /* Warm elevation shadows + KPI sheen (consumed by utilities below). */
+    --shadow-warm-sm: 0 1px 2px oklch(0.20 0.03 50 / 0.06), 0 1px 3px oklch(0.20 0.03 50 / 0.05);
+    --shadow-warm-md: 0 4px 12px oklch(0.20 0.03 50 / 0.08), 0 2px 4px oklch(0.20 0.03 50 / 0.05);
+    --shadow-warm-lg: 0 12px 32px oklch(0.20 0.03 50 / 0.12), 0 4px 8px oklch(0.20 0.03 50 / 0.06);
+    --kpi-sheen: linear-gradient(180deg, oklch(0.68 0.19 45 / 0.10) 0%, transparent 55%);
 }
 
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    /* ── Espresso-dark hero — "bakery at night" ───────────────────────── */
+    --background: oklch(0.17 0.015 50);
+    --foreground: oklch(0.94 0.012 82);
+    --card: oklch(0.215 0.018 52);
+    --card-foreground: oklch(0.94 0.012 82);
+    --popover: oklch(0.215 0.018 52);
+    --popover-foreground: oklch(0.94 0.012 82);
+    --primary: oklch(0.80 0.15 78);
+    --primary-foreground: oklch(0.20 0.02 55);
+    --secondary: oklch(0.27 0.02 52);
+    --secondary-foreground: oklch(0.94 0.012 82);
+    --muted: oklch(0.25 0.018 52);
+    --muted-foreground: oklch(0.72 0.02 72);
+    --accent: oklch(0.30 0.03 55);
+    --accent-foreground: oklch(0.95 0.012 82);
+    --destructive: oklch(0.58 0.20 27);
+    --border: oklch(0.98 0.01 82 / 10%);
+    --input: oklch(0.98 0.01 82 / 15%);
+    --ring: oklch(0.80 0.15 78);
+    --chart-1: oklch(0.80 0.15 78);
+    --chart-2: oklch(0.68 0.19 45);
+    --chart-3: oklch(0.60 0.19 27);
+    --chart-4: oklch(0.78 0.13 95);
+    --chart-5: oklch(0.62 0.06 58);
+    --sidebar: oklch(0.145 0.016 48);
+    --sidebar-foreground: oklch(0.88 0.015 80);
+    --sidebar-primary: oklch(0.80 0.15 78);
+    --sidebar-primary-foreground: oklch(0.20 0.02 55);
+    --sidebar-accent: oklch(0.25 0.02 52);
+    --sidebar-accent-foreground: oklch(0.95 0.012 82);
+    --sidebar-border: oklch(0.98 0.01 82 / 8%);
+    --sidebar-ring: oklch(0.80 0.15 78);
+
+    --shadow-warm-sm: 0 1px 2px oklch(0 0 0 / 0.4), 0 1px 3px oklch(0 0 0 / 0.3);
+    --shadow-warm-md: 0 4px 12px oklch(0 0 0 / 0.45), 0 2px 4px oklch(0 0 0 / 0.3);
+    --shadow-warm-lg: 0 14px 40px oklch(0 0 0 / 0.55), 0 4px 10px oklch(0 0 0 / 0.35);
+    --kpi-sheen: linear-gradient(180deg, oklch(0.80 0.15 78 / 0.14) 0%, transparent 60%);
 }
 
 @layer base {
@@ -126,5 +155,27 @@
     }
   html {
     @apply font-sans;
+    }
+  /* Headings use the display grotesk. */
+  h1, h2, h3, .font-heading {
+    font-family: var(--font-heading);
+    }
+  /* Currency & tabular numerics stay column-aligned. */
+  .tabular-nums, .font-mono {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    }
+}
+
+@layer utilities {
+  .shadow-warm-sm { box-shadow: var(--shadow-warm-sm); }
+  .shadow-warm-md { box-shadow: var(--shadow-warm-md); }
+  .shadow-warm-lg { box-shadow: var(--shadow-warm-lg); }
+  /* Subtle amber→orange top sheen for KPI/stat cards. */
+  .kpi-sheen { background-image: var(--kpi-sheen); }
+  /* Glass surface for the sticky app header. */
+  .glass {
+    background-color: color-mix(in oklch, var(--background) 72%, transparent);
+    backdrop-filter: blur(12px) saturate(1.4);
     }
 }

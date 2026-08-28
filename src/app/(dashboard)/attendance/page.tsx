@@ -69,7 +69,7 @@ export default async function AttendancePage({
             type="date"
             name="from"
             defaultValue={fromIso}
-            className="h-9 rounded-md border border-border bg-white px-3 text-sm"
+            className="h-9 rounded-md border border-border bg-card px-3 text-sm text-foreground"
           />
         </div>
         <div className="grid gap-1">
@@ -78,7 +78,7 @@ export default async function AttendancePage({
             type="date"
             name="to"
             defaultValue={toIso}
-            className="h-9 rounded-md border border-border bg-white px-3 text-sm"
+            className="h-9 rounded-md border border-border bg-card px-3 text-sm text-foreground"
           />
         </div>
         <button

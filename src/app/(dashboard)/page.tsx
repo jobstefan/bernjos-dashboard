@@ -6,7 +6,8 @@ import { getOrCreateUser } from "@/lib/user";
 import { getEmployees } from "@/server/services/employee.service";
 import { getPayrollPeriods } from "@/server/services/payroll.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SummaryCard } from "@/components/payroll/summary-card";
+import { PageHeader } from "@/components/ui/page-header";
+import { KpiCard } from "@/components/ui/kpi-card";
 import { StatusBadge } from "@/components/payroll/status-badge";
 import { roleLabel } from "@/components/layout/nav";
 import { formatDate } from "@/lib/utils/payroll";
@@ -44,13 +45,12 @@ export default async function DashboardHome() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          Signed in as {roleLabel(actor.role)}
-          {actor.email ? ` · ${actor.email}` : ""}
-        </p>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description={`Signed in as ${roleLabel(actor.role)}${
+          actor.email ? ` · ${actor.email}` : ""
+        }`}
+      />
 
       {dbError ? (
         <Card className="border-amber-200 bg-amber-50">
@@ -72,10 +72,15 @@ export default async function DashboardHome() {
       {canPayroll ? (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <SummaryCard title="Active Employees" value={String(employeeCount)} />
-            <SummaryCard
-              title="Payroll Periods"
-              value={String(recentPeriods.length)}
+            <KpiCard
+              label="Active Employees"
+              value={employeeCount}
+              icon={<Users />}
+            />
+            <KpiCard
+              label="Payroll Periods"
+              value={recentPeriods.length}
+              icon={<Wallet />}
               hint="Most recent shown below"
             />
           </div>
@@ -147,7 +152,7 @@ function QuickLink({
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-xl border border-border bg-white px-4 py-4 text-sm font-medium shadow-sm transition-colors hover:border-primary hover:text-primary"
+      className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-4 text-sm font-medium shadow-sm transition-colors hover:border-primary hover:text-primary"
     >
       <span className="flex size-10 items-center justify-center rounded-lg bg-accent text-primary">
         {icon}
