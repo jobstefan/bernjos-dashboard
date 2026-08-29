@@ -46,25 +46,32 @@ export function DataToolbar({ search, filters, onExport, children }: DataToolbar
         </div>
       )}
 
-      {filters?.map((filter) => (
-        <Select
-          key={filter.placeholder}
-          value={filter.value}
-          onValueChange={filter.onChange}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder={filter.placeholder} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All {filter.placeholder.toLowerCase()}</SelectItem>
-            {filter.options.map(([val, label]) => (
-              <SelectItem key={val} value={val}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ))}
+      {filters?.map((filter) => {
+        const allLabel = `All ${filter.placeholder.toLowerCase()}`;
+        const currentLabel =
+          !filter.value || filter.value === ALL
+            ? allLabel
+            : (filter.options.find(([v]) => v === filter.value)?.[1] ?? filter.value);
+        return (
+          <Select
+            key={filter.placeholder}
+            value={filter.value}
+            onValueChange={filter.onChange}
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue>{currentLabel}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>{allLabel}</SelectItem>
+              {filter.options.map(([val, label]) => (
+                <SelectItem key={val} value={val}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      })}
 
       <div className="ml-auto flex items-center gap-2">
         {children}

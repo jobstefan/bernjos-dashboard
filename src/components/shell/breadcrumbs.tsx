@@ -23,10 +23,12 @@ const SEGMENT_LABELS: Record<string, string> = {
   users: "Users",
 };
 
-function labelFor(segment: string): string {
+function labelFor(segment: string, prev?: string): string {
   if (SEGMENT_LABELS[segment]) return SEGMENT_LABELS[segment];
-  // Opaque ids (cuid/uuid/numeric) → shortened token.
+  // Opaque ids (cuid/uuid/numeric) → context-aware label or shortened token.
   if (/^[0-9a-f]{8,}$/i.test(segment) || /^\d+$/.test(segment)) {
+    if (prev === "employees") return "Profile";
+    if (prev === "payroll") return "Period";
     return segment.length > 10 ? `${segment.slice(0, 6)}…` : segment;
   }
   return segment.charAt(0).toUpperCase() + segment.slice(1);
@@ -37,7 +39,7 @@ export function Breadcrumbs({ className }: { className?: string }) {
   const segments = pathname.split("/").filter(Boolean);
 
   const crumbs = segments.map((segment, i) => ({
-    label: labelFor(segment),
+    label: labelFor(segment, segments[i - 1]),
     href: "/" + segments.slice(0, i + 1).join("/"),
     isLast: i === segments.length - 1,
   }));

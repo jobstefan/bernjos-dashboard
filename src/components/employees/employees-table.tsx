@@ -63,25 +63,38 @@ export function EmployeesTable({
   const router = useRouter();
   const [search, setSearch] = React.useState("");
   const [department, setDepartment] = React.useState(ALL);
-  const [status, setStatus] = React.useState(ALL);
+  const [status, setStatus] = React.useState("active");
   const [toDeactivate, setToDeactivate] = React.useState<EmployeeRow | null>(null);
   const [pending, startTransition] = React.useTransition();
 
+  const STATUS_ORDER: Record<string, number> = { active: 0, inactive: 1, resigned: 2, terminated: 3 };
+
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
-      if (department !== ALL && r.department !== department) return false;
-      if (status !== ALL && r.employmentStatus !== status) return false;
-      if (
-        q &&
-        ![r.fullName, r.employeeCode, r.email, r.position]
-          .join(" ")
-          .toLowerCase()
-          .includes(q)
-      )
-        return false;
-      return true;
-    });
+    return rows
+      .filter((r) => {
+        if (department !== ALL && r.department !== department) return false;
+        if (status === "active_inactive") {
+          if (!["active", "inactive"].includes(r.employmentStatus)) return false;
+        } else if (status !== ALL) {
+          if (r.employmentStatus !== status) return false;
+        }
+        if (
+          q &&
+          ![r.fullName, r.employeeCode, r.email, r.position]
+            .join(" ")
+            .toLowerCase()
+            .includes(q)
+        )
+          return false;
+        return true;
+      })
+      .sort(
+        (a, b) =>
+          (STATUS_ORDER[a.employmentStatus] ?? 9) -
+          (STATUS_ORDER[b.employmentStatus] ?? 9) ||
+          a.fullName.localeCompare(b.fullName),
+      );
   }, [rows, search, department, status]);
 
   function confirmDeactivate() {
@@ -213,10 +226,9 @@ export function EmployeesTable({
             onChange: (v) => setStatus(v ?? ALL),
             placeholder: "Status",
             options: [
-              ["active", "Active"],
-              ["inactive", "Inactive"],
-              ["resigned", "Resigned"],
-              ["terminated", "Terminated"],
+              ["active_inactive", "Active & Inactive"],
+              ["active", "Active only"],
+              ["inactive", "Inactive only"],
             ],
           },
         ]}
