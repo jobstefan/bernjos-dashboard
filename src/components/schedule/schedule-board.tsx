@@ -68,6 +68,16 @@ function dotColorClass(isBlocked: boolean, isApproved: boolean, accentDot: strin
   return isApproved ? "bg-red-400" : "bg-yellow-400";
 }
 
+interface BoardEntryProps {
+  row: ScheduleRow;
+  draft: Draft;
+  isInvalid: boolean;
+  absenceReq: AbsenceRequestRow | undefined;
+  branches: BranchRow[];
+  canEdit: boolean;
+  onUpdate: (patch: Partial<Draft>) => void;
+}
+
 function BoardRow({
   row,
   draft,
@@ -76,15 +86,7 @@ function BoardRow({
   branches,
   canEdit,
   onUpdate,
-}: Readonly<{
-  row: ScheduleRow;
-  draft: Draft;
-  isInvalid: boolean;
-  absenceReq: AbsenceRequestRow | undefined;
-  branches: BranchRow[];
-  canEdit: boolean;
-  onUpdate: (patch: Partial<Draft>) => void;
-}>) {
+}: Readonly<BoardEntryProps>) {
   const isBlocked = Boolean(absenceReq);
   const isApproved = absenceReq?.status === "approved";
   const isOff = !draft.startTime && !draft.endTime;
@@ -186,6 +188,139 @@ function BoardRow({
         />
       </TableCell>
     </TableRow>
+  );
+}
+
+function BoardCard({
+  row,
+  draft,
+  isInvalid,
+  absenceReq,
+  branches,
+  canEdit,
+  onUpdate,
+}: Readonly<BoardEntryProps>) {
+  const isBlocked = Boolean(absenceReq);
+  const isApproved = absenceReq?.status === "approved";
+  const isOff = !draft.startTime && !draft.endTime;
+  const accent = departmentAccent(row.department);
+
+  return (
+    <div
+      className={cn(
+        "rounded-xl border border-border p-4 space-y-3",
+        rowBgClass(isBlocked, isApproved, isInvalid, accent.tint),
+        isInvalid && "border-destructive",
+      )}
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            className={cn("size-2 shrink-0 rounded-full mt-1", dotColorClass(isBlocked, isApproved, accent.dot))}
+            aria-hidden
+          />
+          <div className="min-w-0">
+            <div className={cn("font-medium truncate", isBlocked && "line-through text-muted-foreground")}>
+              {row.employeeName}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {row.employeeCode}
+              {row.department ? ` · ${row.department}` : ""}
+              {!isBlocked && isOff ? " · Day off" : ""}
+            </div>
+          </div>
+        </div>
+        {isBlocked ? (
+          <span
+            className={cn(
+              "shrink-0 inline-flex rounded-full border px-2 py-0.5 text-xs font-medium",
+              toneClass(isApproved ? "danger" : "warning"),
+            )}
+          >
+            {isApproved ? "Approved Absence" : "Pending Absence"}
+          </span>
+        ) : null}
+      </div>
+
+      {/* Fields */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1 col-span-2">
+          <Label className="text-xs text-muted-foreground">Branch</Label>
+          {canEdit && !isBlocked ? (
+            <Select
+              value={draft.branchId}
+              onValueChange={(v) => onUpdate({ branchId: v ?? NO_BRANCH })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue>
+                  {(value) =>
+                    value === NO_BRANCH
+                      ? "Unassigned"
+                      : (branches.find((b) => b.id === value)?.name ?? "Unassigned")
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_BRANCH}>Unassigned</SelectItem>
+                {branches.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <span className="text-sm text-muted-foreground">—</span>
+          )}
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Start</Label>
+          <Input
+            type="time"
+            value={draft.startTime}
+            disabled={!canEdit || isBlocked}
+            onChange={(e) => onUpdate({ startTime: e.target.value })}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">End</Label>
+          <div className="flex items-center gap-1">
+            <Input
+              type="time"
+              value={draft.endTime}
+              disabled={!canEdit || isBlocked}
+              onChange={(e) => onUpdate({ endTime: e.target.value })}
+            />
+            {canEdit && !isBlocked ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Clear times (mark day off)"
+                title="Clear times"
+                disabled={!draft.startTime && !draft.endTime}
+                onClick={() => onUpdate({ startTime: "", endTime: "" })}
+              >
+                <X className="size-4" />
+              </Button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="space-y-1 col-span-2">
+          <Label className="text-xs text-muted-foreground">Note</Label>
+          <Input
+            value={draft.note}
+            disabled={!canEdit || isBlocked}
+            placeholder="e.g. half day"
+            onChange={(e) => onUpdate({ note: e.target.value })}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -399,7 +534,44 @@ export function ScheduleBoard({
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      {/* Card stack — mobile only */}
+      <div className="space-y-3 md:hidden">
+        {(() => {
+          const SENTINEL = "__sentinel__";
+          let lastBranchId: string = SENTINEL;
+          return sortedRows.flatMap((row) => {
+            const d = drafts[row.employeeId];
+            if (!d) return [];
+            const currentBranchId = d.branchId === NO_BRANCH ? null : d.branchId;
+            const key = currentBranchId ?? "none";
+            const groupChanged = key !== lastBranchId;
+            lastBranchId = key;
+            const branchName = currentBranchId
+              ? (branches.find((b) => b.id === currentBranchId)?.name ?? "Unknown Branch")
+              : "Unassigned";
+            return [
+              groupChanged ? (
+                <div key={`grp-card-${key}`} className="px-1 pt-2 pb-0.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  {branchName}
+                </div>
+              ) : null,
+              <BoardCard
+                key={`card-${row.employeeId}`}
+                row={row}
+                draft={d}
+                isInvalid={invalid.has(row.employeeId)}
+                absenceReq={blockedEmployees.get(row.employeeId)}
+                branches={branches}
+                canEdit={canEdit}
+                onUpdate={(patch) => update(row.employeeId, patch)}
+              />,
+            ].filter(Boolean);
+          });
+        })()}
+      </div>
+
+      {/* Table view — md+ only */}
+      <div className="hidden md:block overflow-x-auto rounded-xl border border-border bg-card">
         <Table>
           <TableHeader>
             <TableRow>

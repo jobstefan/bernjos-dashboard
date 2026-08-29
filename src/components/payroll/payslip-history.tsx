@@ -4,13 +4,14 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/payroll/data-table";
+import { DataCard } from "@/components/ui/data-card";
 import { DetailDrawer } from "@/components/ui/detail-drawer";
 import { StatusBadge } from "@/components/payroll/status-badge";
 import {
   PayslipBreakdown,
   type PayslipView,
 } from "@/components/payroll/payslip-breakdown";
-import { formatDate } from "@/lib/utils/payroll";
+import { formatDate, formatPeso } from "@/lib/utils/payroll";
 import type { PayrollStatus } from "@/lib/types/payroll";
 
 export interface PayslipHistoryRow extends PayslipView {
@@ -70,6 +71,22 @@ export function PayslipHistory({ rows }: { rows: PayslipHistoryRow[] }) {
         data={rows}
         onRowClick={(row) => setSelected(row)}
         initialSorting={[{ id: "payDate", desc: true }]}
+        renderCard={(row) => (
+          <DataCard
+            title={row.periodLabel}
+            subtitle={formatDate(row.payDate)}
+            fields={[
+              { label: "Net pay", value: <span className="font-mono">{formatPeso(row.netPay)}</span> },
+              { label: "Status", value: <StatusBadge status={row.status} /> },
+            ]}
+            actions={
+              <Button variant="outline" size="sm" onClick={() => setSelected(row)}>
+                View
+              </Button>
+            }
+            onClick={() => setSelected(row)}
+          />
+        )}
       />
       <DetailDrawer
         open={selected !== null}

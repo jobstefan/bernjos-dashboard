@@ -32,12 +32,14 @@ export default async function UsersSettingsPage() {
           <CardTitle className="text-base">{users.length} user{users.length === 1 ? "" : "s"}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="flex items-center gap-3 px-6 py-2 border-b bg-muted/40">
+          {/* Desktop header row */}
+          <div className="hidden sm:flex items-center gap-3 px-6 py-2 border-b bg-muted/40">
             <div className="size-6 shrink-0" />
             <div className="flex-1 text-xs font-medium text-muted-foreground">User</div>
             <div className="w-28 text-xs font-medium text-muted-foreground">Employee</div>
             <div className="w-36 text-xs font-medium text-muted-foreground">Role</div>
           </div>
+
           <div className="divide-y">
             {users.map((user) => {
               const isSelf = user.clerkId === actor.clerkUserId;
@@ -47,46 +49,61 @@ export default async function UsersSettingsPage() {
                 .filter(Boolean)
                 .join("")
                 .toUpperCase() || "?";
+              const employeeBadge = user.profile ? (
+                <Badge variant="secondary" className="text-xs font-mono">
+                  {user.profile.employeeCode}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs text-muted-foreground">
+                  No profile
+                </Badge>
+              );
               return (
-                <div
-                  key={user.id}
-                  className="flex items-center gap-3 px-6 py-3"
-                >
-                  <Avatar size="sm">
-                    {user.imageUrl && <AvatarImage src={user.imageUrl} alt={name} />}
-                    <AvatarFallback>{initials}</AvatarFallback>
-                  </Avatar>
-
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {name}
-                      {isSelf && (
-                        <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you)</span>
-                      )}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {user.email ?? "No email"}
-                    </p>
+                <div key={user.id}>
+                  {/* Desktop row */}
+                  <div className="hidden sm:flex items-center gap-3 px-6 py-3">
+                    <Avatar size="sm">
+                      {user.imageUrl && <AvatarImage src={user.imageUrl} alt={name} />}
+                      <AvatarFallback>{initials}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {name}
+                        {isSelf && (
+                          <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you)</span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {user.email ?? "No email"}
+                      </p>
+                    </div>
+                    <div className="w-28">{employeeBadge}</div>
+                    <div className="w-36">
+                      <RoleSelect userId={user.id} currentRole={user.role as Role} isSelf={isSelf} />
+                    </div>
                   </div>
 
-                  <div className="w-28">
-                    {user.profile ? (
-                      <Badge variant="secondary" className="text-xs font-mono">
-                        {user.profile.employeeCode}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-xs text-muted-foreground">
-                        No profile
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="w-36">
-                    <RoleSelect
-                      userId={user.id}
-                      currentRole={user.role as Role}
-                      isSelf={isSelf}
-                    />
+                  {/* Mobile card */}
+                  <div className="sm:hidden px-4 py-3 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar size="sm">
+                        {user.imageUrl && <AvatarImage src={user.imageUrl} alt={name} />}
+                        <AvatarFallback>{initials}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">
+                          {name}
+                          {isSelf && (
+                            <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you)</span>
+                          )}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {user.email ?? "No email"}
+                        </p>
+                      </div>
+                      {employeeBadge}
+                    </div>
+                    <RoleSelect userId={user.id} currentRole={user.role as Role} isSelf={isSelf} />
                   </div>
                 </div>
               );

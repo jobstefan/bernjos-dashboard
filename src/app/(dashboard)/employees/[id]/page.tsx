@@ -8,7 +8,7 @@ import { getCashAdvancesForEmployee } from "@/server/services/cash-advance.servi
 import { getSavingsForEmployee } from "@/server/services/savings.service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmployeeProfileTabs } from "@/components/employees/employee-profile-tabs";
 import {
   PayslipHistory,
   type PayslipHistoryRow,
@@ -137,126 +137,127 @@ export default async function EmployeeProfilePage({
         ) : null}
       </div>
 
-      <Tabs defaultValue="profile">
-        <TabsList>
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="payslips">Payslips</TabsTrigger>
-          <TabsTrigger value="advances">Cash Advances</TabsTrigger>
-          <TabsTrigger value="savings">Savings</TabsTrigger>
-          {hasCredentials ? (
-            <TabsTrigger value="credentials">Credentials</TabsTrigger>
-          ) : null}
-        </TabsList>
-
-        <TabsContent value="profile" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Employee details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-                {fields.map(([label, value]) => (
-                  <div key={label}>
-                    <dt className="text-xs text-muted-foreground">{label}</dt>
-                    <dd className="text-sm font-medium capitalize">{value}</dd>
+      <EmployeeProfileTabs
+        tabs={[
+          {
+            value: "profile",
+            label: "Profile",
+            content: (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Employee details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {fields.map(([label, value]) => (
+                      <div key={label}>
+                        <dt className="text-xs text-muted-foreground">{label}</dt>
+                        <dd className="text-sm font-medium capitalize">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </CardContent>
+              </Card>
+            ),
+          },
+          {
+            value: "payslips",
+            label: "Payslips",
+            content: rows.length === 0 ? (
+              <EmptyState
+                icon={FileText}
+                title="No payslips yet"
+                description="Payslips appear here once a payroll period including this employee is marked as paid."
+              />
+            ) : (
+              <PayslipHistory rows={rows} />
+            ),
+          },
+          {
+            value: "advances",
+            label: "Cash Advances",
+            content: advances.length === 0 ? (
+              <EmptyState
+                icon={CreditCard}
+                title="No cash advances"
+                description="This employee has not made any cash advance requests."
+              />
+            ) : (
+              <CashAdvancesTable
+                rows={advances}
+                mode="admin"
+                canApprove={false}
+                canDelete={false}
+                hideSearch
+              />
+            ),
+          },
+          {
+            value: "savings",
+            label: "Savings",
+            content: savings ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap gap-6">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Balance</p>
+                    <p className="font-mono text-lg font-semibold">
+                      {formatPeso(savings.balance)}
+                    </p>
                   </div>
-                ))}
-              </dl>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="payslips" className="mt-4">
-          {rows.length === 0 ? (
-            <EmptyState
-              icon={FileText}
-              title="No payslips yet"
-              description="Payslips appear here once a payroll period including this employee is marked as paid."
-            />
-          ) : (
-            <PayslipHistory rows={rows} />
-          )}
-        </TabsContent>
-
-        <TabsContent value="advances" className="mt-4">
-          {advances.length === 0 ? (
-            <EmptyState
-              icon={CreditCard}
-              title="No cash advances"
-              description="This employee has not made any cash advance requests."
-            />
-          ) : (
-            <CashAdvancesTable
-              rows={advances}
-              mode="admin"
-              canApprove={false}
-              canDelete={false}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="savings" className="mt-4">
-          {savings ? (
-            <div className="space-y-4">
-              <div className="flex flex-wrap gap-6">
-                <div>
-                  <p className="text-xs text-muted-foreground">Balance</p>
-                  <p className="font-mono text-lg font-semibold">
-                    {formatPeso(savings.balance)}
-                  </p>
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Monthly contribution
+                    </p>
+                    <p className="font-mono text-lg font-semibold">
+                      {formatPeso(savings.contributionAmount)}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">
-                    Monthly contribution
-                  </p>
-                  <p className="font-mono text-lg font-semibold">
-                    {formatPeso(savings.contributionAmount)}
-                  </p>
-                </div>
+                <SavingsLedger transactions={savings.transactions} />
               </div>
-              <SavingsLedger transactions={savings.transactions} />
-            </div>
-          ) : (
-            <EmptyState
-              icon={PiggyBank}
-              title="No savings account"
-              description="This employee does not have a savings account set up yet."
-            />
-          )}
-        </TabsContent>
-
-        {hasCredentials ? (
-          <TabsContent value="credentials" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <KeyRound className="size-4" /> Login credentials
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div className="space-y-1">
-                  <p>
-                    Username:{" "}
-                    <span className="font-mono font-medium">{employee.username}</span>
-                  </p>
-                  <p className="text-muted-foreground">
-                    Temporary password until first login:{" "}
-                    <span className="font-mono">1234</span>. The employee sets a
-                    new password on first sign-in.
-                  </p>
-                  <p className="text-muted-foreground">
-                    Forgot their password? Reset it here — the temporary password
-                    is restored and they set a new one on next sign-in.
-                  </p>
-                </div>
-                {employee.user?.clerkId ? (
-                  <ResetPasswordButton employeeId={employee.id} />
-                ) : null}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        ) : null}
-      </Tabs>
+            ) : (
+              <EmptyState
+                icon={PiggyBank}
+                title="No savings account"
+                description="This employee does not have a savings account set up yet."
+              />
+            ),
+          },
+          ...(hasCredentials ? [{
+            value: "credentials",
+            label: "Credentials",
+            content: (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <KeyRound className="size-4" /> Login credentials
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  <div className="space-y-1">
+                    <p>
+                      Username:{" "}
+                      <span className="font-mono font-medium">{employee.username}</span>
+                    </p>
+                    <p className="text-muted-foreground">
+                      Temporary password until first login:{" "}
+                      <span className="font-mono">1234</span>. The employee sets a
+                      new password on first sign-in.
+                    </p>
+                    <p className="text-muted-foreground">
+                      Forgot their password? Reset it here — the temporary password
+                      is restored and they set a new one on next sign-in.
+                    </p>
+                  </div>
+                  {employee.user?.clerkId ? (
+                    <ResetPasswordButton employeeId={employee.id} />
+                  ) : null}
+                </CardContent>
+              </Card>
+            ),
+          }] : []),
+        ]}
+      />
     </div>
   );
 }
