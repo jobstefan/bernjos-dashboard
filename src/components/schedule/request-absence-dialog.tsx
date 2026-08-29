@@ -54,7 +54,7 @@ export function RequestAbsenceDialog() {
     >
       <DialogTrigger
         render={
-          <Button variant="outline">
+          <Button>
             <Plus className="size-4" /> Request Absence
           </Button>
         }

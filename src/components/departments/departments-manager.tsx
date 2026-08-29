@@ -69,15 +69,15 @@ export function DepartmentsManager({
     <div className="space-y-4">
       {departments.map((dept) => (
         <Card key={dept.id}>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-            <div>
+          <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-x-2 gap-y-2 space-y-0">
+            <div className="min-w-0">
               <CardTitle className="text-base">{dept.name}</CardTitle>
               <p className="text-xs text-muted-foreground">
                 {dept.positionCount} position
                 {dept.positionCount === 1 ? "" : "s"}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -85,7 +85,8 @@ export function DepartmentsManager({
                   setAddUnder({ id: dept.id, name: dept.name })
                 }
               >
-                <Plus className="size-4" /> Add position
+                <Plus className="size-4" />
+                <span className="hidden sm:inline">Add position</span>
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -124,9 +125,9 @@ export function DepartmentsManager({
                 {dept.positions.map((pos) => (
                   <li
                     key={pos.id}
-                    className="flex items-center justify-between py-2"
+                    className="flex items-center justify-between gap-2 py-2"
                   >
-                    <span className="text-sm">{pos.name}</span>
+                    <span className="min-w-0 truncate text-sm">{pos.name}</span>
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         render={

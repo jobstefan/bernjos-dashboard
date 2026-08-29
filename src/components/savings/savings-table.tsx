@@ -19,15 +19,23 @@ import {
 import { SavingsAccountDialog } from "@/components/savings/savings-account-dialog";
 import { SavingsAdjustmentDialog } from "@/components/savings/savings-adjustment-dialog";
 import { SavingsLedger } from "@/components/savings/savings-ledger";
+import { CreateLoanDialog } from "@/components/loans/create-loan-dialog";
 import { formatDate, formatPeso } from "@/lib/utils/payroll";
 import { exportToCsv } from "@/lib/utils/csv";
 import type { SavingsAccountRow } from "@/lib/types/savings";
 
 const ALL = "__all__";
 
-export function SavingsTable({ rows }: { rows: SavingsAccountRow[] }) {
+export function SavingsTable({
+  rows,
+  availableToBorrowMap = {},
+}: {
+  rows: SavingsAccountRow[];
+  availableToBorrowMap?: Record<string, number>;
+}) {
   const [toEdit, setToEdit] = React.useState<SavingsAccountRow | null>(null);
   const [toAdjust, setToAdjust] = React.useState<SavingsAccountRow | null>(null);
+  const [toLoan, setToLoan] = React.useState<SavingsAccountRow | null>(null);
   const [toView, setToView] = React.useState<SavingsAccountRow | null>(null);
   const [search, setSearch] = React.useState("");
   const [frozenFilter, setFrozenFilter] = React.useState<string>(ALL);
@@ -117,6 +125,13 @@ export function SavingsTable({ rows }: { rows: SavingsAccountRow[] }) {
               <DropdownMenuItem onClick={() => setToAdjust(row.original)}>
                 Record withdrawal / adjustment
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={row.original.frozen || (availableToBorrowMap[row.original.employeeId] ?? row.original.balance) <= 0}
+                onClick={() => setToLoan(row.original)}
+              >
+                Create loan
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ),
@@ -179,7 +194,7 @@ export function SavingsTable({ rows }: { rows: SavingsAccountRow[] }) {
         }
         className="sm:max-w-lg"
       >
-        {toView ? <SavingsLedger transactions={toView.transactions} /> : null}
+        {toView ? <SavingsLedger transactions={toView.transactions} compact /> : null}
       </DetailDrawer>
 
       <SavingsAccountDialog
@@ -191,6 +206,13 @@ export function SavingsTable({ rows }: { rows: SavingsAccountRow[] }) {
       <SavingsAdjustmentDialog
         account={toAdjust}
         onOpenChange={(open) => !open && setToAdjust(null)}
+      />
+
+      <CreateLoanDialog
+        account={toLoan}
+        availableToBorrow={toLoan ? (availableToBorrowMap[toLoan.employeeId] ?? toLoan.balance) : 0}
+        open={toLoan !== null}
+        onOpenChange={(open) => !open && setToLoan(null)}
       />
     </div>
   );

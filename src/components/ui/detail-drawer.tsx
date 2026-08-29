@@ -35,6 +35,7 @@ export function DetailDrawer({
       <SheetContent
         side="right"
         className={cn("flex w-full flex-col sm:max-w-md", className)}
+        initialFocus={false}
       >
         <SheetHeader>
           <SheetTitle>{title}</SheetTitle>

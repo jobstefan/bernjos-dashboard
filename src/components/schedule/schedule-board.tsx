@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Save, X } from "lucide-react";
+import { CalendarOff, History, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,11 +23,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CopyScheduleButton } from "@/components/schedule/copy-schedule-button";
-import { saveDayScheduleAction } from "@/app/actions/schedule.actions";
+import { getPreviousDayEntriesAction, saveDayScheduleAction } from "@/app/actions/schedule.actions";
 import { departmentAccent } from "@/lib/utils/schedule";
 import { toneClass } from "@/lib/utils/tone";
 import { cn } from "@/lib/utils";
-import { CalendarOff } from "lucide-react";
 import { EmptyState } from "@/components/payroll/empty-state";
 import type { BranchRow, ScheduleRow } from "@/lib/types/schedule";
 import type { AbsenceRequestRow } from "@/server/services/absence-request.service";
@@ -350,13 +349,19 @@ export function ScheduleBoard({
     [absenceRequests],
   );
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [pending, startTransition] = React.useTransition();
+  const [copying, startCopy] = React.useTransition();
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>(() =>
     Object.fromEntries(rows.map((r) => [r.employeeId, toDraft(r)])),
   );
   const [invalid, setInvalid] = React.useState<Set<string>>(new Set());
+
+  const prevDateLabel = React.useMemo(() => {
+    const d = new Date(`${dateIso}T00:00:00.000Z`);
+    d.setUTCDate(d.getUTCDate() - 1);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  }, [dateIso]);
 
   // Re-sync when the day (and therefore the server rows) changes.
   React.useEffect(() => {
@@ -369,6 +374,35 @@ export function ScheduleBoard({
       ...prev,
       [employeeId]: { ...prev[employeeId], ...patch },
     }));
+  }
+
+  function onCopyFromYesterday() {
+    startCopy(async () => {
+      const res = await getPreviousDayEntriesAction(dateIso);
+      if (!res.success) {
+        toast.error(res.error ?? "Failed to load previous day's schedule.");
+        return;
+      }
+      if (res.data.length === 0) {
+        toast.warning(`No schedule found for ${prevDateLabel}.`);
+        return;
+      }
+      setDrafts((current) => {
+        const next = { ...current };
+        for (const e of res.data) {
+          if (blockedEmployees.has(e.employeeId)) continue;
+          next[e.employeeId] = {
+            branchId: e.branchId ?? NO_BRANCH,
+            startTime: e.startTime,
+            endTime: e.endTime,
+            note: e.note ?? "",
+          };
+        }
+        return next;
+      });
+      const copied = res.data.filter((e) => !blockedEmployees.has(e.employeeId)).length;
+      toast.success(`Loaded ${copied} ${copied === 1 ? "entry" : "entries"} from ${prevDateLabel}.`);
+    });
   }
 
   // Live preview rows so the Copy button reflects unsaved edits.
@@ -484,13 +518,13 @@ export function ScheduleBoard({
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="grid gap-2">
+          <div className="grid gap-2 w-full sm:w-auto">
             <Label htmlFor="schedule-date">Day</Label>
             <Input
               id="schedule-date"
               type="date"
               value={dateIso}
-              className="w-48"
+              className="w-full sm:w-48"
               onChange={(e) => onDateChange(e.target.value)}
             />
           </div>
@@ -507,17 +541,29 @@ export function ScheduleBoard({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="grid gap-2">
+        <div className="grid gap-2 w-full sm:w-auto">
           <Label htmlFor="schedule-date">Day</Label>
           <Input
             id="schedule-date"
             type="date"
             value={dateIso}
-            className="w-48"
+            className="w-full sm:w-48"
             onChange={(e) => onDateChange(e.target.value)}
           />
         </div>
         <div className="flex items-center gap-2">
+          {canEdit ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCopyFromYesterday}
+              disabled={copying || pending}
+              title={`Copy schedule from ${prevDateLabel}`}
+            >
+              <History className="size-4" />
+              {copying ? "Loading…" : `From ${prevDateLabel}`}
+            </Button>
+          ) : null}
           <CopyScheduleButton
             dateIso={dateIso}
             rows={previewRows}

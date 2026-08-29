@@ -438,6 +438,7 @@ export async function summarizeForPayroll(
   let lateMinutes = 0;
   let undertimeMinutes = 0;
   let overtimeMinutes = 0;
+  let scheduledMinutes = 0;
   let breakMinutes = 0;
   let deductionDays = 0;
   // Days worked keyed by the branch that recorded them, for per-branch gross pay.
@@ -467,6 +468,7 @@ export async function summarizeForPayroll(
     lateMinutes += cmp.lateMinutes;
     undertimeMinutes += cmp.undertimeMinutes;
     overtimeMinutes += cmp.overtimeMinutes;
+    scheduledMinutes += cmp.scheduledMinutes;
     breakMinutes += cmp.breakMinutes;
     if (cmp.scheduledMinutes > 0) {
       deductionDays +=
@@ -483,6 +485,7 @@ export async function summarizeForPayroll(
     lateMinutes,
     undertimeMinutes,
     overtimeMinutes,
+    scheduledMinutes,
     breakMinutes,
     deductionDays,
     byBranch: Array.from(daysByBranch, ([branchId, days]) => ({

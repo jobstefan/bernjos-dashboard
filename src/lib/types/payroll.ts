@@ -61,6 +61,10 @@ export interface DeductionBreakdown {
   undertimeMinutes: number;
   /** Peso deduction for late+undertime (pro-rated daily rate; 0 when not tracked). */
   lateDeduction: number;
+  /** Minutes worked past scheduled end, summed (0 when not tracked). */
+  overtimeMinutes: number;
+  /** Peso earnings for overtime at 1× hourly rate (0 when not tracked). */
+  overtimeEarnings: number;
   /**
    * Days worked grouped by branch, so net pay can be split proportionally per branch
    * once it's known. Empty when not attendance-tracked. A null `branchId` buckets
@@ -133,8 +137,13 @@ export interface Payslip {
   grossPay: number;
   sssEmployee: number;
   philhealthEmployee: number;
+  lateDeduction: number;
+  advanceDeduction: number;
   otherDeductions: number;
+  loanDeduction: number;
   otherEarnings: number;
+  /** Minutes worked past scheduled end for the period (0 when none or not tracked). */
+  overtimeMinutes: number;
   /** User savings withheld into their account — not a deduction. */
   savingsContribution: number;
   totalDeductions: number;

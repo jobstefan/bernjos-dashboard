@@ -1,13 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getActor, requireApprover, requireRole } from "@/lib/auth/rbac";
+import { getActor, requireAdmin, requireApprover, requireRole } from "@/lib/auth/rbac";
 import {
+  adminCreateCashAdvanceSchema,
   approveCashAdvanceSchema,
   createCashAdvanceSchema,
   declineCashAdvanceSchema,
 } from "@/lib/validations/payroll";
 import {
+  adminCreateCashAdvance,
   approveCashAdvance,
   cancelCashAdvance,
   declineCashAdvance,
@@ -20,6 +22,27 @@ import type { ActionResult } from "@/lib/types/action";
 function revalidate() {
   revalidatePath("/cash-advances");
   revalidatePath("/cash-advances/mine");
+}
+
+export async function adminCreateCashAdvanceAction(
+  input: unknown,
+): Promise<ActionResult<{ id: string }>> {
+  try {
+    const actor = await requireAdmin();
+    const parsed = adminCreateCashAdvanceSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: "Please fix the highlighted fields.",
+        fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+      };
+    }
+    const advance = await adminCreateCashAdvance(parsed.data, actor);
+    revalidate();
+    return { success: true, data: { id: advance.id } };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
 }
 
 export async function requestCashAdvanceAction(

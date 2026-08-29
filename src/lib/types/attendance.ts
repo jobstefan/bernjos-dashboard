@@ -75,6 +75,8 @@ export interface PayrollAttendanceSummary {
   undertimeMinutes: number;
   /** Minutes worked past scheduled end, summed across the period. */
   overtimeMinutes: number;
+  /** Total scheduled shift minutes across the period (used to derive per-minute rate). */
+  scheduledMinutes: number;
   /** Mid-shift gap minutes (left and came back), summed across the period. */
   breakMinutes: number;
   /** Late+undertime+break expressed as fractional days (pro-rated by each shift's length). */

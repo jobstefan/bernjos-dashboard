@@ -4,10 +4,16 @@ import {
   canApproveCashAdvance,
   canViewPayroll,
   getCurrentRole,
+  isAdmin,
 } from "@/lib/auth/rbac";
 import { getCashAdvances } from "@/server/services/cash-advance.service";
+import { getEmployees } from "@/server/services/employee.service";
 import { getCashAdvancePulse } from "@/server/services/analytics.service";
 import { CashAdvancesTable } from "@/components/cash-advances/cash-advances-table";
+import {
+  AdminCreateCashAdvanceButton,
+  type EmployeeOption,
+} from "@/components/cash-advances/admin-create-cash-advance-button";
 import { EmptyState } from "@/components/payroll/empty-state";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { ChartCard } from "@/components/charts/chart-card";
@@ -19,8 +25,20 @@ export default async function CashAdvancesPage() {
   const role = await getCurrentRole();
   if (!canViewPayroll(role)) redirect("/");
 
-  const rows = await getCashAdvances();
+  const canAdmin = isAdmin(role);
+
+  const [rows, employeeProfiles] = await Promise.all([
+    getCashAdvances(),
+    canAdmin ? getEmployees({ employmentStatus: "active" }) : Promise.resolve([]),
+  ]);
   const pendingCount = rows.filter((r) => r.status === "pending").length;
+
+  const employeeOptions: EmployeeOption[] = employeeProfiles.map((e) => ({
+    id: e.id,
+    employeeCode: e.employeeCode,
+    firstName: e.firstName,
+    lastName: e.lastName,
+  }));
 
   let pulse: Awaited<ReturnType<typeof getCashAdvancePulse>> | null = null;
   try {
@@ -40,12 +58,17 @@ export default async function CashAdvancesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Cash Advances</h1>
-        <p className="text-sm text-muted-foreground">
-          {rows.length} request{rows.length === 1 ? "" : "s"}
-          {pendingCount > 0 ? ` · ${pendingCount} pending review` : ""}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Cash Advances</h1>
+          <p className="text-sm text-muted-foreground">
+            {rows.length} request{rows.length === 1 ? "" : "s"}
+            {pendingCount > 0 ? ` · ${pendingCount} pending review` : ""}
+          </p>
+        </div>
+        {canAdmin && employeeOptions.length > 0 && (
+          <AdminCreateCashAdvanceButton employees={employeeOptions} />
+        )}
       </div>
 
       {pulse && (
