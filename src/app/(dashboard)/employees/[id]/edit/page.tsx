@@ -8,6 +8,7 @@ import {
   EmployeeForm,
   type EmployeeFormValues,
 } from "@/components/employees/employee-form";
+import { SetBreadcrumbTitle } from "@/components/shell/set-breadcrumb-title";
 
 /** Format a Date as `yyyy-MM-dd` for date inputs. */
 function toDateInput(date: Date | null): string {
@@ -60,6 +61,7 @@ export default async function EditEmployeePage({
 
   return (
     <div className="space-y-6">
+      <SetBreadcrumbTitle title={`${employee.firstName} ${employee.lastName}`} />
       <Link
         href={`/employees/${employee.id}`}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -67,9 +69,11 @@ export default async function EditEmployeePage({
         <ArrowLeft className="size-4" /> Back to profile
       </Link>
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Edit Employee</h1>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {employee.firstName} {employee.lastName}
+        </h1>
         <p className="text-sm text-muted-foreground">
-          {employee.firstName} {employee.lastName} · {employee.employeeCode}
+          {employee.employeeCode} · Edit employee record
         </p>
       </div>
       <EmployeeForm mode="edit" initial={initial} departments={departments} />

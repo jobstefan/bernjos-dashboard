@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useBreadcrumbTitle } from "@/contexts/breadcrumb-title";
 
 /** Friendly labels for known route segments. */
 const SEGMENT_LABELS: Record<string, string> = {
@@ -23,10 +24,17 @@ const SEGMENT_LABELS: Record<string, string> = {
   users: "Users",
 };
 
+function isOpaqueId(segment: string): boolean {
+  return (
+    /^\d+$/.test(segment) ||
+    /^[0-9a-f]{8,}$/i.test(segment) ||
+    /^c[a-z][a-z0-9]{18,}$/.test(segment)
+  );
+}
+
 function labelFor(segment: string, prev?: string): string {
   if (SEGMENT_LABELS[segment]) return SEGMENT_LABELS[segment];
-  // Opaque ids (cuid/uuid/numeric) → context-aware label or shortened token.
-  if (/^[0-9a-f]{8,}$/i.test(segment) || /^\d+$/.test(segment)) {
+  if (isOpaqueId(segment)) {
     if (prev === "employees") return "Profile";
     if (prev === "payroll") return "Period";
     return segment.length > 10 ? `${segment.slice(0, 6)}…` : segment;
@@ -36,13 +44,18 @@ function labelFor(segment: string, prev?: string): string {
 
 export function Breadcrumbs({ className }: { className?: string }) {
   const pathname = usePathname();
+  const { title } = useBreadcrumbTitle();
   const segments = pathname.split("/").filter(Boolean);
 
-  const crumbs = segments.map((segment, i) => ({
-    label: labelFor(segment, segments[i - 1]),
-    href: "/" + segments.slice(0, i + 1).join("/"),
-    isLast: i === segments.length - 1,
-  }));
+  const crumbs = segments.map((segment, i) => {
+    const isId = isOpaqueId(segment);
+    const label = isId && title ? title : labelFor(segment, segments[i - 1]);
+    return {
+      label,
+      href: "/" + segments.slice(0, i + 1).join("/"),
+      isLast: i === segments.length - 1,
+    };
+  });
 
   return (
     <nav

@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Pencil, FileText, PiggyBank, CreditCard, KeyRound } from "lucide-react";
+import Link from "next/link";
+import { Pencil, FileText, PiggyBank, CreditCard, KeyRound } from "lucide-react";
 import { getCurrentRole, canViewPayroll, isAdmin } from "@/lib/auth/rbac";
 import { getEmployee } from "@/server/services/employee.service";
 import { getEmployeePayslipHistory } from "@/server/services/payroll.service";
@@ -8,7 +8,10 @@ import { getCashAdvancesForEmployee } from "@/server/services/cash-advance.servi
 import { getSavingsForEmployee } from "@/server/services/savings.service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { EmployeeProfileTabs } from "@/components/employees/employee-profile-tabs";
+import { SetBreadcrumbTitle } from "@/components/shell/set-breadcrumb-title";
+import { CopyUsernameButton } from "@/components/employees/copy-username-button";
 import {
   PayslipHistory,
   type PayslipHistoryRow,
@@ -68,38 +71,19 @@ export default async function EmployeeProfilePage({
     branchBreakdown: p.branchBreakdown,
   }));
 
-  const fields: [string, string][] = [
-    ["Employee code", employee.employeeCode],
-    ["Full name", `${employee.firstName} ${employee.middleName ?? ""} ${employee.lastName}`.replace(/\s+/g, " ").trim()],
-    ["Email", employee.user?.email ?? "—"],
-    ["Contact number", employee.contactNumber ?? "—"],
-    ["Address", employee.address ?? "—"],
-    ["Position", employee.position],
-    ["Department", employee.department],
-    ["Employment status", employee.employmentStatus],
-    ["Date hired", formatDate(employee.dateHired)],
-    ["Basic salary (daily rate)", formatPeso(Number(employee.basicSalary))],
-    ["Pay frequency", employee.payFrequency === "semi_monthly" ? "Semi-monthly" : "Monthly"],
-    ["SSS number", employee.sssNumber ?? "—"],
-    ["PhilHealth number", employee.philhealthNumber ?? "—"],
-    ["Bank name", employee.bankName ?? "—"],
-    ["Bank account", employee.bankAccountNumber ?? "—"],
-  ];
+  const fullName = `${employee.firstName} ${employee.middleName ?? ""} ${employee.lastName}`
+    .replace(/\s+/g, " ")
+    .trim();
 
   const initials = `${employee.firstName[0] ?? ""}${employee.lastName[0] ?? ""}`.toUpperCase();
   const hasCredentials = canManage && !!employee.username;
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/employees"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" /> Back to employees
-      </Link>
+      <SetBreadcrumbTitle title={`${employee.firstName} ${employee.lastName}`} />
 
       {/* Hero header */}
-      <div className="flex items-start gap-4">
+      <div className="flex flex-wrap items-start gap-4">
         <div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xl font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
           {initials}
         </div>
@@ -147,15 +131,128 @@ export default async function EmployeeProfilePage({
                 <CardHeader>
                   <CardTitle className="text-base">Employee details</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {fields.map(([label, value]) => (
-                      <div key={label}>
-                        <dt className="text-xs text-muted-foreground">{label}</dt>
-                        <dd className="text-sm font-medium capitalize">{value}</dd>
+                <CardContent className="space-y-6">
+                  {/* Personal */}
+                  <section className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Personal
+                    </h3>
+                    <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Full name</dt>
+                        <dd className="text-sm font-medium">{fullName}</dd>
                       </div>
-                    ))}
-                  </dl>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Employee code</dt>
+                        <dd className="font-mono text-sm font-medium">{employee.employeeCode}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Email</dt>
+                        <dd className="text-sm font-medium">{employee.user?.email ?? "—"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Contact number</dt>
+                        <dd className="text-sm font-medium">{employee.contactNumber ?? "—"}</dd>
+                      </div>
+                      {employee.address ? (
+                        <div className="sm:col-span-2">
+                          <dt className="text-xs text-muted-foreground">Address</dt>
+                          <dd className="text-sm font-medium">{employee.address}</dd>
+                        </div>
+                      ) : (
+                        <div>
+                          <dt className="text-xs text-muted-foreground">Address</dt>
+                          <dd className="text-sm font-medium">—</dd>
+                        </div>
+                      )}
+                    </dl>
+                  </section>
+
+                  <Separator />
+
+                  {/* Employment */}
+                  <section className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Employment
+                    </h3>
+                    <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Position</dt>
+                        <dd className="text-sm font-medium">{employee.position}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Department</dt>
+                        <dd className="text-sm font-medium">{employee.department}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Status</dt>
+                        <dd className="mt-0.5">
+                          <span
+                            className={
+                              "inline-flex rounded-full border px-2 py-0.5 text-xs font-medium capitalize " +
+                              toneClass(EMP_STATUS_TONE[employee.employmentStatus] ?? "neutral")
+                            }
+                          >
+                            {employee.employmentStatus}
+                          </span>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Date hired</dt>
+                        <dd className="text-sm font-medium">{formatDate(employee.dateHired)}</dd>
+                      </div>
+                    </dl>
+                  </section>
+
+                  <Separator />
+
+                  {/* Pay */}
+                  <section className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Pay
+                    </h3>
+                    <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Daily rate</dt>
+                        <dd className="font-mono text-sm font-medium">
+                          {formatPeso(Number(employee.basicSalary))}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Pay frequency</dt>
+                        <dd className="text-sm font-medium capitalize">
+                          {employee.payFrequency === "semi_monthly" ? "Semi-monthly" : "Monthly"}
+                        </dd>
+                      </div>
+                    </dl>
+                  </section>
+
+                  <Separator />
+
+                  {/* Government IDs & Banking */}
+                  <section className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Government IDs &amp; Banking
+                    </h3>
+                    <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+                      <div>
+                        <dt className="text-xs text-muted-foreground">SSS number</dt>
+                        <dd className="font-mono text-sm font-medium">{employee.sssNumber ?? "—"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">PhilHealth number</dt>
+                        <dd className="font-mono text-sm font-medium">{employee.philhealthNumber ?? "—"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Bank name</dt>
+                        <dd className="text-sm font-medium">{employee.bankName ?? "—"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Account number</dt>
+                        <dd className="font-mono text-sm font-medium">{employee.bankAccountNumber ?? "—"}</dd>
+                      </div>
+                    </dl>
+                  </section>
                 </CardContent>
               </Card>
             ),
@@ -197,22 +294,24 @@ export default async function EmployeeProfilePage({
             label: "Savings",
             content: savings ? (
               <div className="space-y-4">
-                <div className="flex flex-wrap gap-6">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Balance</p>
-                    <p className="font-mono text-lg font-semibold">
-                      {formatPeso(savings.balance)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Monthly contribution
-                    </p>
-                    <p className="font-mono text-lg font-semibold">
-                      {formatPeso(savings.contributionAmount)}
-                    </p>
-                  </div>
-                </div>
+                <Card>
+                  <CardContent className="p-0">
+                    <div className="flex divide-x divide-border">
+                      <div className="flex-1 px-6 py-4">
+                        <p className="text-xs text-muted-foreground">Balance</p>
+                        <p className="mt-1 font-mono text-xl font-semibold">
+                          {formatPeso(savings.balance)}
+                        </p>
+                      </div>
+                      <div className="flex-1 px-6 py-4">
+                        <p className="text-xs text-muted-foreground">Monthly contribution</p>
+                        <p className="mt-1 font-mono text-xl font-semibold">
+                          {formatPeso(savings.contributionAmount)}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
                 <SavingsLedger transactions={savings.transactions} />
               </div>
             ) : (
@@ -233,22 +332,27 @@ export default async function EmployeeProfilePage({
                     <KeyRound className="size-4" /> Login credentials
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="space-y-1">
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground mb-0.5">Username</p>
+                      <p className="font-mono text-sm font-medium truncate">{employee.username}</p>
+                    </div>
+                    <CopyUsernameButton username={employee.username!} />
+                  </div>
+
+                  <div className="rounded-lg border border-border bg-muted/20 px-4 py-3 space-y-2 text-sm text-muted-foreground">
                     <p>
-                      Username:{" "}
-                      <span className="font-mono font-medium">{employee.username}</span>
-                    </p>
-                    <p className="text-muted-foreground">
                       Temporary password until first login:{" "}
-                      <span className="font-mono">1234</span>. The employee sets a
-                      new password on first sign-in.
+                      <span className="font-mono font-medium text-foreground">1234</span>.
+                      The employee sets a new password on first sign-in.
                     </p>
-                    <p className="text-muted-foreground">
-                      Forgot their password? Reset it here — the temporary password
-                      is restored and they set a new one on next sign-in.
+                    <p>
+                      Forgot their password? Reset it below — the temporary password is
+                      restored and they set a new one on next sign-in.
                     </p>
                   </div>
+
                   {employee.user?.clerkId ? (
                     <ResetPasswordButton employeeId={employee.id} />
                   ) : null}
@@ -261,3 +365,4 @@ export default async function EmployeeProfilePage({
     </div>
   );
 }
+
