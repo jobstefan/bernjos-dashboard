@@ -93,8 +93,9 @@ function toNum(value: Decimal | number): number {
 /**
  * Compute one employee's statutory deductions for a period. `basicSalary` is a
  * daily rate; the period gross is `daily rate × days worked` (days worked is an
- * interim default per frequency until attendance lands). SSS and PhilHealth
- * contributions are computed on that period gross. Throws
+ * interim default per frequency until attendance lands). SSS uses the employee's
+ * declared `sssSalaryBasis`; a null value means no SSS deduction is taken.
+ * PhilHealth uses `philhealthAmount`; null means no deduction. Throws
  * {@link MissingStatutoryDataError} if any bracket table is unseeded.
  */
 export async function calculateEmployeeDeductions(
@@ -173,15 +174,9 @@ export async function calculateEmployeeDeductions(
   const philhealthEmployer = ZERO;
   let sssBracketId = "";
 
-  if (deductsSss(period)) {
-    // SSS uses the employee's declared contribution salary (often set lower to
-    // reduce the contribution); if unset, fall back to the expected period gross.
-    const sssBasis =
-      employee.sssSalaryBasis != null
-        ? new Decimal(employee.sssSalaryBasis)
-        : round2(dailyRate.mul(expectedDays));
-
-    // SSS — contribution = Monthly Salary Credit × share rate.
+  // SSS — a null sssSalaryBasis means no SSS deduction (same logic as PhilHealth).
+  if (deductsSss(period) && employee.sssSalaryBasis != null) {
+    const sssBasis = new Decimal(employee.sssSalaryBasis);
     const sss = await findSssBracket(sssBasis.toNumber(), asOf);
     if (!sss) throw new MissingStatutoryDataError("SSS", asOf);
     sssEmployee = round2(new Decimal(sss.monthlyCredit).mul(sss.employeeShare));
