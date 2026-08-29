@@ -18,8 +18,11 @@ const TYPE_LABEL: Record<SavingsTransactionType, string> = {
 /** Read-only savings ledger, shared by the self-service and admin history views. */
 export function SavingsLedger({
   transactions,
+  compact = false,
 }: {
   transactions: SavingsTransactionRow[];
+  /** Force card-only layout (e.g. when rendered inside a narrow drawer). */
+  compact?: boolean;
 }) {
   if (transactions.length === 0) {
     return (
@@ -31,9 +34,9 @@ export function SavingsLedger({
 
   return (
     <>
-      {/* Mobile: card stack */}
-      <div className="space-y-3 md:hidden">
-        {transactions.map((t) => (
+      {/* Mobile: card stack (always shown when compact) */}
+      <div className={compact ? "space-y-3" : "space-y-3 md:hidden"}>
+        {[...transactions].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((t) => (
           <div key={t.id} className="rounded-xl border border-border bg-card p-4 space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div>
@@ -70,34 +73,36 @@ export function SavingsLedger({
         ))}
       </div>
 
-      {/* Desktop: table */}
-      <div className="hidden md:block overflow-x-auto rounded-xl border">
-        <Table>
+      {/* Desktop: table (hidden in compact/drawer mode) */}
+      <div className={compact ? "hidden" : "hidden md:block w-full overflow-x-auto rounded-xl border"}>
+        <Table className="table-fixed w-full">
           <TableHeader>
             <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Period</TableHead>
+              <TableHead className="w-32">Date</TableHead>
+              <TableHead className="w-28">Type</TableHead>
+              <TableHead className="w-40">Period</TableHead>
               <TableHead>Note</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
+              <TableHead className="w-36 text-right">Amount</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {transactions.map((t) => (
+            {[...transactions].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((t) => (
               <TableRow key={t.id}>
-                <TableCell className="text-sm text-muted-foreground">
+                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                   {formatDate(t.createdAt)}
                 </TableCell>
-                <TableCell>{TYPE_LABEL[t.type]}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">
+                <TableCell className="whitespace-nowrap">{TYPE_LABEL[t.type]}</TableCell>
+                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                   {t.appliedPeriodLabel ?? "—"}
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {t.note ?? "—"}
+                <TableCell className="text-sm text-muted-foreground max-w-0">
+                  <span className="block truncate" title={t.note ?? undefined}>
+                    {t.note ?? "—"}
+                  </span>
                 </TableCell>
                 <TableCell
                   className={
-                    "text-right font-mono " +
+                    "text-right font-mono whitespace-nowrap " +
                     (t.amount < 0 ? "text-destructive" : "text-foreground")
                   }
                 >

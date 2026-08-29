@@ -179,7 +179,7 @@ export function SavingsTable({ rows }: { rows: SavingsAccountRow[] }) {
         }
         className="sm:max-w-lg"
       >
-        {toView ? <SavingsLedger transactions={toView.transactions} /> : null}
+        {toView ? <SavingsLedger transactions={toView.transactions} compact /> : null}
       </DetailDrawer>
 
       <SavingsAccountDialog

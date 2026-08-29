@@ -142,6 +142,27 @@ export function BranchesTable({
             fields={[
               { label: "Added", value: formatDate(row.createdAt) },
             ]}
+            actions={canManage ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button variant="ghost" size="icon-sm" aria-label="Row actions">
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setToEdit(row)}>Edit</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => setToDelete(row)}
+                  >
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : undefined}
           />
         )}
       />

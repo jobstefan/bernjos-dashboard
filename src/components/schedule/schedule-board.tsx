@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { History, Save, X } from "lucide-react";
+import { CalendarOff, History, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +27,6 @@ import { getPreviousDayEntriesAction, saveDayScheduleAction } from "@/app/action
 import { departmentAccent } from "@/lib/utils/schedule";
 import { toneClass } from "@/lib/utils/tone";
 import { cn } from "@/lib/utils";
-import { CalendarOff } from "lucide-react";
 import { EmptyState } from "@/components/payroll/empty-state";
 import type { BranchRow, ScheduleRow } from "@/lib/types/schedule";
 import type { AbsenceRequestRow } from "@/server/services/absence-request.service";
@@ -350,7 +349,6 @@ export function ScheduleBoard({
     [absenceRequests],
   );
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [pending, startTransition] = React.useTransition();
   const [copying, startCopy] = React.useTransition();
