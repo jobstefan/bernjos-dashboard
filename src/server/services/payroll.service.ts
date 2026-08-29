@@ -11,6 +11,7 @@ import {
   findRunItemsForEmployee,
   insertPeriod,
   insertRunItemsWithBranches,
+  softDeletePeriod,
   updatePeriod,
   updateRunItem,
 } from "@/server/db/payroll";
@@ -44,6 +45,7 @@ import type {
   PayrollRunResult,
   PeriodFilters,
 } from "@/lib/types/payroll";
+import type { UpdatePeriodDatesSchema } from "@/lib/validations/payroll";
 
 const { Decimal } = Prisma;
 type Decimal = Prisma.Decimal;
@@ -474,6 +476,68 @@ export async function markPayrollPaid(periodId: string, actor: Actor): Promise<v
     entityId: periodId,
     before: period,
     after,
+  });
+}
+
+export async function updatePayrollPeriodDates(
+  periodId: string,
+  data: UpdatePeriodDatesSchema,
+  actor: Actor,
+): Promise<void> {
+  const period = await findPeriodById(periodId);
+  if (!period) throw new NotFoundError("Payroll period", periodId);
+  if (period.status !== "draft") {
+    throw new InvalidStateTransitionError(
+      "Date edits are only allowed on draft periods.",
+    );
+  }
+  const overlap = await findOverlappingPeriod(
+    data.periodStart,
+    data.periodEnd,
+    period.frequency,
+    periodId,
+  );
+  if (overlap) {
+    throw new DuplicatePeriodError(
+      `A ${period.frequency.replace("_", "-")} period already overlaps ${overlap.periodLabel}.`,
+    );
+  }
+  const after = await updatePeriod(periodId, {
+    periodLabel: data.periodLabel,
+    periodStart: data.periodStart,
+    periodEnd: data.periodEnd,
+    payDate: data.payDate,
+    notes: data.notes ?? null,
+  });
+  await auditLog({
+    actor,
+    action: "payroll.period.dates_updated",
+    entityType: "payroll_period",
+    entityId: periodId,
+    before: period,
+    after,
+  });
+}
+
+export async function deletePayrollPeriod(
+  periodId: string,
+  actor: Actor,
+): Promise<void> {
+  const period = await findPeriodById(periodId);
+  if (!period) throw new NotFoundError("Payroll period", periodId);
+  if (period.status === "approved" || period.status === "paid") {
+    throw new InvalidStateTransitionError(
+      "Approved or paid periods cannot be deleted.",
+    );
+  }
+  await softDeletePeriod(periodId);
+  await auditLog({
+    actor,
+    action: "payroll.period.deleted",
+    entityType: "payroll_period",
+    entityId: periodId,
+    before: period,
+    after: null,
   });
 }
 

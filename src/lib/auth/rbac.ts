@@ -78,6 +78,10 @@ export function isAdmin(role: Role): boolean {
   return role === "admin" || role === "super_admin";
 }
 
+export function isSuperAdmin(role: Role): boolean {
+  return role === "super_admin";
+}
+
 /** Admins and managers can view payroll; only admins can mutate. */
 export function canViewPayroll(role: Role): boolean {
   return role === "admin" || role === "super_admin" || role === "manager";
@@ -126,6 +130,11 @@ export async function requireRole(...roles: Role[]): Promise<Actor> {
 /** Assert the actor is an admin or super-admin (full payroll access). */
 export async function requireAdmin(): Promise<Actor> {
   return requireRole("admin", "super_admin");
+}
+
+/** Assert the actor is a super-admin (elevated destructive actions). */
+export async function requireSuperAdmin(): Promise<Actor> {
+  return requireRole("super_admin");
 }
 
 /** Assert the actor can approve/decline cash advances (admin, super-admin, manager). */

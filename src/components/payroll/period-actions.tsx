@@ -11,17 +11,32 @@ import {
   approveRunAction,
   markPaidAction,
 } from "@/app/actions/payroll.actions";
+import { EditPeriodDatesDialog } from "@/components/payroll/edit-period-dates-dialog";
+import { DeletePeriodButton } from "@/components/payroll/delete-period-button";
 import type { ActionResult } from "@/lib/types/action";
 import type { PayrollStatus } from "@/lib/types/payroll";
+
+interface PeriodMeta {
+  periodLabel: string;
+  periodStart: string;
+  periodEnd: string;
+  payDate: string;
+  notes?: string | null;
+  frequency: "semi_monthly" | "monthly";
+}
 
 export function PeriodActions({
   periodId,
   status,
   isAdmin,
+  isSuperAdmin,
+  period,
 }: {
   periodId: string;
   status: PayrollStatus;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
+  period: PeriodMeta;
 }) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
@@ -44,9 +59,13 @@ export function PeriodActions({
   // Managers can view but not mutate.
   if (!isAdmin) return null;
 
+  const canDelete = isSuperAdmin && status !== "approved" && status !== "paid";
+  const canEditDates = isSuperAdmin && status === "draft";
+
+  let lifecycleButton: React.ReactNode = null;
   switch (status) {
     case "draft":
-      return (
+      lifecycleButton = (
         <Button
           disabled={pending}
           onClick={() => run(calculateRunAction, "Payroll calculated.")}
@@ -55,8 +74,9 @@ export function PeriodActions({
           {pending ? "Calculating…" : "Calculate Run"}
         </Button>
       );
+      break;
     case "calculated":
-      return (
+      lifecycleButton = (
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -76,8 +96,9 @@ export function PeriodActions({
           </Button>
         </div>
       );
+      break;
     case "pending_approval":
-      return (
+      lifecycleButton = (
         <Button
           className="bg-green-600 hover:bg-green-600/90"
           disabled={pending}
@@ -86,8 +107,9 @@ export function PeriodActions({
           <CheckCircle2 className="size-4" /> Approve
         </Button>
       );
+      break;
     case "approved":
-      return (
+      lifecycleButton = (
         <Button
           className="bg-emerald-600 hover:bg-emerald-600/90"
           disabled={pending}
@@ -96,8 +118,24 @@ export function PeriodActions({
           <BadgeCheck className="size-4" /> Mark as Paid
         </Button>
       );
-    case "paid":
-    default:
-      return null;
+      break;
   }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {canDelete && <DeletePeriodButton periodId={periodId} />}
+      {canEditDates && (
+        <EditPeriodDatesDialog
+          periodId={periodId}
+          periodLabel={period.periodLabel}
+          periodStart={period.periodStart}
+          periodEnd={period.periodEnd}
+          payDate={period.payDate}
+          notes={period.notes}
+          frequency={period.frequency}
+        />
+      )}
+      {lifecycleButton}
+    </div>
+  );
 }

@@ -88,6 +88,13 @@ export function findRunItemsForEmployee(profileId: string) {
 }
 
 /** Delete existing (non-approved) run items for a period, e.g. before recalculating. */
+export function softDeletePeriod(id: string) {
+  return prisma.payrollPeriod.update({
+    where: { id },
+    data: { deletedAt: new Date() },
+  });
+}
+
 export function deleteRunItemsForPeriod(periodId: string) {
   return prisma.payrollRunItem.deleteMany({
     where: { payrollPeriodId: periodId },

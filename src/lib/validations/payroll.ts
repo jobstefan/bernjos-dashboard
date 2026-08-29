@@ -73,6 +73,20 @@ export const createPeriodSchema = z
     path: ["periodEnd"],
   });
 
+export const updatePeriodDatesSchema = z
+  .object({
+    id: z.string().min(1),
+    periodLabel: z.string().trim().min(1, "Period label is required."),
+    periodStart: dateField,
+    periodEnd: dateField,
+    payDate: dateField,
+    notes: z.string().trim().optional().nullable(),
+  })
+  .refine((v) => v.periodEnd >= v.periodStart, {
+    message: "Period end must be on or after the start date.",
+    path: ["periodEnd"],
+  });
+
 export const updatePayslipRemarksSchema = z.object({
   runItemId: z.string().min(1),
   remarks: z
@@ -126,6 +140,7 @@ export const employeeFiltersSchema = z.object({
 export type CreateEmployeeSchema = z.infer<typeof createEmployeeSchema>;
 export type UpdateEmployeeSchema = z.infer<typeof updateEmployeeSchema>;
 export type CreatePeriodSchema = z.infer<typeof createPeriodSchema>;
+export type UpdatePeriodDatesSchema = z.infer<typeof updatePeriodDatesSchema>;
 export type UpdatePayslipRemarksSchema = z.infer<typeof updatePayslipRemarksSchema>;
 export type CreateCashAdvanceSchema = z.infer<typeof createCashAdvanceSchema>;
 export type ApproveCashAdvanceSchema = z.infer<typeof approveCashAdvanceSchema>;

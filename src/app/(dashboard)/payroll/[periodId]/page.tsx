@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Users } from "lucide-react";
-import { getCurrentRole, canViewPayroll, isAdmin } from "@/lib/auth/rbac";
+import { getCurrentRole, canViewPayroll, isAdmin, isSuperAdmin } from "@/lib/auth/rbac";
 import { findPeriodById } from "@/server/db/payroll";
 import { getPayrollRunItems } from "@/server/services/payroll.service";
 import { getPeriodDeductionMix } from "@/server/services/analytics.service";
@@ -26,6 +26,7 @@ export default async function PeriodDetailPage({
   const role = await getCurrentRole();
   if (!canViewPayroll(role)) redirect("/");
   const admin = isAdmin(role);
+  const superAdmin = isSuperAdmin(role);
 
   const { periodId } = await params;
   const period = await findPeriodById(periodId);
@@ -107,6 +108,15 @@ export default async function PeriodDetailPage({
           periodId={period.id}
           status={period.status}
           isAdmin={admin}
+          isSuperAdmin={superAdmin}
+          period={{
+            periodLabel: period.periodLabel,
+            periodStart: period.periodStart.toISOString(),
+            periodEnd: period.periodEnd.toISOString(),
+            payDate: period.payDate.toISOString(),
+            notes: period.notes,
+            frequency: period.frequency,
+          }}
         />
       </div>
 

@@ -1,17 +1,20 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth/rbac";
+import { requireAdmin, requireSuperAdmin } from "@/lib/auth/rbac";
 import {
   createPeriodSchema,
+  updatePeriodDatesSchema,
   updatePayslipRemarksSchema,
 } from "@/lib/validations/payroll";
 import {
   approvePayrollRun,
   calculatePayrollRun,
   createPayrollPeriod,
+  deletePayrollPeriod,
   markPayrollPaid,
   submitForApproval,
+  updatePayrollPeriodDates,
   updatePayslipRemarks,
 } from "@/server/services/payroll.service";
 import { toActionError } from "@/server/errors";
@@ -108,6 +111,39 @@ export async function markPaidAction(periodId: string): Promise<ActionResult> {
     await markPayrollPaid(periodId, actor);
     revalidatePath("/payroll");
     revalidatePath(`/payroll/${periodId}`);
+    return { success: true, data: undefined };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+export async function updatePeriodDatesAction(
+  input: unknown,
+): Promise<ActionResult> {
+  try {
+    const actor = await requireSuperAdmin();
+    const parsed = updatePeriodDatesSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: "Please fix the highlighted fields.",
+        fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+      };
+    }
+    await updatePayrollPeriodDates(parsed.data.id, parsed.data, actor);
+    revalidatePath("/payroll");
+    revalidatePath(`/payroll/${parsed.data.id}`);
+    return { success: true, data: undefined };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+export async function deletePeriodAction(periodId: string): Promise<ActionResult> {
+  try {
+    const actor = await requireSuperAdmin();
+    await deletePayrollPeriod(periodId, actor);
+    revalidatePath("/payroll");
     return { success: true, data: undefined };
   } catch (error) {
     return { success: false, ...toActionError(error) };
