@@ -115,6 +115,11 @@ export function canSuperviseSavings(role: Role): boolean {
   return isAdmin(role);
 }
 
+/** Only admins and super-admins can approve / disburse loans and view all employees' loans. */
+export function canSuperviseLoan(role: Role): boolean {
+  return isAdmin(role);
+}
+
 /**
  * Assert the actor holds one of `roles`. Returns the actor for convenient
  * chaining. Throws {@link UnauthorizedError} otherwise.

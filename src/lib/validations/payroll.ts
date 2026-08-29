@@ -117,6 +117,17 @@ export const createCashAdvanceSchema = z.object({
   reason: z.string().trim().min(1, "Please provide a reason for the request."),
 });
 
+export const adminCreateCashAdvanceSchema = z.object({
+  profileId: z.string().min(1, "Select an employee."),
+  amount: z.coerce
+    .number()
+    .positive("Amount must be greater than zero.")
+    .max(1_000_000, "Amount is too large."),
+  reason: z.string().trim().min(1, "Please provide a reason."),
+});
+
+export type AdminCreateCashAdvanceSchema = z.infer<typeof adminCreateCashAdvanceSchema>;
+
 export const approveCashAdvanceSchema = z.object({
   id: z.string().min(1),
   approvedAmount: z.coerce

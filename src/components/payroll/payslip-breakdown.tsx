@@ -12,7 +12,11 @@ export interface PayslipView {
   sssEmployee: number;
   philhealthEmployee: number;
   otherEarnings: number;
+  overtimeMinutes?: number;
+  lateDeduction?: number;
+  advanceDeduction?: number;
   otherDeductions: number;
+  loanDeduction?: number;
   savingsContribution: number;
   totalDeductions: number;
   netPay: number;
@@ -75,7 +79,10 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
         </div>
         <Line label="Basic (daily rate)" value={payslip.basicSalary} />
         {payslip.otherEarnings > 0 ? (
-          <Line label="Other earnings" value={payslip.otherEarnings} />
+          <Line
+            label={`Overtime${payslip.overtimeMinutes ? ` (${payslip.overtimeMinutes} min)` : ""}`}
+            value={payslip.otherEarnings}
+          />
         ) : null}
       </div>
 
@@ -91,8 +98,19 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
         {payslip.philhealthEmployee > 0 ? (
           <Line label="PhilHealth" value={payslip.philhealthEmployee} negative />
         ) : null}
-        {payslip.otherDeductions > 0 ? (
+        {(payslip.lateDeduction ?? 0) > 0 ? (
+          <Line label="Late / undertime" value={payslip.lateDeduction!} negative />
+        ) : null}
+        {(payslip.advanceDeduction ?? 0) > 0 ? (
+          <Line label="Cash advances" value={payslip.advanceDeduction!} negative />
+        ) : null}
+        {payslip.otherDeductions > 0 &&
+        (payslip.lateDeduction ?? 0) === 0 &&
+        (payslip.advanceDeduction ?? 0) === 0 ? (
           <Line label="Other deductions" value={payslip.otherDeductions} negative />
+        ) : null}
+        {(payslip.loanDeduction ?? 0) > 0 ? (
+          <Line label="Loan repayment" value={payslip.loanDeduction!} negative />
         ) : null}
         <Line label="Total deductions" value={payslip.totalDeductions} emphasis negative />
       </div>

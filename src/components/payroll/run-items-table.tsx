@@ -30,7 +30,10 @@ export interface RunItemRow {
   grossPay: number;
   sssEmployee: number;
   philhealthEmployee: number;
+  lateDeduction: number;
+  advanceDeduction: number;
   otherDeductions: number;
+  loanDeduction: number;
   otherEarnings: number;
   savingsContribution: number;
   totalDeductions: number;
@@ -59,6 +62,11 @@ export function RunItemsTable({
 }) {
   const [selected, setSelected] = React.useState<RunItemRow | null>(null);
   const [search, setSearch] = React.useState("");
+
+  const hasLoanDeductions = React.useMemo(
+    () => rows.some((r) => r.loanDeduction > 0),
+    [rows],
+  );
 
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -112,6 +120,17 @@ export function RunItemsTable({
         enableSorting: false,
         cell: ({ row }) => money(row.original.otherDeductions),
       },
+      ...(hasLoanDeductions
+        ? [
+            {
+              accessorKey: "loanDeduction",
+              header: "Loan Ded.",
+              enableSorting: false,
+              cell: ({ row }: { row: { original: RunItemRow } }) =>
+                money(row.original.loanDeduction),
+            } satisfies ColumnDef<RunItemRow>,
+          ]
+        : []),
       {
         accessorKey: "otherEarnings",
         header: "Other Earn.",
@@ -149,7 +168,7 @@ export function RunItemsTable({
         ),
       },
     ],
-    [],
+    [hasLoanDeductions],
   );
 
   const view: PayslipView | null = selected ? { ...selected, periodLabel } : null;
@@ -164,6 +183,7 @@ export function RunItemsTable({
     { header: "SSS", accessor: (r: RunItemRow) => r.sssEmployee },
     { header: "PhilHealth", accessor: (r: RunItemRow) => r.philhealthEmployee },
     { header: "Other Deductions", accessor: (r: RunItemRow) => r.otherDeductions },
+    { header: "Loan Deduction", accessor: (r: RunItemRow) => r.loanDeduction },
     { header: "Other Earnings", accessor: (r: RunItemRow) => r.otherEarnings },
     { header: "Savings", accessor: (r: RunItemRow) => r.savingsContribution },
     { header: "Total Deductions", accessor: (r: RunItemRow) => r.totalDeductions },

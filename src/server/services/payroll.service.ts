@@ -22,6 +22,14 @@ import {
   resetCashAdvancesForPeriod,
 } from "@/server/db/cash-advance";
 import {
+  finalizeRepaymentsForPeriod,
+  findFullyRepaidLoansInPeriod,
+  findPendingRepaymentsForEmployee,
+  markRepaymentsTagged,
+  resetRepaymentsForPeriod,
+  updateLoan,
+} from "@/server/db/loan";
+import {
   findSavingsAccountByEmployee,
   insertSavingsTransaction,
   resetSavingsContributionsForPeriod,
@@ -127,6 +135,14 @@ export async function calculateEmployeeDeductions(
     : DEFAULT_WORKING_DAYS[frequency];
   const grossPay = round2(dailyRate.mul(daysWorked));
   const lateDeduction = round2(dailyRate.mul(attendance.deductionDays));
+  const avgScheduledMinutes =
+    attendance.scheduledDays > 0
+      ? attendance.scheduledMinutes / attendance.scheduledDays
+      : 0;
+  const overtimeEarnings =
+    attendanceTracked && avgScheduledMinutes > 0
+      ? round2(dailyRate.mul(attendance.overtimeMinutes).div(avgScheduledMinutes))
+      : ZERO;
 
   // Days worked per branch, so net pay can be split proportionally per branch once
   // it's known (see calculatePayrollRun). Only meaningful when attendance-tracked;
@@ -153,6 +169,8 @@ export async function calculateEmployeeDeductions(
       lateMinutes: 0,
       undertimeMinutes: 0,
       lateDeduction: 0,
+      overtimeMinutes: 0,
+      overtimeEarnings: 0,
       branchBreakdown: [],
       sssEmployee: 0,
       sssEmployer: 0,
@@ -208,6 +226,8 @@ export async function calculateEmployeeDeductions(
     lateMinutes: attendance.lateMinutes,
     undertimeMinutes: attendance.undertimeMinutes,
     lateDeduction: toNum(lateDeduction),
+    overtimeMinutes: attendanceTracked ? attendance.overtimeMinutes : 0,
+    overtimeEarnings: toNum(overtimeEarnings),
     branchBreakdown,
     sssEmployee: toNum(sssEmployee),
     sssEmployer: toNum(sssEmployer),
@@ -273,11 +293,12 @@ export async function calculatePayrollRun(
     throw new PayrollAlreadyApprovedError(periodId);
   }
 
-  // Re-running: release any advances previously applied to this period so they
-  // are re-picked below and never double-counted or orphaned. Savings
-  // contributions are only written at approval, so clearing them here just
-  // guards against any stray rows from an earlier flow.
+  // Re-running: release any advances and repayments previously tagged to this
+  // period so they are re-picked below and never double-counted or orphaned.
+  // Savings contributions are only written at approval, so clearing them here
+  // just guards against any stray rows from an earlier flow.
   await resetCashAdvancesForPeriod(periodId);
+  await resetRepaymentsForPeriod(periodId);
   await resetSavingsContributionsForPeriod(periodId);
 
   const employees = await findActiveEmployeesByFrequency(period.frequency);
@@ -286,6 +307,7 @@ export async function calculatePayrollRun(
     branches: Prisma.PayrollRunItemBranchCreateManyRunItemInput[];
   })[] = [];
   const appliedAdvanceIds: string[] = [];
+  const taggedRepaymentIds: string[] = [];
   let totalGross = ZERO;
   let totalDeductions = ZERO;
   let totalNet = ZERO;
@@ -293,27 +315,41 @@ export async function calculatePayrollRun(
   for (const employee of employees) {
     const b = await calculateEmployeeDeductions(employee.id, periodId);
 
-    // Late/undertime deduction (pro-rated daily rate) folds into other deductions.
-    let otherDeductions = new Decimal(b.lateDeduction);
+    // Late/undertime deduction (pro-rated daily rate).
+    const lateDeduction = round2(new Decimal(b.lateDeduction));
 
-    // Fold approved, not-yet-applied cash advances into other deductions.
+    // Fold approved, not-yet-applied cash advances into a dedicated advance line.
     const advances = await findApprovedUnappliedForEmployee(employee.id);
+    let advanceDeduction = ZERO;
     for (const advance of advances) {
-      otherDeductions = otherDeductions.add(advance.approvedAmount ?? advance.amount);
+      advanceDeduction = advanceDeduction.add(advance.approvedAmount ?? advance.amount);
       appliedAdvanceIds.push(advance.id);
     }
-    otherDeductions = round2(otherDeductions);
+    advanceDeduction = round2(advanceDeduction);
+
+    const otherDeductions = round2(lateDeduction.add(advanceDeduction));
+
+    // Fold pending loan repayment installments into a dedicated loan deduction line.
+    const pendingRepayments = await findPendingRepaymentsForEmployee(employee.id);
+    let loanDeduction = ZERO;
+    for (const rep of pendingRepayments) {
+      loanDeduction = loanDeduction.add(rep.amount);
+      taggedRepaymentIds.push(rep.id);
+    }
+    loanDeduction = round2(loanDeduction);
 
     // Summarize attendance on the run item for transparency on the payslip.
     const attendanceNote = b.attendanceTracked
       ? `Attendance: ${b.daysWorked} day(s) worked` +
         (b.absentDays ? `, ${b.absentDays} absent` : "") +
         (b.lateMinutes ? `, ${b.lateMinutes} late-min` : "") +
-        (b.undertimeMinutes ? `, ${b.undertimeMinutes} undertime-min` : "")
+        (b.undertimeMinutes ? `, ${b.undertimeMinutes} undertime-min` : "") +
+        (b.overtimeMinutes ? `, ${b.overtimeMinutes} overtime-min` : "")
       : null;
 
-    const itemTotalDeductions = round2(new Decimal(b.totalDeductions).add(otherDeductions));
-    const payAfterDeductions = round2(new Decimal(b.grossPay).sub(itemTotalDeductions));
+    const overtimeEarnings = round2(new Decimal(b.overtimeEarnings));
+    const itemTotalDeductions = round2(new Decimal(b.totalDeductions).add(otherDeductions).add(loanDeduction));
+    const payAfterDeductions = round2(new Decimal(b.grossPay).add(overtimeEarnings).sub(itemTotalDeductions));
 
     // Savings is the employee's own money moved into their account — NOT a
     // deduction. Compute the recurring contribution (clamped so it never drives
@@ -354,8 +390,11 @@ export async function calculatePayrollRun(
       grossPay: b.grossPay,
       sssEmployee: b.sssEmployee,
       philhealthEmployee: b.philhealthEmployee,
+      lateDeduction,
+      advanceDeduction,
       otherDeductions,
-      otherEarnings: 0,
+      loanDeduction,
+      otherEarnings: overtimeEarnings,
       savingsContribution,
       totalDeductions: itemTotalDeductions,
       netPay: itemNetPay,
@@ -373,6 +412,9 @@ export async function calculatePayrollRun(
   if (rows.length > 0) await insertRunItemsWithBranches(rows);
   if (appliedAdvanceIds.length > 0) {
     await markCashAdvancesApplied(appliedAdvanceIds, periodId);
+  }
+  if (taggedRepaymentIds.length > 0) {
+    await markRepaymentsTagged(taggedRepaymentIds, periodId);
   }
   const updated = await updatePeriod(periodId, { status: "calculated" });
 
@@ -444,6 +486,13 @@ export async function approvePayrollRun(periodId: string, actor: Actor): Promise
       appliedPeriodId: periodId,
       createdBy: actor.clerkUserId,
     });
+  }
+
+  // Finalize loan repayments for this period and auto-complete fully-repaid loans.
+  await finalizeRepaymentsForPeriod(periodId);
+  const completedLoans = await findFullyRepaidLoansInPeriod(periodId);
+  for (const loan of completedLoans) {
+    await updateLoan(loan.id, { status: "completed" });
   }
 
   await auditLog({
@@ -555,6 +604,12 @@ export function getPayrollRunItems(periodId: string) {
 
 type RunItemWithRelations = Awaited<ReturnType<typeof findRunItem>>;
 
+function parseOvertimeMinutes(notes: string | null): number {
+  if (!notes) return 0;
+  const match = notes.match(/(\d+) overtime-min/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
 function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
   return {
     runItemId: item.id,
@@ -578,8 +633,12 @@ function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
     grossPay: toNum(item.grossPay),
     sssEmployee: toNum(item.sssEmployee),
     philhealthEmployee: toNum(item.philhealthEmployee),
+    lateDeduction: toNum(item.lateDeduction),
+    advanceDeduction: toNum(item.advanceDeduction),
     otherDeductions: toNum(item.otherDeductions),
+    loanDeduction: toNum(item.loanDeduction),
     otherEarnings: toNum(item.otherEarnings),
+    overtimeMinutes: parseOvertimeMinutes(item.notes),
     savingsContribution: toNum(item.savingsContribution),
     totalDeductions: toNum(item.totalDeductions),
     netPay: toNum(item.netPay),

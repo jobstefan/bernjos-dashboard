@@ -6,6 +6,7 @@ import { getComparison } from "@/server/services/attendance.service";
 import { getCashAdvances, getCashAdvancesForEmployee } from "@/server/services/cash-advance.service";
 import { getSavingsAccounts, getSavingsForEmployee } from "@/server/services/savings.service";
 import { findAbsenceRequests } from "@/server/db/absence-request";
+import { findLoans } from "@/server/db/loan";
 
 // ─── Admin / Manager ────────────────────────────────────────────────────────
 
@@ -258,14 +259,17 @@ export async function getCashAdvancePulse(): Promise<CashAdvancePulse> {
 export interface PendingApprovals {
   absences: { id: string; employeeName: string; date: string }[];
   advances: { id: string; employeeName: string; amount: number }[];
+  loans: { id: string; employeeName: string; amount: number }[];
   absenceCount: number;
   advanceCount: number;
+  loanCount: number;
 }
 
 export async function getPendingApprovals(): Promise<PendingApprovals> {
-  const [absenceRows, advanceRows] = await Promise.all([
+  const [absenceRows, advanceRows, loanRows] = await Promise.all([
     findAbsenceRequests({ status: "pending" }),
     getCashAdvances({ status: "pending" }),
+    findLoans({ status: "pending" }),
   ]);
 
   return {
@@ -279,8 +283,14 @@ export async function getPendingApprovals(): Promise<PendingApprovals> {
       employeeName: r.employeeName,
       amount: r.amount,
     })),
+    loans: loanRows.map((r) => ({
+      id: r.id,
+      employeeName: `${r.profile.firstName} ${r.profile.lastName}`,
+      amount: Number(r.amount),
+    })),
     absenceCount: absenceRows.length,
     advanceCount: advanceRows.length,
+    loanCount: loanRows.length,
   };
 }
 

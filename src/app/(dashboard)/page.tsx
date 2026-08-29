@@ -8,6 +8,7 @@ import {
   TrendingUp,
   PiggyBank,
   Clock,
+  Landmark,
 } from "lucide-react";
 import { getActor, canViewPayroll } from "@/lib/auth/rbac";
 import { getOrCreateUser } from "@/lib/user";
@@ -97,7 +98,10 @@ async function AdminDashboard({ actor }: { actor: Awaited<ReturnType<typeof getA
   }
 
   const netSparkline = trend.map((p) => p.net);
-  const totalPending = (approvals?.absenceCount ?? 0) + (approvals?.advanceCount ?? 0);
+  const totalPending =
+    (approvals?.absenceCount ?? 0) +
+    (approvals?.advanceCount ?? 0) +
+    (approvals?.loanCount ?? 0);
 
   return (
     <div className="space-y-6">
@@ -154,7 +158,11 @@ async function AdminDashboard({ actor }: { actor: Awaited<ReturnType<typeof getA
             sheen={false}
             hint={
               totalPending > 0
-                ? `${approvals?.absenceCount ?? 0} absence · ${approvals?.advanceCount ?? 0} advance`
+                ? [
+                    `${approvals?.absenceCount ?? 0} absence`,
+                    `${approvals?.advanceCount ?? 0} advance`,
+                    `${approvals?.loanCount ?? 0} loan`,
+                  ].join(" · ")
                 : undefined
             }
           />
@@ -264,6 +272,23 @@ async function AdminDashboard({ actor }: { actor: Awaited<ReturnType<typeof getA
                       <span>{a.employeeName}</span>
                       <Link href="/cash-advances" className="text-xs text-primary hover:underline">
                         {formatPeso(a.amount)} →
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {approvals.loans.length > 0 && (
+              <div>
+                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Loan Requests
+                </p>
+                <ul className="divide-y divide-border">
+                  {approvals.loans.map((l) => (
+                    <li key={l.id} className="flex items-center justify-between py-2 text-sm">
+                      <span>{l.employeeName}</span>
+                      <Link href="/savings" className="text-xs text-primary hover:underline">
+                        {formatPeso(l.amount)} →
                       </Link>
                     </li>
                   ))}

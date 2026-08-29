@@ -21,7 +21,11 @@ import type {
   CashAdvanceFilters,
   CashAdvanceRow,
 } from "@/lib/types/payroll";
-import type { CreateCashAdvanceSchema } from "@/lib/validations/payroll";
+import { findEmployeeById } from "@/server/db/employees";
+import type {
+  AdminCreateCashAdvanceSchema,
+  CreateCashAdvanceSchema,
+} from "@/lib/validations/payroll";
 
 export { findApprovedUnappliedForEmployee };
 
@@ -75,6 +79,36 @@ export async function getCashAdvance(id: string): Promise<CashAdvanceRow> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Mutations
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** Admin creates a cash advance on behalf of an employee (instantly approved). */
+export async function adminCreateCashAdvance(
+  input: AdminCreateCashAdvanceSchema,
+  actor: Actor,
+) {
+  const profile = await findEmployeeById(input.profileId);
+  if (!profile) throw new NotFoundError("Employee", input.profileId);
+
+  const now = new Date();
+  const advance = await insertCashAdvance({
+    profile: { connect: { id: profile.id } },
+    amount: input.amount,
+    approvedAmount: input.amount,
+    reason: input.reason,
+    status: "approved",
+    requestedBy: actor.clerkUserId,
+    decidedBy: actor.clerkUserId,
+    decidedAt: now,
+  });
+
+  await auditLog({
+    actor,
+    action: "cash_advance.admin_created",
+    entityType: "cash_advance",
+    entityId: advance.id,
+    after: advance,
+  });
+  return advance;
+}
 
 /** A profile submits a new cash-advance request against their own record. */
 export async function requestCashAdvance(
