@@ -71,12 +71,14 @@ export function CashAdvancesTable({
   mode,
   canApprove = false,
   canDelete = false,
+  hideSearch = false,
 }: {
   rows: CashAdvanceRow[];
   /** "admin" shows the employee column + approve/decline; "mine" shows cancel. */
   mode: "admin" | "mine";
   canApprove?: boolean;
   canDelete?: boolean;
+  hideSearch?: boolean;
 }) {
   const router = useRouter();
   const [status, setStatus] = React.useState(ALL);
@@ -260,7 +262,7 @@ export function CashAdvancesTable({
   return (
     <div className="space-y-4">
       <DataToolbar
-        search={mode === "admin" ? { value: search, onChange: setSearch, placeholder: "Search employee…" } : undefined}
+        search={mode === "admin" && !hideSearch ? { value: search, onChange: setSearch, placeholder: "Search employee…" } : undefined}
         filters={[{
           value: status,
           onChange: (v) => setStatus(v ?? ALL),

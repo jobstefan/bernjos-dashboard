@@ -239,7 +239,7 @@ export function EmployeeForm({
           error={errors.email}
         />
         <TextField name="contactNumber" label="Contact number" defaultValue={v.contactNumber} error={errors.contactNumber} />
-        <TextField name="address" label="Address" defaultValue={v.address} error={errors.address} />
+        <TextField name="address" label="Address" defaultValue={v.address} error={errors.address} colSpan />
       </Section>
 
       <Section title="Employment Details">
@@ -307,6 +307,7 @@ export function EmployeeForm({
           type="number"
           defaultValue={v.sssSalaryBasis}
           error={errors.sssSalaryBasis}
+          hint="The declared monthly salary used to look up the SSS contribution bracket. Leave blank to skip SSS deduction for this employee."
         />
         <TextField name="philhealthNumber" label="PhilHealth number" defaultValue={v.philhealthNumber} error={errors.philhealthNumber} />
         <TextField
@@ -315,6 +316,7 @@ export function EmployeeForm({
           type="number"
           defaultValue={v.philhealthAmount}
           error={errors.philhealthAmount}
+          hint="Fixed PhilHealth deduction per payroll period. Leave blank to skip PhilHealth deduction for this employee."
         />
       </Section>
 
@@ -348,10 +350,12 @@ function Section({
 }) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          {title}
+        </CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-2">{children}</CardContent>
+      <CardContent className="grid items-start gap-4 sm:grid-cols-2">{children}</CardContent>
     </Card>
   );
 }
@@ -364,6 +368,7 @@ function TextField({
   error,
   hint,
   disabled,
+  colSpan,
 }: {
   name: string;
   label: string;
@@ -372,9 +377,10 @@ function TextField({
   error?: string[];
   hint?: string;
   disabled?: boolean;
+  colSpan?: boolean;
 }) {
   return (
-    <div className="grid gap-2">
+    <div className={`grid gap-2${colSpan ? " sm:col-span-2" : ""}`}>
       <Label htmlFor={name}>{label}</Label>
       <Input id={name} name={name} type={type} defaultValue={defaultValue} disabled={disabled} />
       {error?.length ? (

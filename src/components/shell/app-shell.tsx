@@ -10,6 +10,7 @@ import { SidebarBody } from "@/components/layout/sidebar";
 import { Breadcrumbs } from "@/components/shell/breadcrumbs";
 import { CommandPalette } from "@/components/shell/command-palette";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
+import { BreadcrumbTitleProvider } from "@/contexts/breadcrumb-title";
 import type { Role } from "@/lib/types/payroll";
 
 const COLLAPSE_KEY = "bernjos:sidebar-collapsed";
@@ -56,6 +57,7 @@ export function AppShell({
   }, []);
 
   return (
+    <BreadcrumbTitleProvider>
     <div className="min-h-screen bg-background">
       {/* Desktop sidebar */}
       <aside
@@ -135,5 +137,6 @@ export function AppShell({
 
       <CommandPalette role={role} open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>
+    </BreadcrumbTitleProvider>
   );
 }
