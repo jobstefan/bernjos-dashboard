@@ -423,6 +423,7 @@ export async function summarizeForPayroll(
   employeeId: string,
   from: Date,
   to: Date,
+  standardShiftMinutes: number,
 ): Promise<PayrollAttendanceSummary> {
   const [entries, records] = await Promise.all([
     findEntriesForEmployee(employeeId, from, to),
@@ -470,10 +471,10 @@ export async function summarizeForPayroll(
     overtimeMinutes += cmp.overtimeMinutes;
     scheduledMinutes += cmp.scheduledMinutes;
     breakMinutes += cmp.breakMinutes;
-    if (cmp.scheduledMinutes > 0) {
+    if (standardShiftMinutes > 0) {
       deductionDays +=
         (cmp.lateMinutes + cmp.undertimeMinutes + cmp.breakMinutes) /
-        cmp.scheduledMinutes;
+        standardShiftMinutes;
     }
   }
 

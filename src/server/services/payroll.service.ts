@@ -37,6 +37,7 @@ import {
 import { findSssBracket } from "@/server/db/statutory";
 import { auditLog } from "@/server/services/audit.service";
 import { summarizeForPayroll } from "@/server/services/attendance.service";
+import { findDepartmentByName } from "@/server/db/departments";
 import {
   DuplicatePeriodError,
   InvalidStateTransitionError,
@@ -121,6 +122,12 @@ export async function calculateEmployeeDeductions(
   const frequency = period.frequency;
   const dailyRate = new Decimal(employee.basicSalary);
 
+  // Look up the department's standard shift to get a fixed per-minute rate.
+  const dept = employee.department
+    ? await findDepartmentByName(employee.department)
+    : null;
+  const standardShiftMinutes = (dept?.shiftHours ?? 8) * 60;
+
   // Days worked come from the schedule + attendance when the employee is
   // scheduled in the period; otherwise fall back to the per-frequency default
   // so employees/branches not yet using attendance are unaffected.
@@ -128,6 +135,7 @@ export async function calculateEmployeeDeductions(
     employee.id,
     period.periodStart,
     period.periodEnd,
+    standardShiftMinutes,
   );
   const attendanceTracked = attendance.hasSchedule;
   const daysWorked = attendanceTracked
@@ -135,13 +143,9 @@ export async function calculateEmployeeDeductions(
     : DEFAULT_WORKING_DAYS[frequency];
   const grossPay = round2(dailyRate.mul(daysWorked));
   const lateDeduction = round2(dailyRate.mul(attendance.deductionDays));
-  const avgScheduledMinutes =
-    attendance.scheduledDays > 0
-      ? attendance.scheduledMinutes / attendance.scheduledDays
-      : 0;
   const overtimeEarnings =
-    attendanceTracked && avgScheduledMinutes > 0
-      ? round2(dailyRate.mul(attendance.overtimeMinutes).div(avgScheduledMinutes))
+    attendanceTracked
+      ? round2(dailyRate.mul(attendance.overtimeMinutes).div(standardShiftMinutes))
       : ZERO;
 
   // Days worked per branch, so net pay can be split proportionally per branch once

@@ -74,7 +74,7 @@ export function DepartmentsManager({
               <CardTitle className="text-base">{dept.name}</CardTitle>
               <p className="text-xs text-muted-foreground">
                 {dept.positionCount} position
-                {dept.positionCount === 1 ? "" : "s"}
+                {dept.positionCount === 1 ? "" : "s"} &middot; {dept.shiftHours}hr shift
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
