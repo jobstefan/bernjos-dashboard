@@ -28,7 +28,15 @@ function devMiddleware(req: NextRequest) {
 // "auth() was called but Clerk can't detect usage of clerkMiddleware()".
 // `auth.protect()` handles the redirect to /sign-in for unauthenticated users.
 const clerkAuthMiddleware = clerkMiddleware(async (auth, req) => {
-  if (!isPublicRoute(req)) await auth.protect();
+  // Redirect unauthenticated users to our own /sign-in page rather than Clerk's
+  // hosted Account Portal (…accounts.dev). Without `unauthenticatedUrl`,
+  // `protect()` falls back to the Account Portal; the <ClerkProvider signInUrl>
+  // prop only affects client-side redirects, not this edge middleware.
+  if (!isPublicRoute(req)) {
+    await auth.protect({
+      unauthenticatedUrl: new URL("/sign-in", req.url).toString(),
+    });
+  }
 });
 
 // Pick the middleware at module load. `DEV_AUTH` is read from the environment
