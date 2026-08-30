@@ -19,13 +19,24 @@ const withRelations = {
 } satisfies Prisma.SavingsAccountInclude;
 
 /**
- * Accounts shown in the admin supervision list. Only active profiles appear —
- * frozen accounts (terminated/resigned/inactive) are hidden but their balances
- * are preserved and still reachable by id / profile.
+ * Accounts shown in the admin supervision list:
+ * - active   → visible and editable
+ * - inactive → visible but frozen (contribution edits disabled)
+ * - terminated / resigned → hidden; balances preserved and reachable by id
+ * - admin / super_admin profiles → excluded (same as the employee list)
  */
 export function findSavingsAccounts() {
   return prisma.savingsAccount.findMany({
-    where: { profile: { deletedAt: null, employmentStatus: "active" } },
+    where: {
+      profile: {
+        deletedAt: null,
+        employmentStatus: { in: ["active", "inactive"] },
+        OR: [
+          { userId: null },
+          { user: { role: { notIn: ["admin", "super_admin"] } } },
+        ],
+      },
+    },
     include: withRelations,
     orderBy: { profile: { lastName: "asc" } },
   });
