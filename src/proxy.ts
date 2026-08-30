@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { clerkMiddleware } from "@clerk/nextjs/server";
 
 // Next.js 16 renamed Middleware to "Proxy" (this file replaces middleware.ts).
-// Everything except the sign-in/sign-up routes and public assets requires auth.
-const PUBLIC_PATHS = [/^\/sign-in/, /^\/sign-up/, /^\/api\/inngest/];
+// Everything except the sign-in route and public assets requires auth.
+// (No self-service sign-up — employees are provisioned by admins.)
+const PUBLIC_PATHS = [/^\/sign-in/, /^\/api\/inngest/];
 
 function isPublicRoute(req: NextRequest) {
   return PUBLIC_PATHS.some((p) => p.test(req.nextUrl.pathname));
