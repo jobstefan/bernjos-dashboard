@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { clerkMiddleware } from "@clerk/nextjs/server";
 
 // Next.js 16 renamed Middleware to "Proxy" (this file replaces middleware.ts).
-// Everything except the sign-in/sign-up routes and public assets requires auth.
-const PUBLIC_PATHS = [/^\/sign-in/, /^\/sign-up/, /^\/api\/inngest/];
+// Everything except the sign-in route and public assets requires auth.
+// (No self-service sign-up — employees are provisioned by admins.)
+const PUBLIC_PATHS = [/^\/sign-in/, /^\/api\/inngest/];
 
 function isPublicRoute(req: NextRequest) {
   return PUBLIC_PATHS.some((p) => p.test(req.nextUrl.pathname));
@@ -27,7 +28,15 @@ function devMiddleware(req: NextRequest) {
 // "auth() was called but Clerk can't detect usage of clerkMiddleware()".
 // `auth.protect()` handles the redirect to /sign-in for unauthenticated users.
 const clerkAuthMiddleware = clerkMiddleware(async (auth, req) => {
-  if (!isPublicRoute(req)) await auth.protect();
+  // Redirect unauthenticated users to our own /sign-in page rather than Clerk's
+  // hosted Account Portal (…accounts.dev). Without `unauthenticatedUrl`,
+  // `protect()` falls back to the Account Portal; the <ClerkProvider signInUrl>
+  // prop only affects client-side redirects, not this edge middleware.
+  if (!isPublicRoute(req)) {
+    await auth.protect({
+      unauthenticatedUrl: new URL("/sign-in", req.url).toString(),
+    });
+  }
 });
 
 // Pick the middleware at module load. `DEV_AUTH` is read from the environment
@@ -43,5 +52,7 @@ export const config = {
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     // Always run for API routes.
     "/(api|trpc)(.*)",
+    // Required for Clerk's auto-proxy on *.vercel.app domains.
+    "/__clerk/:path*",
   ],
 };

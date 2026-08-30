@@ -48,7 +48,7 @@ export default function RootLayout({
               <SpeedInsights />
             </>
           ) : (
-            <ClerkProvider>
+            <ClerkProvider signInUrl="/sign-in">
               {children}
               <Toaster />
               <Analytics />
