@@ -34,7 +34,7 @@ export function DevSignIn() {
   return (
     <div className="rounded-2xl border border-white/10 bg-[#2e2219] p-7 shadow-2xl">
       <div className="mb-6 space-y-1">
-        <h1 className="text-base font-semibold text-[#ede8dd]">Sign in</h1>
+        <h1 className="text-base font-semibold text-[#ede8dd]">Welcome back</h1>
         <p className="text-sm text-[#b5a898]">Development mode · Clerk bypassed</p>
       </div>
 
