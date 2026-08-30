@@ -14,16 +14,10 @@ export function MyLoans({
 }) {
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">My Loans</h2>
-          <p className="text-sm text-muted-foreground">
-            Available to borrow:{" "}
-            <span className="font-mono font-medium">{formatPeso(availableToBorrow)}</span>
-          </p>
-        </div>
-        <RequestLoanDialog availableToBorrow={availableToBorrow} />
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Available to borrow:{" "}
+        <span className="font-mono font-medium">{formatPeso(availableToBorrow)}</span>
+      </p>
 
       {loans.length === 0 ? (
         <EmptyState

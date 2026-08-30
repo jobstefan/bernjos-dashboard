@@ -20,6 +20,10 @@ export function findDepartmentById(id: string) {
   return prisma.department.findFirst({ where: { id, deletedAt: null } });
 }
 
+export function findDepartmentByName(name: string) {
+  return prisma.department.findFirst({ where: { name, deletedAt: null } });
+}
+
 export function insertDepartment(data: Prisma.DepartmentCreateInput) {
   return prisma.department.create({ data });
 }

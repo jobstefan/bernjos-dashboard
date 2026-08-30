@@ -36,10 +36,14 @@ export function DepartmentDialog({
   const [errors, setErrors] = React.useState<Record<string, string[]>>({});
   const [formError, setFormError] = React.useState<string | null>(null);
   const [name, setName] = React.useState("");
+  const [shiftHours, setShiftHours] = React.useState<number>(8);
   const isEdit = Boolean(department);
 
   React.useEffect(() => {
-    if (open) setName(department?.name ?? "");
+    if (open) {
+      setName(department?.name ?? "");
+      setShiftHours(department?.shiftHours ?? 8);
+    }
   }, [open, department]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -48,8 +52,8 @@ export function DepartmentDialog({
     setFormError(null);
     startTransition(async () => {
       const res = department
-        ? await updateDepartmentAction({ id: department.id, name })
-        : await createDepartmentAction({ name });
+        ? await updateDepartmentAction({ id: department.id, name, shiftHours })
+        : await createDepartmentAction({ name, shiftHours });
       if (res.success) {
         toast.success(isEdit ? "Department updated." : "Department created.");
         onOpenChange(false);
@@ -102,6 +106,38 @@ export function DepartmentDialog({
               />
               {errors.name?.length ? (
                 <p className="text-xs text-destructive">{errors.name[0]}</p>
+              ) : null}
+            </div>
+            <div className="grid gap-2">
+              <Label>Standard shift</Label>
+              <div className="flex gap-2">
+                {[8, 10, 12].map((h) => (
+                  <Button
+                    key={h}
+                    type="button"
+                    variant={shiftHours === h ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setShiftHours(h)}
+                  >
+                    {h}h
+                  </Button>
+                ))}
+                <Input
+                  type="number"
+                  min={1}
+                  max={24}
+                  value={shiftHours}
+                  onChange={(e) => setShiftHours(Number(e.target.value))}
+                  className="w-20 text-center"
+                  aria-label="Custom shift hours"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Used to compute the per-minute rate for deductions and overtime.
+              </p>
+              {errors.shiftHours?.length ? (
+                <p className="text-xs text-destructive">{errors.shiftHours[0]}</p>
               ) : null}
             </div>
           </div>
