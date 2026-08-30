@@ -32,16 +32,18 @@ export function DevSignIn() {
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#2e2219] p-7 shadow-2xl">
+    <div className="rounded-2xl border border-border bg-card p-7 text-card-foreground shadow-warm-lg">
       <div className="mb-6 space-y-1">
-        <h1 className="text-base font-semibold text-[#ede8dd]">Welcome back</h1>
-        <p className="text-sm text-[#b5a898]">Development mode · Clerk bypassed</p>
+        <h1 className="text-base font-semibold text-foreground">Welcome back</h1>
+        <p className="text-sm text-muted-foreground">
+          Development mode · Clerk bypassed
+        </p>
       </div>
 
       <form onSubmit={onSubmit} className="grid gap-4">
         {/* Role picker */}
         <div className="grid gap-1.5">
-          <label className="text-xs font-medium text-[#ede8dd]">Sign in as</label>
+          <label className="text-xs font-medium text-foreground">Sign in as</label>
           <div className="grid grid-cols-2 gap-2">
             {ROLES.map((r) => (
               <button
@@ -51,8 +53,8 @@ export function DevSignIn() {
                 className={[
                   "rounded-lg border px-3 py-2 text-left text-xs transition-colors",
                   role === r
-                    ? "border-[#e5a44a]/60 bg-[#e5a44a]/10 text-[#e5a44a]"
-                    : "border-white/10 text-[#b5a898] hover:border-white/20 hover:text-[#ede8dd]",
+                    ? "border-primary/60 bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
                 ].join(" ")}
               >
                 {roleLabel(r)}
@@ -63,7 +65,7 @@ export function DevSignIn() {
 
         {/* Password */}
         <div className="grid gap-1.5">
-          <label htmlFor="dev-password" className="text-xs font-medium text-[#ede8dd]">
+          <label htmlFor="dev-password" className="text-xs font-medium text-foreground">
             Password
           </label>
           <input
@@ -72,12 +74,12 @@ export function DevSignIn() {
             type="password"
             defaultValue="1234"
             autoComplete="off"
-            className="w-full rounded-lg border border-white/15 bg-[#3a2c1e] px-3 py-2.5 text-sm text-[#ede8dd] placeholder-[#7a6e60] outline-none ring-[#e5a44a]/50 transition focus:border-[#e5a44a]/60 focus:ring-2"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none ring-ring/50 transition focus:border-ring focus:ring-2"
           />
         </div>
 
         {error ? (
-          <div className="flex items-start gap-2 rounded-lg border border-red-800/40 bg-red-900/20 px-3 py-2 text-sm text-red-300">
+          <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             <AlertCircle className="mt-0.5 size-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -86,14 +88,14 @@ export function DevSignIn() {
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-lg bg-[#e5a44a] px-4 py-2.5 text-sm font-semibold text-[#1e1610] transition hover:bg-[#d4913a] disabled:opacity-60"
+          className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60"
         >
           {pending ? "Signing in…" : "Sign in"}
         </button>
       </form>
 
-      <p className="mt-5 text-center text-xs text-[#7a6e60]">
-        Password is <code className="font-mono text-[#b5a898]">1234</code>
+      <p className="mt-5 text-center text-xs text-muted-foreground">
+        Password is <code className="font-mono text-foreground">1234</code>
       </p>
     </div>
   );
