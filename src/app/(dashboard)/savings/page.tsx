@@ -45,33 +45,24 @@ export default async function SavingsPage() {
 
   const loansContent = (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="grid gap-4 sm:grid-cols-3 flex-1">
-          <KpiCard
-            label="Outstanding Principal"
-            value={formatPeso(totalOutstanding)}
-            icon={<Landmark />}
-            sheen
-          />
-          <KpiCard
-            label="Active Loans"
-            value={activeLoans.length}
-            icon={<Banknote />}
-            sheen={false}
-          />
-          <KpiCard
-            label="Pending Requests"
-            value={pendingLoans.length}
-            icon={<Clock />}
-            sheen={false}
-          />
-        </div>
-      </div>
-
-      <div className="flex justify-end">
-        <AdminCreateLoanButton
-          accounts={rows}
-          availableToBorrowMap={availableToBorrowMap}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <KpiCard
+          label="Outstanding Principal"
+          value={formatPeso(totalOutstanding)}
+          icon={<Landmark />}
+          sheen
+        />
+        <KpiCard
+          label="Active Loans"
+          value={activeLoans.length}
+          icon={<Banknote />}
+          sheen={false}
+        />
+        <KpiCard
+          label="Pending Requests"
+          value={pendingLoans.length}
+          icon={<Clock />}
+          sheen={false}
         />
       </div>
 
@@ -79,7 +70,7 @@ export default async function SavingsPage() {
         <EmptyState
           icon={Landmark}
           title="No loans yet"
-          description="Create a loan for an employee using the button above, or employees can request one from their savings page."
+          description="Create a loan for an employee or employees can request one from their savings page."
           action={
             <AdminCreateLoanButton
               accounts={rows}
@@ -152,12 +143,18 @@ export default async function SavingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Loans & Savings</h1>
-        <p className="text-sm text-muted-foreground">
-          {loans.length} loan{loans.length === 1 ? "" : "s"} · {rows.length} savings account
-          {rows.length === 1 ? "" : "s"}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Loans & Savings</h1>
+          <p className="text-sm text-muted-foreground">
+            {loans.length} loan{loans.length === 1 ? "" : "s"} · {rows.length} savings account
+            {rows.length === 1 ? "" : "s"}
+          </p>
+        </div>
+        <AdminCreateLoanButton
+          accounts={rows}
+          availableToBorrowMap={availableToBorrowMap}
+        />
       </div>
 
       <EmployeeProfileTabs

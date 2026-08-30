@@ -5,6 +5,7 @@ import { getSavingsForEmployee } from "@/server/services/savings.service";
 import { getMyLoans } from "@/server/services/loan.service";
 import { MySavings } from "@/components/savings/my-savings";
 import { MyLoans } from "@/components/loans/my-loans";
+import { RequestLoanDialog } from "@/components/loans/request-loan-dialog";
 import { EmptyState } from "@/components/payroll/empty-state";
 import { EmployeeProfileTabs } from "@/components/employees/employee-profile-tabs";
 
@@ -49,11 +50,14 @@ export default async function MySavingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">My Loans & Savings</h1>
-        <p className="text-sm text-muted-foreground">
-          {employee.firstName} {employee.lastName} · {employee.employeeCode}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">My Loans & Savings</h1>
+          <p className="text-sm text-muted-foreground">
+            {employee.firstName} {employee.lastName} · {employee.employeeCode}
+          </p>
+        </div>
+        <RequestLoanDialog availableToBorrow={loansView.availableToBorrow} />
       </div>
 
       <EmployeeProfileTabs
