@@ -35,7 +35,7 @@ export function DataToolbar({ search, filters, onExport, children }: DataToolbar
   return (
     <div className="flex flex-wrap items-center gap-3">
       {search && (
-        <div className="relative w-full sm:w-64">
+        <div className="relative w-full sm:w-80">
           <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder={search.placeholder ?? "Search…"}

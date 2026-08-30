@@ -122,7 +122,8 @@ export function buildScheduleText(
     }
   }
 
-  const dayOff = rows.filter((r) => r.isDayOff);
+  const absentNames = new Set(absentEmployees.map((e) => e.employeeName));
+  const dayOff = rows.filter((r) => r.isDayOff && !absentNames.has(r.employeeName));
   if (dayOff.length > 0) {
     lines.push(
       "",

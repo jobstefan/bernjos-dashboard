@@ -42,12 +42,13 @@ export function SavingsTable({
 
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
+    const result = rows.filter((r) => {
       if (frozenFilter === "active" && r.frozen) return false;
       if (frozenFilter === "frozen" && !r.frozen) return false;
       if (q && !r.employeeName.toLowerCase().includes(q) && !r.employeeCode.toLowerCase().includes(q)) return false;
       return true;
     });
+    return result.sort((a, b) => Number(a.frozen) - Number(b.frozen));
   }, [rows, search, frozenFilter]);
 
   const columns = React.useMemo<ColumnDef<SavingsAccountRow>[]>(
@@ -167,7 +168,7 @@ export function SavingsTable({
       <DataTable
         columns={columns}
         data={filtered}
-        initialSorting={[{ id: "employeeName", desc: false }]}
+        initialSorting={[]}
         renderCard={(row) => (
           <DataCard
             title={row.employeeName}

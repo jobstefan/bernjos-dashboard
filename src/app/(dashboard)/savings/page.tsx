@@ -84,6 +84,11 @@ export default async function SavingsPage() {
     </div>
   );
 
+  const topContributors = [...rows]
+    .sort((a, b) => b.contributionAmount - a.contributionAmount)
+    .slice(0, 6)
+    .map((r) => ({ name: r.employeeName, contribution: r.contributionAmount }));
+
   const savingsContent = (
     <div className="space-y-6">
       {stats && (
@@ -109,21 +114,28 @@ export default async function SavingsPage() {
             />
           </div>
 
-          {stats.topBalances.length > 0 && (
-            <div className="lg:max-w-lg">
-              <ChartCard title="Top Balances" description="Highest savings balances">
-                <BarSeries
-                  data={stats.topBalances}
-                  xKey="name"
-                  series={[
-                    {
-                      key: "balance",
-                      label: "Balance",
-                      color: SEMANTIC_COLORS.savings,
-                    },
-                  ]}
-                />
-              </ChartCard>
+          {(stats.topBalances.length > 0 || topContributors.length > 0) && (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {stats.topBalances.length > 0 && (
+                <ChartCard title="Top Balances" description="Highest accumulated savings">
+                  <BarSeries
+                    data={stats.topBalances}
+                    xKey="name"
+                    layout="vertical"
+                    series={[{ key: "balance", label: "Balance", color: SEMANTIC_COLORS.savings }]}
+                  />
+                </ChartCard>
+              )}
+              {topContributors.length > 0 && (
+                <ChartCard title="Top Contributors" description="Highest per-period contribution">
+                  <BarSeries
+                    data={topContributors}
+                    xKey="name"
+                    layout="vertical"
+                    series={[{ key: "contribution", label: "Contribution", color: SEMANTIC_COLORS.gold }]}
+                  />
+                </ChartCard>
+              )}
             </div>
           )}
         </>

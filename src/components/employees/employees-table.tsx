@@ -187,7 +187,7 @@ export function EmployeesTable({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive"
-                  onClick={() => setToDeactivate(row.original)}
+                  onClick={(e) => { e.stopPropagation(); setToDeactivate(row.original); }}
                 >
                   Deactivate
                 </DropdownMenuItem>
