@@ -27,12 +27,14 @@ function StrengthBar({ password }: { password: string }) {
             key={i}
             className={[
               "h-1 flex-1 rounded-full transition-colors",
-              i < score ? colors[score - 1] : "bg-white/10",
+              i < score ? colors[score - 1] : "bg-[#eae0d3] dark:bg-white/10",
             ].join(" ")}
           />
         ))}
       </div>
-      <p className="text-xs text-[#b5a898]">{labels[score - 1] ?? ""}</p>
+      <p className="text-xs text-[#8a7c6b] dark:text-[#b5a898]">
+        {labels[score - 1] ?? ""}
+      </p>
     </div>
   );
 }
@@ -53,7 +55,10 @@ function PasswordInput({
   const [show, setShow] = React.useState(false);
   return (
     <div className="grid gap-1.5">
-      <label htmlFor={id} className="text-xs font-medium text-[#ede8dd]">
+      <label
+        htmlFor={id}
+        className="text-xs font-medium text-[#3a2c1e] dark:text-[#ede8dd]"
+      >
         {label}
       </label>
       <div className="relative">
@@ -64,14 +69,14 @@ function PasswordInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           required
-          className="w-full rounded-lg border border-white/15 bg-[#3a2c1e] py-2.5 pl-9 pr-10 text-sm text-[#ede8dd] placeholder-[#7a6e60] outline-none ring-[#e5a44a]/50 transition focus:border-[#e5a44a]/60 focus:ring-2"
+          className="w-full rounded-lg border border-[#e2d7c7] bg-[#fbf7f1] py-2.5 pl-9 pr-10 text-sm text-[#3a2c1e] placeholder:text-[#a89a87] outline-none ring-[#e5a44a]/50 transition focus:border-[#e5a44a]/60 focus:ring-2 dark:border-white/15 dark:bg-[#3a2c1e] dark:text-[#ede8dd] dark:placeholder:text-[#7a6e60]"
           placeholder="••••••••"
         />
-        <KeyRound className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[#7a6e60]" />
+        <KeyRound className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[#a89a87] dark:text-[#7a6e60]" />
         <button
           type="button"
           onClick={() => setShow((s) => !s)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7a6e60] hover:text-[#b5a898]"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a89a87] hover:text-[#3a2c1e] dark:text-[#7a6e60] dark:hover:text-[#b5a898]"
           aria-label={show ? "Hide password" : "Show password"}
         >
           {show ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
@@ -116,18 +121,22 @@ export function OnboardingFlow() {
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#2e2219] p-7 shadow-2xl">
+    <div className="rounded-2xl border border-[#eae0d3] bg-white p-7 shadow-lg dark:border-white/10 dark:bg-[#2e2219] dark:shadow-2xl">
       <div className="mb-6 space-y-1">
-        <h1 className="text-base font-semibold text-[#ede8dd]">Create your password</h1>
-        <p className="text-sm text-[#b5a898]">
+        <h1 className="text-base font-semibold text-[#3a2c1e] dark:text-[#ede8dd]">
+          Create your password
+        </h1>
+        <p className="text-sm text-[#8a7c6b] dark:text-[#b5a898]">
           Replace the temporary password you were given to finish signing in.
         </p>
       </div>
 
       {done ? (
         <div className="flex flex-col items-center gap-3 py-4 text-center">
-          <CheckCircle2 className="size-8 text-green-400" />
-          <p className="text-sm text-[#ede8dd]">Password set! Taking you to the dashboard…</p>
+          <CheckCircle2 className="size-8 text-green-600 dark:text-green-400" />
+          <p className="text-sm text-[#3a2c1e] dark:text-[#ede8dd]">
+            Password set! Taking you to the dashboard…
+          </p>
         </div>
       ) : (
         <form onSubmit={onPassword} className="grid gap-4">
@@ -151,12 +160,14 @@ export function OnboardingFlow() {
               onChange={setConfirm}
             />
             {mismatch ? (
-              <p className="mt-1 text-xs text-red-400">Passwords don't match.</p>
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                Passwords don't match.
+              </p>
             ) : null}
           </div>
 
           {error ? (
-            <div className="flex items-start gap-2 rounded-lg border border-red-800/40 bg-red-900/20 px-3 py-2 text-sm text-red-300">
+            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800/40 dark:bg-red-900/20 dark:text-red-300">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
               <span>{error}</span>
             </div>
