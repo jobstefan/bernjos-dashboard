@@ -6,3 +6,6 @@
 
 /** Minutes an employee may clock in past their shift start before counting late. */
 export const GRACE_MINUTES = 15;
+
+/** Minutes late before a deduction is charged. At grace+1 min, the full lateMinutes are deducted. */
+export const LATE_DEDUCTION_GRACE_MINUTES = 5;

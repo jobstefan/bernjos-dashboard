@@ -56,7 +56,27 @@ export function Donut({
     <ChartContainer config={config} className="w-full" style={{ height }}>
       <PieChart>
         <ChartTooltip
-          content={<ChartTooltipContent formatter={(v) => tooltipFmt(Number(v))} />}
+          content={
+            <ChartTooltipContent
+              hideLabel
+              formatter={(v, name) => (
+                <>
+                  <div
+                    className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
+                    style={{ backgroundColor: `var(--color-${name})` }}
+                  />
+                  <div className="flex flex-1 justify-between gap-2">
+                    <span className="text-muted-foreground">
+                      {config[name as string]?.label ?? String(name)}
+                    </span>
+                    <span className="font-mono font-medium tabular-nums">
+                      {tooltipFmt(Number(v))}
+                    </span>
+                  </div>
+                </>
+              )}
+            />
+          }
         />
         <Pie
           data={data}

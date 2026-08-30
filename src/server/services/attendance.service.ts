@@ -23,6 +23,7 @@ import { auditLog } from "@/server/services/audit.service";
 import { getAdapter } from "@/lib/attendance/adapters";
 import type { SheetGrid } from "@/lib/attendance/adapters";
 import { compareDay } from "@/lib/attendance/compare";
+import { LATE_DEDUCTION_GRACE_MINUTES } from "@/lib/attendance/config";
 import {
   BadRequestError,
   NotFoundError,
@@ -472,8 +473,9 @@ export async function summarizeForPayroll(
     scheduledMinutes += cmp.scheduledMinutes;
     breakMinutes += cmp.breakMinutes;
     if (standardShiftMinutes > 0) {
+      const effectiveLate = cmp.lateMinutes > LATE_DEDUCTION_GRACE_MINUTES ? cmp.lateMinutes : 0;
       deductionDays +=
-        (cmp.lateMinutes + cmp.undertimeMinutes + cmp.breakMinutes) /
+        (effectiveLate + cmp.undertimeMinutes + cmp.breakMinutes) /
         standardShiftMinutes;
     }
   }
