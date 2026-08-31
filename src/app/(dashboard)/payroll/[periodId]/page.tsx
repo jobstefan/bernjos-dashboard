@@ -157,7 +157,6 @@ export default async function PeriodDetailPage({
                 xKey="name"
                 layout="vertical"
                 format="peso"
-                height={otData.length * 36 + 16}
               />
             </ChartCard>
           )}
