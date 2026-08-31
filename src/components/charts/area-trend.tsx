@@ -7,18 +7,8 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { formatPeso } from "@/lib/utils/payroll";
 
 export type ChartFormat = "peso" | "count" | "percent" | "minutes";
-
-function makeFormatter(format: ChartFormat) {
-  switch (format) {
-    case "count":   return (v: number) => String(v);
-    case "percent": return (v: number) => `${v}%`;
-    case "minutes": return (v: number) => `${v} min`;
-    default:        return formatPeso;
-  }
-}
 
 function makeYAxisFormatter(format: ChartFormat) {
   switch (format) {
@@ -48,12 +38,19 @@ interface AreaTrendProps {
   format?: ChartFormat;
   stacked?: boolean;
   height?: number;
+  /** "date" formats "MM-DD" ticks as "Aug 31" with rotated labels. */
+  xFormat?: "date";
 }
 
 const reducedMotion =
   typeof window !== "undefined"
     ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
     : false;
+
+const fmtMMDD = (val: string) => {
+  const [m, d] = val.split("-").map(Number);
+  return new Date(2000, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+};
 
 export function AreaTrend({
   data,
@@ -62,13 +59,14 @@ export function AreaTrend({
   format = "peso",
   stacked = false,
   height = 220,
+  xFormat,
 }: AreaTrendProps) {
+  const tickFormatter = xFormat === "date" ? fmtMMDD : undefined;
   const config: ChartConfig = Object.fromEntries(
     series.map((s) => [s.key, { label: s.label, color: s.color }]),
   );
 
-  const tooltipFmt = makeFormatter(format);
-  const yAxisFmt   = makeYAxisFormatter(format);
+  const yAxisFmt = makeYAxisFormatter(format);
 
   return (
     <ChartContainer config={config} className="w-full" style={{ height }}>
@@ -86,8 +84,10 @@ export function AreaTrend({
           dataKey={xKey}
           tickLine={false}
           axisLine={false}
-          tick={{ fontSize: 11 }}
+          tick={{ fontSize: 11, angle: tickFormatter ? -35 : 0, textAnchor: tickFormatter ? "end" : "middle" }}
           tickMargin={8}
+          height={tickFormatter ? 45 : undefined}
+          tickFormatter={tickFormatter}
         />
         <YAxis
           tickLine={false}
@@ -96,9 +96,7 @@ export function AreaTrend({
           tickFormatter={yAxisFmt}
           width={52}
         />
-        <ChartTooltip
-          content={<ChartTooltipContent formatter={(v) => tooltipFmt(Number(v))} />}
-        />
+        <ChartTooltip content={<ChartTooltipContent className="min-w-44" />} />
         {series.map((s) => (
           <Area
             key={s.key}

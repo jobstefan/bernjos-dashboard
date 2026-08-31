@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { MoreHorizontal } from "lucide-react";
 import { DataTable } from "@/components/payroll/data-table";
 import { DataCard } from "@/components/ui/data-card";
+import { DetailDrawer } from "@/components/ui/detail-drawer";
+import { CashAdvanceSlip } from "@/components/cash-advances/cash-advance-slip";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -83,6 +85,7 @@ export function CashAdvancesTable({
   const router = useRouter();
   const [status, setStatus] = React.useState(ALL);
   const [search, setSearch] = React.useState("");
+  const [selected, setSelected] = React.useState<CashAdvanceRow | null>(null);
   const [toApprove, setToApprove] = React.useState<CashAdvanceRow | null>(null);
   const [toDecline, setToDecline] = React.useState<CashAdvanceRow | null>(null);
   const [toCancel, setToCancel] = React.useState<CashAdvanceRow | null>(null);
@@ -276,6 +279,7 @@ export function CashAdvancesTable({
         columns={columns}
         data={filtered}
         initialSorting={[{ id: "requestedAt", desc: true }]}
+        onRowClick={(row) => setSelected(row)}
         renderCard={(row) => (
           <DataCard
             title={mode === "admin" ? row.employeeName : formatPeso(row.approvedAmount ?? row.amount)}
@@ -286,9 +290,19 @@ export function CashAdvancesTable({
               { label: "Requested", value: formatDate(row.requestedAt) },
             ]}
             actions={<StatusPill status={row.status} />}
+            onClick={() => setSelected(row)}
           />
         )}
       />
+
+      <DetailDrawer
+        open={selected !== null}
+        onOpenChange={(open) => !open && setSelected(null)}
+        title="Cash Advance"
+        description={selected ? `${selected.employeeName} · ${selected.employeeCode}` : undefined}
+      >
+        {selected ? <CashAdvanceSlip advance={selected} /> : null}
+      </DetailDrawer>
 
       <ApproveDialog
         advance={toApprove}

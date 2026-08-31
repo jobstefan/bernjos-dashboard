@@ -296,6 +296,15 @@ export async function editAttendanceRecord(
 const dateKey = (date: Date, employeeId: string) =>
   `${date.toISOString().slice(0, 10)}|${employeeId}`;
 
+function deriveSource(
+  rec: { source: string | null; timeIn: string | null; timeOut: string | null; breakMinutes: number | null } | undefined,
+): "biometric" | "manual" | "draft" | null {
+  if (!rec) return null;
+  if (rec.source !== "manual") return rec.source as "biometric" | null;
+  const incomplete = !rec.timeIn || !rec.timeOut || rec.breakMinutes === null;
+  return incomplete ? "draft" : "manual";
+}
+
 /** Schedule (target) vs attendance (actual) for a date range, one row per day. */
 export async function getComparison(
   from: Date,
@@ -336,7 +345,7 @@ export async function getComparison(
       gapEnd: rec?.gapEnd ?? null,
       gap2Start: rec?.gap2Start ?? null,
       gap2End: rec?.gap2End ?? null,
-      source: (rec?.source as "biometric" | "manual" | undefined) ?? null,
+      source: deriveSource(rec),
       status: cmp.status,
       lateMinutes: cmp.lateMinutes,
       undertimeMinutes: cmp.undertimeMinutes,
@@ -363,7 +372,7 @@ export async function getComparison(
       gapEnd: rec.gapEnd ?? null,
       gap2Start: rec.gap2Start ?? null,
       gap2End: rec.gap2End ?? null,
-      source: (rec.source as "biometric" | "manual" | undefined) ?? null,
+      source: deriveSource(rec),
       status: "no-schedule",
       lateMinutes: 0,
       undertimeMinutes: 0,

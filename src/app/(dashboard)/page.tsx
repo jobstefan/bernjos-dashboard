@@ -220,6 +220,7 @@ async function AdminDashboard({ actor }: { actor: Awaited<ReturnType<typeof getA
                 { key: "lateCount", label: "Late", color: SEMANTIC_COLORS.deductions },
               ]}
               format="count"
+              xFormat="date"
             />
           </ChartCard>
 

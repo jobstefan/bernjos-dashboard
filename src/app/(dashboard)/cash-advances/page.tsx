@@ -19,7 +19,8 @@ import { KpiCard } from "@/components/ui/kpi-card";
 import { ChartCard } from "@/components/charts/chart-card";
 import { Donut } from "@/components/charts/donut";
 import { SEMANTIC_COLORS } from "@/components/charts/colors";
-import { formatPeso } from "@/lib/utils/payroll";
+import { formatPeso, getCashAdvanceStatusColor, getCashAdvanceStatusLabel } from "@/lib/utils/payroll";
+import type { CashAdvanceStatus } from "@/lib/types/payroll";
 
 export default async function CashAdvancesPage() {
   const role = await getCurrentRole();
@@ -94,14 +95,45 @@ export default async function CashAdvancesPage() {
         </div>
       )}
 
-      {donutData.length > 0 && (
-        <div className="lg:max-w-sm">
+      {donutData.length > 0 && pulse && (
+        <div className="grid gap-4 lg:grid-cols-2">
           <ChartCard title="By Status" description="Amount by request status">
             <Donut
               data={donutData}
               centerLabel="Total"
               centerValue={formatPeso(donutData.reduce((s, d) => s + d.value, 0))}
             />
+          </ChartCard>
+
+          <ChartCard title="Request Breakdown" description="Count and average amount per status">
+            <ul className="divide-y">
+              {pulse.byStatus
+                .slice()
+                .sort((a, b) => b.count - a.count)
+                .map((s) => {
+                  const avg = s.count > 0 ? s.amount / s.count : 0;
+                  return (
+                    <li key={s.status} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                      <span
+                        className={
+                          "inline-flex rounded-full border px-2 py-0.5 text-xs font-medium " +
+                          getCashAdvanceStatusColor(s.status as CashAdvanceStatus)
+                        }
+                      >
+                        {getCashAdvanceStatusLabel(s.status as CashAdvanceStatus)}
+                      </span>
+                      <div className="text-right">
+                        <p className="text-sm font-medium tabular-nums">
+                          {s.count} {s.count === 1 ? "request" : "requests"}
+                        </p>
+                        <p className="text-xs text-muted-foreground tabular-nums">
+                          avg {formatPeso(avg)}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+            </ul>
           </ChartCard>
         </div>
       )}

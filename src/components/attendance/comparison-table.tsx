@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Pencil } from "lucide-react";
 import { DataTable } from "@/components/payroll/data-table";
 import { DataCard } from "@/components/ui/data-card";
+import { DataToolbar } from "@/components/ui/data-toolbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AttendanceEditDialog } from "@/components/attendance/attendance-edit-dialog";
@@ -27,6 +28,18 @@ const range = (from: string | null, to: string | null) =>
 export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
   const [editingRow, setEditingRow] =
     React.useState<AttendanceComparisonRow | null>(null);
+  const [search, setSearch] = React.useState("");
+
+  const filtered = React.useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return rows;
+    return rows.filter(
+      (r) =>
+        r.employeeName.toLowerCase().includes(q) ||
+        r.employeeCode.toLowerCase().includes(q) ||
+        r.date.includes(q),
+    );
+  }, [rows, search]);
 
   const columns = React.useMemo<ColumnDef<AttendanceComparisonRow>[]>(
     () => [
@@ -60,10 +73,11 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
         cell: ({ row }) => (
           <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
             {range(row.original.actualIn, row.original.actualOut)}
+            {row.original.source === "draft" ? (
+              <Badge variant="secondary" className="text-[10px]">Draft</Badge>
+            ) : null}
             {row.original.source === "manual" ? (
-              <Badge variant="outline" className="text-[10px]">
-                Manual
-              </Badge>
+              <Badge variant="outline" className="text-[10px]">Manual</Badge>
             ) : null}
             {row.original.needsReview ? (
               <Badge variant="destructive" className="text-[10px]">
@@ -126,9 +140,12 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
 
   return (
     <>
+      <DataToolbar
+        search={{ value: search, onChange: setSearch, placeholder: "Search by name, code, or date…" }}
+      />
       <DataTable
         columns={columns}
-        data={rows}
+        data={filtered}
         initialSorting={[{ id: "date", desc: true }]}
         renderCard={(row) => {
           const meta = STATUS_META[row.status];

@@ -105,7 +105,11 @@ export function AdminCreateCashAdvanceButton({
                 <Label>Employee</Label>
                 <Select value={profileId} onValueChange={(v) => v && setProfileId(v)}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select employee…" />
+                    {selected ? (
+                      <span>{selected.firstName} {selected.lastName}</span>
+                    ) : (
+                      <span className="text-muted-foreground">Select employee…</span>
+                    )}
                   </SelectTrigger>
                   <SelectContent>
                     {employees.map((e) => (
