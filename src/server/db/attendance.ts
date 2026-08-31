@@ -148,7 +148,8 @@ export async function batchUpsertAttendanceRecords(rows: AttendanceRecordData[])
        source        = 'biometric',
        edited_by     = NULL,
        edited_at     = NULL,
-       updated_at    = EXCLUDED.updated_at`,
+       updated_at    = EXCLUDED.updated_at
+     WHERE attendance_records.source IS DISTINCT FROM 'manual'`,
     ...params,
   );
 }

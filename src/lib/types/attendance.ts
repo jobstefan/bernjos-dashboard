@@ -19,7 +19,7 @@ export interface AttendanceComparisonRow {
   /** Second mid-day gap end — manual add-in only. */
   gap2End: string | null;
   /** Origin of the actual record: parsed from an import, hand-edited, or none. */
-  source: "biometric" | "manual" | null;
+  source: "biometric" | "manual" | "draft" | null;
   status: AttendanceStatus;
   lateMinutes: number;
   undertimeMinutes: number;

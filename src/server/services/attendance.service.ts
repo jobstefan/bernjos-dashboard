@@ -18,6 +18,7 @@ import {
 } from "@/server/db/attendance";
 import { findBranchById } from "@/server/db/branches";
 import { findEmployeeByCode } from "@/server/db/employees";
+import { findDepartmentShiftsByNames } from "@/server/db/departments";
 import { findEntriesForEmployee, findEntriesForRange } from "@/server/db/schedule";
 import { auditLog } from "@/server/services/audit.service";
 import { getAdapter } from "@/lib/attendance/adapters";
@@ -296,6 +297,15 @@ export async function editAttendanceRecord(
 const dateKey = (date: Date, employeeId: string) =>
   `${date.toISOString().slice(0, 10)}|${employeeId}`;
 
+function deriveSource(
+  rec: { source: string | null; timeIn: string | null; timeOut: string | null; breakMinutes: number | null } | undefined,
+): "biometric" | "manual" | "draft" | null {
+  if (!rec) return null;
+  if (rec.source !== "manual") return rec.source as "biometric" | null;
+  const incomplete = !rec.timeIn || !rec.timeOut || rec.breakMinutes === null;
+  return incomplete ? "draft" : "manual";
+}
+
 /** Schedule (target) vs attendance (actual) for a date range, one row per day. */
 export async function getComparison(
   from: Date,
@@ -309,6 +319,9 @@ export async function getComparison(
     records.map((r) => [dateKey(r.date, r.profileId), r]),
   );
 
+  const deptNames = [...new Set(entries.map((e) => e.profile.department).filter((d): d is string => !!d))];
+  const deptShiftMap = await findDepartmentShiftsByNames(deptNames);
+
   const rows: AttendanceComparisonRow[] = [];
   const seen = new Set<string>();
 
@@ -316,13 +329,14 @@ export async function getComparison(
     const key = dateKey(entry.date, entry.profileId);
     seen.add(key);
     const rec = recByKey.get(key);
+    const deptShiftHours = entry.profile.department ? deptShiftMap.get(entry.profile.department) : undefined;
     const cmp = compareDay({
       startTime: entry.startTime,
       endTime: entry.endTime,
       timeIn: rec?.timeIn ?? null,
       timeOut: rec?.timeOut ?? null,
       breakMinutes: rec?.breakMinutes ?? null,
-    });
+    }, { deptShiftHours });
     rows.push({
       date: entry.date.toISOString().slice(0, 10),
       employeeId: entry.profileId,
@@ -336,7 +350,7 @@ export async function getComparison(
       gapEnd: rec?.gapEnd ?? null,
       gap2Start: rec?.gap2Start ?? null,
       gap2End: rec?.gap2End ?? null,
-      source: (rec?.source as "biometric" | "manual" | undefined) ?? null,
+      source: deriveSource(rec),
       status: cmp.status,
       lateMinutes: cmp.lateMinutes,
       undertimeMinutes: cmp.undertimeMinutes,
@@ -363,7 +377,7 @@ export async function getComparison(
       gapEnd: rec.gapEnd ?? null,
       gap2Start: rec.gap2Start ?? null,
       gap2End: rec.gap2End ?? null,
-      source: (rec.source as "biometric" | "manual" | undefined) ?? null,
+      source: deriveSource(rec),
       status: "no-schedule",
       lateMinutes: 0,
       undertimeMinutes: 0,
@@ -455,7 +469,7 @@ export async function summarizeForPayroll(
       timeIn: rec?.timeIn ?? null,
       timeOut: rec?.timeOut ?? null,
       breakMinutes: rec?.breakMinutes ?? null,
-    });
+    }, { deptShiftHours: standardShiftMinutes > 0 ? standardShiftMinutes / 60 : undefined });
     if (cmp.status === "absent") {
       absentDays++;
       continue;
