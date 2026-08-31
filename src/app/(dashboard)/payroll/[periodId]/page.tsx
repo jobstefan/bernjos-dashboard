@@ -10,6 +10,8 @@ import { KpiCard } from "@/components/ui/kpi-card";
 import { PeriodActions } from "@/components/payroll/period-actions";
 import { ChartCard } from "@/components/charts/chart-card";
 import { Donut } from "@/components/charts/donut";
+import { BarSeries } from "@/components/charts/bar-series";
+import { SEMANTIC_COLORS } from "@/components/charts/colors";
 import {
   RunItemsTable,
   type RunItemRow,
@@ -79,6 +81,12 @@ export default async function PeriodDetailPage({
     // Tolerate analytics failures
   }
 
+  const otData = rows
+    .filter((r) => r.otherEarnings > 0)
+    .sort((a, b) => b.otherEarnings - a.otherEarnings)
+    .slice(0, 10)
+    .map((r) => ({ name: r.employeeName, ot: r.otherEarnings }));
+
   return (
     <div className="space-y-6">
       <Link
@@ -130,15 +138,29 @@ export default async function PeriodDetailPage({
         <KpiCard label="Employees" value={rows.length} icon={<Users />} sheen={false} />
       </div>
 
-      {deductionMix.length > 0 && (
-        <div className="lg:max-w-sm">
-          <ChartCard title="Deduction Mix" description="Breakdown for this period">
-            <Donut
-              data={deductionMix}
-              centerLabel="Deductions"
-              centerValue={formatPeso(totals.deductions)}
-            />
-          </ChartCard>
+      {(deductionMix.length > 0 || otData.length > 0) && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {deductionMix.length > 0 && (
+            <ChartCard title="Deduction Mix" description="Breakdown for this period">
+              <Donut
+                data={deductionMix}
+                centerLabel="Deductions"
+                centerValue={formatPeso(totals.deductions)}
+              />
+            </ChartCard>
+          )}
+          {otData.length > 0 && (
+            <ChartCard title="Overtime Earnings" description="Top earners this period">
+              <BarSeries
+                data={otData}
+                series={[{ key: "ot", label: "OT Earnings", color: SEMANTIC_COLORS.gold }]}
+                xKey="name"
+                layout="vertical"
+                format="peso"
+                height={otData.length * 36 + 16}
+              />
+            </ChartCard>
+          )}
         </div>
       )}
 
