@@ -309,9 +309,9 @@ export async function getEmployeeHeadline(profileId: string): Promise<EmployeeHe
     getSavingsForEmployee(profileId),
   ]);
 
-  const sorted = payslips.sort(
-    (a, b) => new Date(b.period.payDate).getTime() - new Date(a.period.payDate).getTime(),
-  );
+  const sorted = payslips
+    .filter((p) => p.period.status === "paid")
+    .sort((a, b) => new Date(b.period.payDate).getTime() - new Date(a.period.payDate).getTime());
   const latest = sorted[0];
   const prior = sorted[1];
 
@@ -337,6 +337,7 @@ export interface EmployeePayslipTrendPoint {
 export async function getEmployeePayslipTrend(profileId: string): Promise<EmployeePayslipTrendPoint[]> {
   const payslips = await getEmployeePayslipHistory(profileId);
   return payslips
+    .filter((p) => p.period.status === "paid")
     .sort((a, b) => new Date(a.period.payDate).getTime() - new Date(b.period.payDate).getTime())
     .slice(-8)
     .map((p) => ({ label: p.period.label, net: p.netPay, gross: p.grossPay }));
