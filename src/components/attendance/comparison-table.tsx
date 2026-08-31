@@ -103,15 +103,15 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
       },
       {
         id: "variance",
-        header: "Late / Undertime / Overtime / Break",
+        header: "Late / Undertime / Overtime / Out",
         enableSorting: false,
         cell: ({ row }) => {
-          const { lateMinutes, undertimeMinutes, overtimeMinutes, breakMinutes } = row.original;
+          const { lateMinutes, undertimeMinutes, overtimeMinutes, breakMinutes, status } = row.original;
           const parts = [
-            lateMinutes ? `${lateMinutes}m late` : null,
+            status === "late" ? `${lateMinutes}m late` : null,
             undertimeMinutes ? `${undertimeMinutes}m under` : null,
-            overtimeMinutes ? `${overtimeMinutes}m Overtime` : null,
-            breakMinutes ? `${breakMinutes}m break` : null,
+            overtimeMinutes ? `${overtimeMinutes}m overtime` : null,
+            breakMinutes ? `${breakMinutes}m out` : null,
           ].filter(Boolean);
           if (parts.length === 0)
             return <span className="text-muted-foreground">—</span>;
@@ -149,11 +149,12 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
         initialSorting={[{ id: "date", desc: true }]}
         renderCard={(row) => {
           const meta = STATUS_META[row.status];
-          const variance = [
-            row.lateMinutes ? `${row.lateMinutes}m late` : null,
+          const varianceParts = [
+            row.status === "late" ? `${row.lateMinutes}m late` : null,
             row.undertimeMinutes ? `${row.undertimeMinutes}m under` : null,
-            row.overtimeMinutes ? `${row.overtimeMinutes}m OT` : null,
-          ].filter(Boolean).join(" · ") || "—";
+            row.overtimeMinutes ? `${row.overtimeMinutes}m overtime` : null,
+            row.breakMinutes ? `${row.breakMinutes}m out` : null,
+          ].filter(Boolean);
           return (
             <DataCard
               title={row.employeeName}
@@ -161,7 +162,14 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
               fields={[
                 { label: "Scheduled", value: <span className="text-muted-foreground">{row.scheduledStart && row.scheduledEnd ? `${row.scheduledStart} – ${row.scheduledEnd}` : "—"}</span> },
                 { label: "Actual", value: <span className="text-muted-foreground">{row.actualIn && row.actualOut ? `${row.actualIn} – ${row.actualOut}` : "—"}</span> },
-                { label: "Variance", value: variance },
+                {
+                  label: "Variance",
+                  value: varianceParts.length ? (
+                    <div className="space-y-0.5">
+                      {varianceParts.map((p, i) => <div key={i}>{p}</div>)}
+                    </div>
+                  ) : "—",
+                },
               ]}
               actions={<Badge variant={meta.variant}>{meta.label}{row.status === "late" ? ` ${row.lateMinutes}m` : ""}</Badge>}
               onClick={() => setEditingRow(row)}

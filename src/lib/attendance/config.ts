@@ -9,3 +9,9 @@ export const GRACE_MINUTES = 5;
 
 /** Minutes late before a deduction is charged. At grace+1 min, the full lateMinutes are deducted. */
 export const LATE_DEDUCTION_GRACE_MINUTES = 5;
+
+/** Hours added on top of dept shiftHours to account for break time before OT kicks in. */
+export const DEPT_SHIFT_BREAK_BUFFER_HOURS = 1;
+
+/** Minutes past the OT threshold before overtime starts counting. */
+export const OT_GRACE_MINUTES = 15;

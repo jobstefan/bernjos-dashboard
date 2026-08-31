@@ -1,4 +1,4 @@
-import { GRACE_MINUTES } from "./config";
+import { DEPT_SHIFT_BREAK_BUFFER_HOURS, GRACE_MINUTES, OT_GRACE_MINUTES } from "./config";
 
 export type AttendanceStatus = "present" | "late" | "absent" | "no-schedule";
 
@@ -46,7 +46,7 @@ const toMinutes = (hhmm: string): number => {
  */
 export function compareDay(
   input: DayComparisonInput,
-  opts: { graceMinutes?: number } = {},
+  opts: { graceMinutes?: number; deptShiftHours?: number } = {},
 ): DayComparison {
   const grace = opts.graceMinutes ?? GRACE_MINUTES;
 
@@ -84,13 +84,23 @@ export function compareDay(
   const inMin = toMinutes(input.timeIn);
   const lateMinutes = Math.max(0, inMin - startMin);
 
+  // Dept shift threshold is the sole reference for undertime/OT when available.
+  // Anchored to scheduled start (not actual clock-in) so late arrivals don't
+  // push the threshold later and double-penalise the employee.
+  // Falls back to scheduled end when no dept shift hours are provided.
+  const effectiveEnd =
+    opts.deptShiftHours != null
+      ? startMin + (opts.deptShiftHours + DEPT_SHIFT_BREAK_BUFFER_HOURS) * 60
+      : endMin;
+
   let undertimeMinutes = 0;
   let overtimeMinutes = 0;
   if (input.timeOut) {
     let outMin = toMinutes(input.timeOut);
     if (outMin < inMin) outMin += 24 * 60; // clocked out past midnight
-    undertimeMinutes = Math.max(0, endMin - outMin);
-    overtimeMinutes = Math.max(0, outMin - endMin);
+    undertimeMinutes = Math.max(0, effectiveEnd - outMin);
+    const rawOt = Math.max(0, outMin - effectiveEnd);
+    overtimeMinutes = rawOt > OT_GRACE_MINUTES ? rawOt : 0;
   }
 
   // Unresolved (odd) punches deduct nothing until an admin adds the gap manually.
