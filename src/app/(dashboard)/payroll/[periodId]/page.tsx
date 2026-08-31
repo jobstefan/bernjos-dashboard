@@ -84,7 +84,7 @@ export default async function PeriodDetailPage({
   const otData = rows
     .filter((r) => r.otherEarnings > 0)
     .sort((a, b) => b.otherEarnings - a.otherEarnings)
-    .slice(0, 10)
+    .slice(0, 6)
     .map((r) => ({ name: r.employeeName, ot: r.otherEarnings }));
 
   return (
