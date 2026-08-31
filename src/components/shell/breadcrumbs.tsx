@@ -19,7 +19,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   branches: "Branches",
   departments: "Departments",
   "cash-advances": "Cash Advances",
-  savings: "Savings",
+  savings: "Loans & Savings",
   settings: "Settings",
   users: "Users",
 };
