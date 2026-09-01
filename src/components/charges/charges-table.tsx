@@ -116,6 +116,13 @@ export function ChargesTable({
         ),
       },
       {
+        accessorKey: "branchName",
+        header: "Branch",
+        cell: ({ row }) => (
+          <span className="text-sm">{row.original.branchName}</span>
+        ),
+      },
+      {
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => <StatusPill status={row.original.status} />,
@@ -182,6 +189,7 @@ export function ChargesTable({
   const CSV_COLUMNS = [
     { header: "Employee", accessor: (r: ChargeRow) => r.employeeName },
     { header: "Code", accessor: (r: ChargeRow) => r.employeeCode },
+    { header: "Branch", accessor: (r: ChargeRow) => r.branchName },
     { header: "Amount", accessor: (r: ChargeRow) => r.amount },
     { header: "Reason", accessor: (r: ChargeRow) => r.reason },
     { header: "Status", accessor: (r: ChargeRow) => r.status },

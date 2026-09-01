@@ -23,6 +23,8 @@ function toRow(charge: NonNullable<ChargeWithRelations>): ChargeRow {
     employeeId: charge.profileId,
     employeeCode: charge.profile.employeeCode,
     employeeName: `${charge.profile.firstName} ${charge.profile.lastName}`,
+    branchId: charge.branchId,
+    branchName: charge.branch.name,
     amount: Number(charge.amount),
     reason: charge.reason,
     status: charge.status,
@@ -56,6 +58,7 @@ export async function createCharge(input: CreateChargeSchema, actor: Actor) {
 
   const charge = await insertCharge({
     profile: { connect: { id: profile.id } },
+    branch: { connect: { id: input.branchId } },
     amount: input.amount,
     reason: input.reason,
     status: "pending",

@@ -6,6 +6,7 @@ const withRelations = {
   profile: {
     select: { id: true, employeeCode: true, firstName: true, lastName: true },
   },
+  branch: { select: { id: true, name: true } },
   appliedPeriod: { select: { id: true, periodLabel: true } },
 } satisfies Prisma.ChargeInclude;
 

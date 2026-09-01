@@ -33,17 +33,30 @@ export interface EmployeeOption {
   lastName: string;
 }
 
-export function CreateChargeButton({ employees }: { employees: EmployeeOption[] }) {
+export interface BranchOption {
+  id: string;
+  name: string;
+}
+
+export function CreateChargeButton({
+  employees,
+  branches,
+}: {
+  employees: EmployeeOption[];
+  branches: BranchOption[];
+}) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
   const [profileId, setProfileId] = React.useState("");
+  const [branchId, setBranchId] = React.useState("");
   const [amount, setAmount] = React.useState("");
   const [reason, setReason] = React.useState("");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
   function reset() {
     setProfileId("");
+    setBranchId("");
     setAmount("");
     setReason("");
     setErrors({});
@@ -58,7 +71,7 @@ export function CreateChargeButton({ employees }: { employees: EmployeeOption[] 
     e.preventDefault();
     setErrors({});
     startTransition(async () => {
-      const res = await createChargeAction({ profileId, amount, reason });
+      const res = await createChargeAction({ profileId, branchId, amount, reason });
       if (res.success) {
         toast.success("Charge created. It will be deducted in the next payroll run.");
         onOpenChange(false);
@@ -77,6 +90,7 @@ export function CreateChargeButton({ employees }: { employees: EmployeeOption[] 
   }
 
   const selected = employees.find((e) => e.id === profileId);
+  const selectedBranch = branches.find((b) => b.id === branchId);
 
   return (
     <>
@@ -126,6 +140,29 @@ export function CreateChargeButton({ employees }: { employees: EmployeeOption[] 
               </div>
 
               <div className="grid gap-2">
+                <Label>Branch</Label>
+                <Select value={branchId} onValueChange={(v) => v && setBranchId(v)}>
+                  <SelectTrigger className="w-full">
+                    {selectedBranch ? (
+                      <span>{selectedBranch.name}</span>
+                    ) : (
+                      <span className="text-muted-foreground">Select branch…</span>
+                    )}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.branchId ? (
+                  <p className="text-xs text-destructive">{errors.branchId}</p>
+                ) : null}
+              </div>
+
+              <div className="grid gap-2">
                 <Label>Amount (₱)</Label>
                 <Input
                   type="number"
@@ -135,7 +172,7 @@ export function CreateChargeButton({ employees }: { employees: EmployeeOption[] 
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
-                  disabled={!profileId}
+                  disabled={!profileId || !branchId}
                 />
                 {errors.amount ? (
                   <p className="text-xs text-destructive">{errors.amount}</p>
@@ -153,7 +190,7 @@ export function CreateChargeButton({ employees }: { employees: EmployeeOption[] 
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="e.g. Cash shortage, broken equipment, etc."
                   rows={3}
-                  disabled={!profileId}
+                  disabled={!profileId || !branchId}
                 />
                 {errors.reason ? (
                   <p className="text-xs text-destructive">{errors.reason}</p>
@@ -162,7 +199,7 @@ export function CreateChargeButton({ employees }: { employees: EmployeeOption[] 
             </div>
 
             <DialogFooter>
-              <Button type="submit" disabled={pending || !profileId}>
+              <Button type="submit" disabled={pending || !profileId || !branchId}>
                 {pending ? "Creating…" : "Add charge"}
               </Button>
             </DialogFooter>

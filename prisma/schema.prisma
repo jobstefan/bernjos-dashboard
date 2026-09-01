@@ -327,6 +327,7 @@ model CashAdvance {
 model Charge {
   id              String       @id @default(cuid())
   profileId       String       @map("profile_id")
+  branchId        String       @map("branch_id")
   amount          Decimal      @db.Decimal(12, 2)
   reason          String
   status          ChargeStatus @default(pending)
@@ -338,9 +339,11 @@ model Charge {
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
   profile       UserProfile    @relation(fields: [profileId], references: [id])
+  branch        Branch         @relation(fields: [branchId], references: [id])
   appliedPeriod PayrollPeriod? @relation(fields: [appliedPeriodId], references: [id])
 
   @@index([profileId])
+  @@index([branchId])
   @@index([status])
   @@map("charges")
 }
@@ -404,6 +407,7 @@ model Branch {
   employeeDevices    EmployeeDevice[]
   attendanceImports  AttendanceImport[]
   payrollBranchItems PayrollRunItemBranch[]
+  charges            Charge[]
 
   @@map("branches")
 }
