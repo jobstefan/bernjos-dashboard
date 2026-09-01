@@ -236,10 +236,16 @@ export interface BranchSummaryLine {
   branchName: string;
   employeeCount: number;
   daysWorked: number;
-  /** Cash to pay out to employees attributed to this branch (post-overflow). */
-  netToEmployees: number;
-  /** Charges + loan repayments + cash advances tagged to this branch. */
-  taggedDeductions: number;
-  /** Incentive earnings tagged to this branch. */
-  taggedIncentives: number;
+  /** Raw gross earnings attributed to this branch (days worked × daily rate). */
+  grossShare: number;
+  /** Employee take-home pay attributed to this branch (proportional share of net). */
+  netPay: number;
+  /** Charges tagged to this branch. */
+  charges: number;
+  /** Loan repayments tagged to this branch. */
+  loanRepayments: number;
+  /** Cash advances tagged to this branch. */
+  cashAdvances: number;
+  /** Incentive earnings tagged to this branch (branch expense). */
+  incentives: number;
 }
