@@ -230,22 +230,24 @@ export interface CashAdvanceRow {
   decidedAt: string | null;
 }
 
-/** Period-level branch cost attribution — result of getPeriodBranchSummary(). */
+export interface BranchEmployeeLine {
+  employeeId: string;
+  employeeName: string;
+  employeeCode: string;
+  daysWorked: number;
+  /** Proportional share of this employee's take-home pay from this branch. */
+  netPay: number;
+}
+
+/** Period-level branch cash summary — result of getPeriodBranchSummary(). */
 export interface BranchSummaryLine {
   branchId: string | null;
   branchName: string;
   employeeCount: number;
   daysWorked: number;
-  /** Raw gross earnings attributed to this branch (days worked × daily rate). */
+  /** Sum of days × daily rate for all employees at this branch. */
   grossShare: number;
-  /** Employee take-home pay attributed to this branch (proportional share of net). */
+  /** Total take-home pay for all employees attributed to this branch (already includes all deductions and incentives). */
   netPay: number;
-  /** Charges tagged to this branch. */
-  charges: number;
-  /** Loan repayments tagged to this branch. */
-  loanRepayments: number;
-  /** Cash advances tagged to this branch. */
-  cashAdvances: number;
-  /** Incentive earnings tagged to this branch (branch expense). */
-  incentives: number;
+  employees: BranchEmployeeLine[];
 }

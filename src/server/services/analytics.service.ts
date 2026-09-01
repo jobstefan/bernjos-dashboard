@@ -6,10 +6,7 @@ import { getComparison } from "@/server/services/attendance.service";
 import { getCashAdvances, getCashAdvancesForEmployee } from "@/server/services/cash-advance.service";
 import { getSavingsAccounts, getSavingsForEmployee } from "@/server/services/savings.service";
 import { findAbsenceRequests } from "@/server/db/absence-request";
-import { findLoans, findRepaymentsForPeriod } from "@/server/db/loan";
-import { findChargesForPeriod } from "@/server/db/charge";
-import { findAdvancesForPeriod } from "@/server/db/cash-advance";
-import { findIncentivesForPeriod } from "@/server/db/incentive";
+import { findLoans } from "@/server/db/loan";
 
 // ─── Admin / Manager ────────────────────────────────────────────────────────
 
@@ -67,140 +64,45 @@ export async function getPeriodDeductionMix(periodId: string): Promise<Deduction
 }
 
 export type { BranchSummaryLine } from "@/lib/types/payroll";
-import type { BranchSummaryLine } from "@/lib/types/payroll";
+import type { BranchSummaryLine, BranchEmployeeLine } from "@/lib/types/payroll";
 
-/**
- * Computes per-branch cash attribution for a payroll period.
- *
- * Each branch's "net to employees" = gross share − attributed deductions + attributed incentives,
- * with overflow logic: if tagged deductions exceed a branch's gross share, the excess is absorbed
- * by other branches the employee worked at (proportional to their remaining gross shares).
- */
+/** Computes per-branch cash summary for a payroll period. */
 export async function getPeriodBranchSummary(periodId: string): Promise<BranchSummaryLine[]> {
-  const [items, charges, repayments, advances, incentives] = await Promise.all([
-    getPayrollRunItems(periodId),
-    findChargesForPeriod(periodId),
-    findRepaymentsForPeriod(periodId),
-    findAdvancesForPeriod(periodId),
-    findIncentivesForPeriod(periodId),
-  ]);
+  const items = await getPayrollRunItems(periodId);
 
-  // Build per-employee finance maps keyed by branchId (null = untagged)
-  type FinanceMap = Map<string, Map<string | null, number>>;
-
-  const chargesByEmployee: FinanceMap = new Map();
-  const repaymentsByEmployee: FinanceMap = new Map();
-  const advancesByEmployee: FinanceMap = new Map();
-  const incentivesByEmployee: FinanceMap = new Map();
-
-  function addToMap(map: FinanceMap, profileId: string, branchId: string | null, amount: number) {
-    if (!map.has(profileId)) map.set(profileId, new Map());
-    const byBranch = map.get(profileId)!;
-    byBranch.set(branchId, (byBranch.get(branchId) ?? 0) + amount);
-  }
-
-  for (const c of charges) addToMap(chargesByEmployee, c.profileId, c.branchId, Number(c.amount));
-  // Repayments: stored for branch attribution ratios only — total comes from item.loanDeduction
-  for (const r of repayments) addToMap(repaymentsByEmployee, r.loan.profileId, r.loan.branchId, Number(r.amount));
-  for (const a of advances) addToMap(advancesByEmployee, a.profileId, a.branchId, Number(a.approvedAmount ?? a.amount));
-  for (const i of incentives) addToMap(incentivesByEmployee, i.profileId, i.branchId, Number(i.amount));
-
-  // Authoritative loan deduction per employee — what payroll actually withheld this period
-  const loanDeductionByEmployee = new Map<string, number>();
-  for (const item of items) {
-    const total = Number(item.loanDeduction);
-    if (total > 0) loanDeductionByEmployee.set(item.profileId, total);
-  }
-
-  // Accumulate per-branch totals across all employees
   const summary = new Map<string | null, {
     branchName: string;
     employeeIds: Set<string>;
     daysWorked: number;
     grossShare: number;
     netPay: number;
-    charges: number;
-    loanRepayments: number;
-    cashAdvances: number;
-    incentives: number;
+    employees: BranchEmployeeLine[];
   }>();
 
   function getOrInit(branchId: string | null, branchName: string) {
     if (!summary.has(branchId)) {
-      summary.set(branchId, { branchName, employeeIds: new Set(), daysWorked: 0, grossShare: 0, netPay: 0, charges: 0, loanRepayments: 0, cashAdvances: 0, incentives: 0 });
+      summary.set(branchId, { branchName, employeeIds: new Set(), daysWorked: 0, grossShare: 0, netPay: 0, employees: [] });
     }
     return summary.get(branchId)!;
   }
 
   for (const item of items) {
     if (!item.branches.length) continue;
-
-    const profileId = item.profileId;
     const dailyRate = Number(item.basicSalary);
-    const empCharges = chargesByEmployee.get(profileId) ?? new Map<string | null, number>();
-    const empRepayments = repaymentsByEmployee.get(profileId) ?? new Map<string | null, number>();
-    const empAdvances = advancesByEmployee.get(profileId) ?? new Map<string | null, number>();
-    const empIncentives = incentivesByEmployee.get(profileId) ?? new Map<string | null, number>();
-
-    // Gross share per branch
-    const grossPerBranch = new Map<string | null, number>();
-    let totalGross = 0;
-    for (const b of item.branches) {
-      const gross = Number(b.daysWorked) * dailyRate;
-      grossPerBranch.set(b.branchId ?? null, gross);
-      totalGross += gross;
-    }
-
-    // Distribute a finance map: tagged branch gets assigned; untagged splits proportionally by gross
-    function distributeFinance(financeMap: Map<string | null, number>): Map<string | null, number> {
-      const result = new Map<string | null, number>();
-      for (const branchId of grossPerBranch.keys()) result.set(branchId, 0);
-      for (const [branchId, amount] of financeMap) {
-        if (branchId !== null && grossPerBranch.has(branchId)) {
-          result.set(branchId, (result.get(branchId) ?? 0) + amount);
-        } else if (totalGross > 0) {
-          for (const [bid, gross] of grossPerBranch) {
-            result.set(bid, (result.get(bid) ?? 0) + amount * (gross / totalGross));
-          }
-        }
-      }
-      return result;
-    }
-
-    const chargesPerBranch = distributeFinance(empCharges);
-    const advancesPerBranch = distributeFinance(empAdvances);
-    const incentivesPerBranch = distributeFinance(empIncentives);
-
-    // Loan repayments: use authoritative total from item.loanDeduction, repayment records for branch ratios
-    const authLoanTotal = loanDeductionByEmployee.get(profileId) ?? 0;
-    let repaymentsPerBranch: Map<string | null, number>;
-    if (authLoanTotal === 0) {
-      repaymentsPerBranch = new Map(Array.from(grossPerBranch.keys()).map((k) => [k, 0]));
-    } else if (empRepayments.size === 0) {
-      // No branch tags — spread by gross share
-      repaymentsPerBranch = distributeFinance(new Map([[null, authLoanTotal]]));
-    } else {
-      // Scale repayment records to the authoritative total (fixes any DB drift in amounts)
-      const repaymentRawTotal = Array.from(empRepayments.values()).reduce((s, v) => s + v, 0);
-      const scale = repaymentRawTotal > 0 ? authLoanTotal / repaymentRawTotal : 1;
-      const scaled = new Map<string | null, number>();
-      for (const [bid, amt] of empRepayments) scaled.set(bid, amt * scale);
-      repaymentsPerBranch = distributeFinance(scaled);
-    }
-
-    // Accumulate raw numbers — no overflow redistribution; let the drawer surface the shortfall
     for (const b of item.branches) {
       const branchId = b.branchId ?? null;
-      const branchName = b.branch?.name ?? "Unassigned";
-      const entry = getOrInit(branchId, branchName);
-      entry.employeeIds.add(profileId);
+      const entry = getOrInit(branchId, b.branch?.name ?? "Unassigned");
+      entry.employeeIds.add(item.profileId);
       entry.daysWorked += Number(b.daysWorked);
       entry.grossShare += Number(b.daysWorked) * dailyRate;
       entry.netPay += Number(b.netPay);
-      entry.charges += chargesPerBranch.get(branchId) ?? 0;
-      entry.loanRepayments += repaymentsPerBranch.get(branchId) ?? 0;
-      entry.cashAdvances += advancesPerBranch.get(branchId) ?? 0;
-      entry.incentives += incentivesPerBranch.get(branchId) ?? 0;
+      entry.employees.push({
+        employeeId: item.profileId,
+        employeeName: `${item.profile.firstName} ${item.profile.lastName}`,
+        employeeCode: item.profile.employeeCode,
+        daysWorked: Number(b.daysWorked),
+        netPay: Math.round(Number(b.netPay) * 100) / 100,
+      });
     }
   }
 
@@ -212,10 +114,7 @@ export async function getPeriodBranchSummary(periodId: string): Promise<BranchSu
       daysWorked: v.daysWorked,
       grossShare: Math.round(v.grossShare * 100) / 100,
       netPay: Math.round(v.netPay * 100) / 100,
-      charges: Math.round(v.charges * 100) / 100,
-      loanRepayments: Math.round(v.loanRepayments * 100) / 100,
-      cashAdvances: Math.round(v.cashAdvances * 100) / 100,
-      incentives: Math.round(v.incentives * 100) / 100,
+      employees: v.employees.sort((a, b) => b.netPay - a.netPay),
     }))
     .sort((a, b) => b.grossShare - a.grossShare);
 }
