@@ -8,13 +8,16 @@ import { DataCard } from "@/components/ui/data-card";
 import { DataToolbar } from "@/components/ui/data-toolbar";
 import { DetailDrawer } from "@/components/ui/detail-drawer";
 import { Button } from "@/components/ui/button";
+import { Building2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   PayslipBreakdown,
   type PayslipView,
 } from "@/components/payroll/payslip-breakdown";
+import { BranchSummaryBreakdown } from "@/components/payroll/branch-summary-breakdown";
 import { updatePayslipRemarksAction } from "@/app/actions/payroll.actions";
+import type { BranchSummaryRow } from "@/server/services/analytics.service";
 import { formatPeso } from "@/lib/utils/payroll";
 import { exportToCsv } from "@/lib/utils/csv";
 import { toneClass } from "@/lib/utils/tone";
@@ -60,13 +63,16 @@ export function RunItemsTable({
   rows,
   periodLabel,
   canEditRemarks = false,
+  branchSummary,
 }: {
   rows: RunItemRow[];
   periodLabel: string;
   canEditRemarks?: boolean;
+  branchSummary?: BranchSummaryRow[];
 }) {
   const [selected, setSelected] = React.useState<RunItemRow | null>(null);
   const [search, setSearch] = React.useState("");
+  const [branchSummaryOpen, setBranchSummaryOpen] = React.useState(false);
 
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -201,6 +207,11 @@ export function RunItemsTable({
         search={{ value: search, onChange: setSearch, placeholder: "Search employee, code, department…" }}
         onExport={() => exportToCsv(`${periodLabel}-payroll`, CSV_COLUMNS, filtered)}
       >
+        {branchSummary && (
+          <Button variant="outline" size="sm" onClick={() => setBranchSummaryOpen(true)}>
+            <Building2 className="size-4" /> Branch Summary
+          </Button>
+        )}
       </DataToolbar>
       <DataTable
         columns={columns}
@@ -232,6 +243,16 @@ export function RunItemsTable({
         footer={remarksFooter}
       >
         {view ? <PayslipBreakdown payslip={view} /> : null}
+      </DetailDrawer>
+
+      <DetailDrawer
+        open={branchSummaryOpen}
+        onOpenChange={setBranchSummaryOpen}
+        title="Branch Summary"
+        description={`Cash breakdown by branch for ${periodLabel}`}
+        className="sm:max-w-lg"
+      >
+        {branchSummary && <BranchSummaryBreakdown rows={branchSummary} />}
       </DetailDrawer>
     </div>
   );
