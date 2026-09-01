@@ -367,6 +367,7 @@ export async function getComparison(
       overtimeMinutes: cmp.overtimeMinutes,
       breakMinutes: cmp.breakMinutes,
       needsReview: cmp.needsReview,
+      branchName: entry.branch?.name ?? null,
     });
   }
 
@@ -394,6 +395,7 @@ export async function getComparison(
       overtimeMinutes: 0,
       breakMinutes: rec.breakMinutes ?? 0,
       needsReview: rec.timeIn !== null && rec.breakMinutes === null,
+      branchName: null,
     });
   }
 

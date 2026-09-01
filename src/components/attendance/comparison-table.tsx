@@ -57,6 +57,16 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
         ),
       },
       {
+        accessorKey: "branchName",
+        header: "Branch",
+        cell: ({ row }) =>
+          row.original.branchName ? (
+            <span className="text-sm">{row.original.branchName}</span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+      },
+      {
         id: "scheduled",
         header: "Scheduled",
         enableSorting: false,
@@ -160,6 +170,7 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
               title={row.employeeName}
               subtitle={`${row.employeeCode} · ${row.date}`}
               fields={[
+                { label: "Branch", value: row.branchName ?? "—" },
                 { label: "Scheduled", value: <span className="text-muted-foreground">{row.scheduledStart && row.scheduledEnd ? `${row.scheduledStart} – ${row.scheduledEnd}` : "—"}</span> },
                 { label: "Actual", value: <span className="text-muted-foreground">{row.actualIn && row.actualOut ? `${row.actualIn} – ${row.actualOut}` : "—"}</span> },
                 {
