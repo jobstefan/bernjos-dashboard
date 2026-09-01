@@ -187,6 +187,8 @@ export interface IncentiveRow {
   employeeId: string;
   employeeCode: string;
   employeeName: string;
+  branchId: string | null;
+  branchName: string | null;
   amount: number;
   reason: string | null;
   status: IncentiveStatus;

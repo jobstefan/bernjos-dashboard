@@ -3,10 +3,12 @@ import { Gift } from "lucide-react";
 import { isAdmin, getCurrentRole } from "@/lib/auth/rbac";
 import { getIncentives } from "@/server/services/incentive.service";
 import { getEmployees } from "@/server/services/employee.service";
+import { findBranches } from "@/server/db/branches";
 import { IncentivesTable } from "@/components/incentives/incentives-table";
 import {
   CreateIncentiveButton,
   type EmployeeOption,
+  type BranchOption,
 } from "@/components/incentives/create-incentive-button";
 import { EmptyState } from "@/components/payroll/empty-state";
 
@@ -14,10 +16,13 @@ export default async function IncentivesPage() {
   const role = await getCurrentRole();
   if (!isAdmin(role)) redirect("/");
 
-  const [rows, employeeProfiles] = await Promise.all([
+  const [rows, employeeProfiles, branchRows] = await Promise.all([
     getIncentives(),
     getEmployees({ employmentStatus: "active" }),
+    findBranches(),
   ]);
+
+  const branchOptions: BranchOption[] = branchRows.map((b) => ({ id: b.id, name: b.name }));
 
   const pendingCount = rows.filter((r) => r.status === "pending").length;
 
@@ -41,7 +46,7 @@ export default async function IncentivesPage() {
           </p>
         </div>
         {employeeOptions.length > 0 && (
-          <CreateIncentiveButton employees={employeeOptions} />
+          <CreateIncentiveButton employees={employeeOptions} branches={branchOptions} />
         )}
       </div>
 

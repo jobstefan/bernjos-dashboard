@@ -105,6 +105,16 @@ export function IncentivesTable({ rows }: { rows: IncentiveRow[] }) {
         ),
       },
       {
+        accessorKey: "branchName",
+        header: "Branch",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {row.original.branchName ?? "—"}
+          </span>
+        ),
+      },
+      {
         accessorKey: "reason",
         header: "Reason",
         enableSorting: false,
@@ -176,6 +186,7 @@ export function IncentivesTable({ rows }: { rows: IncentiveRow[] }) {
   const CSV_COLUMNS = [
     { header: "Employee", accessor: (r: IncentiveRow) => r.employeeName },
     { header: "Code", accessor: (r: IncentiveRow) => r.employeeCode },
+    { header: "Branch", accessor: (r: IncentiveRow) => r.branchName ?? "" },
     { header: "Amount", accessor: (r: IncentiveRow) => r.amount },
     { header: "Reason", accessor: (r: IncentiveRow) => r.reason ?? "" },
     { header: "Status", accessor: (r: IncentiveRow) => r.status },
