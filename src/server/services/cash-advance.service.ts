@@ -148,6 +148,7 @@ export async function approveCashAdvance(
   approvedAmount: number,
   note: string | null,
   actor: Actor,
+  branchId: string,
 ) {
   const before = await findCashAdvanceById(id);
   if (!before) throw new NotFoundError("Cash advance", id);
@@ -164,6 +165,7 @@ export async function approveCashAdvance(
   const after = await updateCashAdvance(id, {
     status: "approved",
     approvedAmount,
+    branch: { connect: { id: branchId } },
     decidedBy: actor.clerkUserId,
     decidedAt: new Date(),
     decisionNote: note ?? null,

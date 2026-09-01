@@ -95,26 +95,35 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
         ) : null}
       </div>
 
+      {((payslip.absentDays ?? 0) > 0 || (payslip.dayOffDays ?? 0) > 0) ? (
+        <>
+          <Separator />
+          <div>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Attendance
+            </div>
+            {(payslip.absentDays ?? 0) > 0 ? (
+              <div className="flex items-center justify-between py-1.5 text-sm">
+                <span className="text-muted-foreground">Absent</span>
+                <span className="text-foreground">{payslip.absentDays} day{payslip.absentDays === 1 ? "" : "s"}</span>
+              </div>
+            ) : null}
+            {(payslip.dayOffDays ?? 0) > 0 ? (
+              <div className="flex items-center justify-between py-1.5 text-sm">
+                <span className="text-muted-foreground">Day-off</span>
+                <span className="text-foreground">{payslip.dayOffDays} day{payslip.dayOffDays === 1 ? "" : "s"}</span>
+              </div>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+
       <Separator />
 
       <div>
         <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Deductions
         </div>
-        {(payslip.absentDays ?? 0) > 0 ? (
-          <Line
-            label={`Absent (${payslip.absentDays} day${payslip.absentDays === 1 ? "" : "s"})`}
-            value={(payslip.absentDays ?? 0) * payslip.basicSalary}
-            negative
-          />
-        ) : null}
-        {(payslip.dayOffDays ?? 0) > 0 ? (
-          <Line
-            label={`Day-off (${payslip.dayOffDays} day${payslip.dayOffDays === 1 ? "" : "s"})`}
-            value={(payslip.dayOffDays ?? 0) * payslip.basicSalary}
-            negative
-          />
-        ) : null}
         {payslip.sssEmployee > 0 ? (
           <Line label="SSS" value={payslip.sssEmployee} negative />
         ) : null}
@@ -155,27 +164,6 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
             />
             <p className="pt-1 text-xs text-muted-foreground">
               Held in your savings account — this is your money, not a deduction.
-            </p>
-          </div>
-        </>
-      ) : null}
-
-      {payslip.branchBreakdown && payslip.branchBreakdown.length > 0 ? (
-        <>
-          <Separator />
-          <div>
-            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Net pay by branch
-            </div>
-            {payslip.branchBreakdown.map((b, i) => (
-              <Line
-                key={`${b.branchName}-${i}`}
-                label={`${b.branchName} (${b.daysWorked} day${b.daysWorked === 1 ? "" : "s"})`}
-                value={b.netPay}
-              />
-            ))}
-            <p className="pt-1 text-xs text-muted-foreground">
-              Take-home split by branch worked — pull each amount from that branch.
             </p>
           </div>
         </>

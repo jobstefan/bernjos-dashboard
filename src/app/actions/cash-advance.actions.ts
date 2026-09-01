@@ -84,6 +84,7 @@ export async function approveCashAdvanceAction(
       parsed.data.approvedAmount,
       parsed.data.note ?? null,
       actor,
+      parsed.data.branchId,
     );
     revalidate();
     return { success: true, data: { id: advance.id } };

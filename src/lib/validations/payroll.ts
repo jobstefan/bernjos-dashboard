@@ -131,6 +131,7 @@ export type AdminCreateCashAdvanceSchema = z.infer<typeof adminCreateCashAdvance
 
 export const approveCashAdvanceSchema = z.object({
   id: z.string().min(1),
+  branchId: z.string().min(1, "Select a branch."),
   approvedAmount: z.coerce
     .number()
     .positive("Approved amount must be greater than zero.")

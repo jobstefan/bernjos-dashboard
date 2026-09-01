@@ -33,6 +33,7 @@ import {
   ApproveDialog,
   DeclineDialog,
 } from "@/components/cash-advances/decision-dialogs";
+import type { BranchOption } from "@/components/cash-advances/admin-create-cash-advance-button";
 import {
   cancelCashAdvanceAction,
   deleteCashAdvanceAction,
@@ -74,6 +75,7 @@ export function CashAdvancesTable({
   canApprove = false,
   canDelete = false,
   hideSearch = false,
+  branches = [],
 }: {
   rows: CashAdvanceRow[];
   /** "admin" shows the employee column + approve/decline; "mine" shows cancel. */
@@ -81,6 +83,7 @@ export function CashAdvancesTable({
   canApprove?: boolean;
   canDelete?: boolean;
   hideSearch?: boolean;
+  branches?: BranchOption[];
 }) {
   const router = useRouter();
   const [status, setStatus] = React.useState(ALL);
@@ -318,6 +321,7 @@ export function CashAdvancesTable({
       <ApproveDialog
         advance={toApprove}
         onOpenChange={(open) => !open && setToApprove(null)}
+        branches={branches}
       />
       <DeclineDialog
         advance={toDecline}

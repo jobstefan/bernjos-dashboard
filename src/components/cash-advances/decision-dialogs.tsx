@@ -16,28 +16,39 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   approveCashAdvanceAction,
   declineCashAdvanceAction,
 } from "@/app/actions/cash-advance.actions";
 import { formatPeso } from "@/lib/utils/payroll";
 import type { CashAdvanceRow } from "@/lib/types/payroll";
+import type { BranchOption } from "@/components/cash-advances/admin-create-cash-advance-button";
 
 export function ApproveDialog({
   advance,
   onOpenChange,
+  branches = [],
 }: {
   advance: CashAdvanceRow | null;
   onOpenChange: (open: boolean) => void;
+  branches?: BranchOption[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
   const [amount, setAmount] = React.useState<string>("");
+  const [branchId, setBranchId] = React.useState<string>("");
 
-  // Reset the amount field to the requested amount whenever a new advance opens.
   React.useEffect(() => {
     if (advance) {
       setAmount(String(advance.amount));
+      setBranchId(advance.branchId ?? "");
       setError(null);
     }
   }, [advance]);
@@ -50,6 +61,7 @@ export function ApproveDialog({
     const form = new FormData(e.currentTarget);
     const input = {
       id: advance.id,
+      branchId,
       approvedAmount: String(form.get("approvedAmount") ?? ""),
       note: String(form.get("note") ?? ""),
     };
@@ -90,6 +102,27 @@ export function ApproveDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {branches.length > 0 && (
+              <div className="grid gap-2">
+                <Label>Branch</Label>
+                <Select value={branchId} onValueChange={(v) => v && setBranchId(v)}>
+                  <SelectTrigger className="w-full">
+                    {branchId ? (
+                      <span>{branches.find((b) => b.id === branchId)?.name}</span>
+                    ) : (
+                      <span className="text-muted-foreground">Select branch…</span>
+                    )}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid gap-2">
               <Label>Approved amount (₱)</Label>
               <Input
@@ -115,7 +148,7 @@ export function ApproveDialog({
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" disabled={pending || (branches.length > 0 && !branchId)}>
               {pending ? "Approving…" : "Approve"}
             </Button>
           </DialogFooter>
