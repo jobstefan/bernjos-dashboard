@@ -2,32 +2,28 @@
 
 import { Separator } from "@/components/ui/separator";
 import { formatPeso } from "@/lib/utils/payroll";
-import type { BranchSummaryRow } from "@/server/services/analytics.service";
 
-export interface EmployeeBranchSplitProps {
+export interface BranchSplitProps {
   employeeName: string;
   position: string;
   periodLabel: string;
   branches: {
     branchName: string;
     daysWorked: number;
-    grossShare: number;
-    cashAdvance: number;
-    loanRepayment: number;
-    charges: number;
-    incentives: number;
+    netPay: number;
+    /** Actual branch cash responsibility (gross share minus branch-tagged finance). Falls back to netPay if unavailable. */
     netCash: number;
   }[];
   totalNetPay: number;
 }
 
-export function EmployeeBranchSplit({
+export function BranchSplitBreakdown({
   employeeName,
   position,
   periodLabel,
   branches,
   totalNetPay,
-}: EmployeeBranchSplitProps) {
+}: BranchSplitProps) {
   if (branches.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -50,7 +46,6 @@ export function EmployeeBranchSplit({
         <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Branch
         </div>
-
         {branches.map((b) => (
           <div key={b.branchName} className="flex items-center justify-between py-1.5 text-sm">
             <div>
@@ -79,28 +74,4 @@ export function EmployeeBranchSplit({
       </div>
     </div>
   );
-}
-
-/** Extract this employee's branch lines from the period-level summary. */
-export function getEmployeeBranches(
-  branchSummary: BranchSummaryRow[],
-  profileId: string,
-) {
-  const result: EmployeeBranchSplitProps["branches"] = [];
-  for (const row of branchSummary) {
-    const line = row.employees.find((e) => e.profileId === profileId);
-    if (line) {
-      result.push({
-        branchName: row.branchName,
-        daysWorked: line.daysWorked,
-        grossShare: line.grossShare,
-        cashAdvance: line.cashAdvance,
-        loanRepayment: line.loanRepayment,
-        charges: line.charges,
-        incentives: line.incentives,
-        netCash: line.netCash,
-      });
-    }
-  }
-  return result;
 }

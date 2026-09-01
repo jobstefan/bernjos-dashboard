@@ -16,12 +16,9 @@ import {
   PayslipBreakdown,
   type PayslipView,
 } from "@/components/payroll/payslip-breakdown";
-import {
-  EmployeeBranchSplit,
-  getEmployeeBranches,
-} from "@/components/payroll/branch-summary-breakdown";
+import { BranchSplitBreakdown } from "@/components/payroll/branch-split-breakdown";
 import { updatePayslipRemarksAction, toggleRunItemStatusAction } from "@/app/actions/payroll.actions";
-import type { BranchSummaryRow } from "@/server/services/analytics.service";
+import type { BranchCashRow } from "@/server/services/analytics.service";
 import { formatPeso } from "@/lib/utils/payroll";
 import { exportToCsv } from "@/lib/utils/csv";
 import { toneClass } from "@/lib/utils/tone";
@@ -29,8 +26,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 export interface RunItemRow {
@@ -74,12 +71,12 @@ export function RunItemsTable({
   rows,
   periodLabel,
   canEditRemarks = false,
-  branchSummary,
+  branchCash,
 }: {
   rows: RunItemRow[];
   periodLabel: string;
   canEditRemarks?: boolean;
-  branchSummary?: BranchSummaryRow[];
+  branchCash?: BranchCashRow[];
 }) {
   const router = useRouter();
   const [selected, setSelected] = React.useState<RunItemRow | null>(null);
@@ -315,24 +312,17 @@ export function RunItemsTable({
         title="Branch Split"
       >
         {branchSplitRow && (
-          <EmployeeBranchSplit
+          <BranchSplitBreakdown
             employeeName={branchSplitRow.employeeName}
             position={branchSplitRow.position}
             periodLabel={periodLabel}
-            branches={
-              branchSummary
-                ? getEmployeeBranches(branchSummary, branchSplitRow.employeeId)
-                : branchSplitRow.branchBreakdown.map((b) => ({
-                    branchName: b.branchName,
-                    daysWorked: b.daysWorked,
-                    grossShare: b.netPay,
-                    cashAdvance: 0,
-                    loanRepayment: 0,
-                    charges: 0,
-                    incentives: 0,
-                    netCash: b.netPay,
-                  }))
-            }
+            branches={branchSplitRow.branchBreakdown.map((b) => {
+              const netCash = branchCash
+                ?.find((r) => r.branchName === b.branchName)
+                ?.employees.find((e) => e.profileId === branchSplitRow.employeeId)
+                ?.netCash;
+              return { ...b, netCash: netCash ?? b.netPay };
+            })}
             totalNetPay={branchSplitRow.netPay}
           />
         )}

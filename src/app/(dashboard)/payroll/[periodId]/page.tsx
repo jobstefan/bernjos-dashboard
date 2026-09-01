@@ -4,7 +4,7 @@ import { ArrowLeft, Users } from "lucide-react";
 import { getCurrentRole, canViewPayroll, isAdmin, isSuperAdmin } from "@/lib/auth/rbac";
 import { findPeriodById } from "@/server/db/payroll";
 import { getPayrollRunItems } from "@/server/services/payroll.service";
-import { getPeriodDeductionMix, getBranchSummaryForPeriod } from "@/server/services/analytics.service";
+import { getPeriodDeductionMix, getBranchCashForPeriod } from "@/server/services/analytics.service";
 import { StatusBadge } from "@/components/payroll/status-badge";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { PeriodActions } from "@/components/payroll/period-actions";
@@ -89,16 +89,16 @@ export default async function PeriodDetailPage({
     { gross: 0, deductions: 0, net: 0 },
   );
 
-  let deductionMix: Awaited<ReturnType<typeof getPeriodDeductionMix>> = [];
+  let branchCash: Awaited<ReturnType<typeof getBranchCashForPeriod>> = [];
   try {
-    deductionMix = await getPeriodDeductionMix(periodId);
+    branchCash = await getBranchCashForPeriod(periodId);
   } catch {
     // Tolerate analytics failures
   }
 
-  let branchSummary: Awaited<ReturnType<typeof getBranchSummaryForPeriod>> = [];
+  let deductionMix: Awaited<ReturnType<typeof getPeriodDeductionMix>> = [];
   try {
-    branchSummary = await getBranchSummaryForPeriod(periodId);
+    deductionMix = await getPeriodDeductionMix(periodId);
   } catch {
     // Tolerate analytics failures
   }
@@ -200,7 +200,7 @@ export default async function PeriodDetailPage({
           rows={rows}
           periodLabel={period.periodLabel}
           canEditRemarks={admin}
-          branchSummary={branchSummary.length > 0 ? branchSummary : undefined}
+          branchCash={branchCash.length > 0 ? branchCash : undefined}
         />
       )}
     </div>
