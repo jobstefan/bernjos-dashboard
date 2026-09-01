@@ -2,7 +2,6 @@ import { z } from "zod";
 
 export const createDepartmentSchema = z.object({
   name: z.string().trim().min(1, "Department name is required."),
-  shiftHours: z.number().int().min(1, "Shift must be at least 1 hour.").max(24, "Shift cannot exceed 24 hours.").default(8),
 });
 
 export const updateDepartmentSchema = createDepartmentSchema.partial().extend({

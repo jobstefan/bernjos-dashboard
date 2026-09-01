@@ -34,7 +34,6 @@ function toRow(dept: DepartmentWithPositionRows): DepartmentWithPositions {
   return {
     id: dept.id,
     name: dept.name,
-    shiftHours: dept.shiftHours,
     createdAt: dept.createdAt.toISOString(),
     positionCount: dept.positions.length,
     positions: dept.positions.map((p) => ({
@@ -58,7 +57,6 @@ export async function getDepartmentOptions(): Promise<DepartmentOption[]> {
   return departments.map((d) => ({
     id: d.id,
     name: d.name,
-    shiftHours: d.shiftHours,
     positions: d.positions.map((p) => ({ id: p.id, name: p.name, shiftHours: p.shiftHours })),
   }));
 }
@@ -67,7 +65,7 @@ export async function createDepartment(
   input: CreateDepartmentSchema,
   actor: Actor,
 ): Promise<Department> {
-  const department = await insertDepartment({ name: input.name, shiftHours: input.shiftHours ?? 8 });
+  const department = await insertDepartment({ name: input.name });
   await auditLog({
     actor,
     action: "department.created",
@@ -88,7 +86,6 @@ export async function updateDepartment(
 
   const after = await updateDepartmentRow(id, {
     ...(input.name !== undefined ? { name: input.name } : {}),
-    ...(input.shiftHours !== undefined ? { shiftHours: input.shiftHours } : {}),
   });
   await auditLog({
     actor,

@@ -31,7 +31,6 @@ import type { PositionRow } from "@/lib/types/organization";
 interface DepartmentChoice {
   id: string;
   name: string;
-  shiftHours: number;
 }
 
 /**
@@ -66,17 +65,10 @@ export function PositionDialog({
   React.useEffect(() => {
     if (open) {
       setName(position?.name ?? "");
-      const deptId = position?.departmentId ?? defaultDepartmentId ?? "";
-      setDepartmentId(deptId);
-      if (position?.shiftHours !== undefined) {
-        setShiftHours(position.shiftHours);
-      } else {
-        // Pre-fill from the locked/selected department's shift hours.
-        const dept = departments.find((d) => d.id === deptId);
-        setShiftHours(dept?.shiftHours ?? 8);
-      }
+      setDepartmentId(position?.departmentId ?? defaultDepartmentId ?? "");
+      setShiftHours(position?.shiftHours ?? 8);
     }
-  }, [open, position, defaultDepartmentId, departments]);
+  }, [open, position, defaultDepartmentId]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -133,11 +125,7 @@ export function PositionDialog({
                 <Label>Department</Label>
                 <Select
                   value={departmentId}
-                  onValueChange={(v) => {
-                    setDepartmentId(v ?? "");
-                    const dept = departments.find((d) => d.id === v);
-                    if (dept) setShiftHours(dept.shiftHours);
-                  }}
+                  onValueChange={(v) => setDepartmentId(v ?? "")}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a department">
