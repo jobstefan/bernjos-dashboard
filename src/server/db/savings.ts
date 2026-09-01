@@ -79,6 +79,14 @@ export function upsertSavingsAccount(input: {
   });
 }
 
+export function updateSavingsAccountFrozen(accountId: string, frozen: boolean) {
+  return prisma.savingsAccount.update({
+    where: { id: accountId },
+    data: { frozen },
+    include: withRelations,
+  });
+}
+
 export function insertSavingsTransaction(input: {
   accountId: string;
   type: string;

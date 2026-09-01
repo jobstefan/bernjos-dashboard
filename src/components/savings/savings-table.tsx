@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
+import { toast } from "sonner";
 import { DataTable } from "@/components/payroll/data-table";
 import { DataCard } from "@/components/ui/data-card";
 import { DataToolbar } from "@/components/ui/data-toolbar";
@@ -19,7 +21,7 @@ import {
 import { SavingsAccountDialog } from "@/components/savings/savings-account-dialog";
 import { SavingsAdjustmentDialog } from "@/components/savings/savings-adjustment-dialog";
 import { SavingsLedger } from "@/components/savings/savings-ledger";
-import { CreateLoanDialog } from "@/components/loans/create-loan-dialog";
+import { setSavingsFrozenAction } from "@/app/actions/savings.actions";
 import { formatDate, formatPeso } from "@/lib/utils/payroll";
 import { exportToCsv } from "@/lib/utils/csv";
 import type { SavingsAccountRow } from "@/lib/types/savings";
@@ -33,10 +35,11 @@ export function SavingsTable({
   rows: SavingsAccountRow[];
   availableToBorrowMap?: Record<string, number>;
 }) {
+  const router = useRouter();
   const [toEdit, setToEdit] = React.useState<SavingsAccountRow | null>(null);
   const [toAdjust, setToAdjust] = React.useState<SavingsAccountRow | null>(null);
-  const [toLoan, setToLoan] = React.useState<SavingsAccountRow | null>(null);
   const [toView, setToView] = React.useState<SavingsAccountRow | null>(null);
+  const [pending, startTransition] = React.useTransition();
   const [search, setSearch] = React.useState("");
   const [frozenFilter, setFrozenFilter] = React.useState<string>(ALL);
 
@@ -50,6 +53,18 @@ export function SavingsTable({
     });
     return result.sort((a, b) => Number(a.frozen) - Number(b.frozen));
   }, [rows, search, frozenFilter]);
+
+  function toggleFrozen(acct: SavingsAccountRow, frozen: boolean) {
+    startTransition(async () => {
+      const res = await setSavingsFrozenAction({ accountId: acct.accountId, frozen });
+      if (res.success) {
+        toast.success(frozen ? "Account frozen." : "Account unfrozen.");
+        router.refresh();
+      } else {
+        toast.error(res.error ?? "Something went wrong.");
+      }
+    });
+  }
 
   const columns = React.useMemo<ColumnDef<SavingsAccountRow>[]>(
     () => [
@@ -103,39 +118,57 @@ export function SavingsTable({
         id: "actions",
         header: "",
         enableSorting: false,
-        cell: ({ row }) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button variant="ghost" size="icon-sm" aria-label="Row actions">
-                  <MoreHorizontal className="size-4" />
-                </Button>
-              }
-            />
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setToView(row.original)}>
-                View history
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={row.original.frozen}
-                onClick={() => setToEdit(row.original)}
-              >
-                Edit contribution
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setToAdjust(row.original)}>
-                Record withdrawal / adjustment
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                disabled={row.original.frozen || (availableToBorrowMap[row.original.employeeId] ?? row.original.balance) <= 0}
-                onClick={() => setToLoan(row.original)}
-              >
-                Create loan
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ),
+        cell: ({ row }) => {
+          const acct = row.original;
+          const inactiveByEmployment = acct.frozen && !acct.frozenByAdmin;
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button variant="ghost" size="icon-sm" aria-label="Row actions">
+                    <MoreHorizontal className="size-4" />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setToView(acct)}>
+                  View history
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={acct.frozen}
+                  onClick={() => setToEdit(acct)}
+                >
+                  Edit contribution
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setToAdjust(acct)}>
+                  Record withdrawal / adjustment
+                </DropdownMenuItem>
+                {!inactiveByEmployment && (
+                  <>
+                    <DropdownMenuSeparator />
+                    {acct.frozenByAdmin ? (
+                      <DropdownMenuItem
+                        disabled={pending}
+                        onClick={() => toggleFrozen(acct, false)}
+                      >
+                        Unfreeze account
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem
+                        disabled={pending}
+                        className="text-amber-600"
+                        onClick={() => toggleFrozen(acct, true)}
+                      >
+                        Freeze account
+                      </DropdownMenuItem>
+                    )}
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        },
       },
     ],
     [],
@@ -209,12 +242,6 @@ export function SavingsTable({
         onOpenChange={(open) => !open && setToAdjust(null)}
       />
 
-      <CreateLoanDialog
-        account={toLoan}
-        availableToBorrow={toLoan ? (availableToBorrowMap[toLoan.employeeId] ?? toLoan.balance) : 0}
-        open={toLoan !== null}
-        onOpenChange={(open) => !open && setToLoan(null)}
-      />
     </div>
   );
 }

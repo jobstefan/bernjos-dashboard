@@ -6,7 +6,10 @@ import { getComparison } from "@/server/services/attendance.service";
 import { getCashAdvances, getCashAdvancesForEmployee } from "@/server/services/cash-advance.service";
 import { getSavingsAccounts, getSavingsForEmployee } from "@/server/services/savings.service";
 import { findAbsenceRequests } from "@/server/db/absence-request";
-import { findLoans } from "@/server/db/loan";
+import { findLoans, findRepaymentsForPeriod } from "@/server/db/loan";
+import { findChargesForPeriod } from "@/server/db/charge";
+import { findAdvancesForPeriod } from "@/server/db/cash-advance";
+import { findIncentivesForPeriod } from "@/server/db/incentive";
 
 // ─── Admin / Manager ────────────────────────────────────────────────────────
 
@@ -61,6 +64,154 @@ export async function getPeriodDeductionMix(periodId: string): Promise<Deduction
     { key: "other", label: "Other", value: other, color: "var(--chart-3)" },
     { key: "savings", label: "Savings", value: savings, color: "var(--chart-5)" },
   ].filter((s) => s.value > 0);
+}
+
+export type { BranchSummaryLine } from "@/lib/types/payroll";
+import type { BranchSummaryLine } from "@/lib/types/payroll";
+
+/**
+ * Computes per-branch cash attribution for a payroll period.
+ *
+ * Each branch's "net to employees" = gross share − attributed deductions + attributed incentives,
+ * with overflow logic: if tagged deductions exceed a branch's gross share, the excess is absorbed
+ * by other branches the employee worked at (proportional to their remaining gross shares).
+ */
+export async function getPeriodBranchSummary(periodId: string): Promise<BranchSummaryLine[]> {
+  const [items, charges, repayments, advances, incentives] = await Promise.all([
+    getPayrollRunItems(periodId),
+    findChargesForPeriod(periodId),
+    findRepaymentsForPeriod(periodId),
+    findAdvancesForPeriod(periodId),
+    findIncentivesForPeriod(periodId),
+  ]);
+
+  // Build per-employee deduction/incentive maps keyed by branchId (null = untagged)
+  type FinanceMap = Map<string, Map<string | null, number>>;
+  const deductionsByEmployee: FinanceMap = new Map();
+  const incentivesByEmployee: FinanceMap = new Map();
+
+  function addToMap(map: FinanceMap, profileId: string, branchId: string | null, amount: number) {
+    if (!map.has(profileId)) map.set(profileId, new Map());
+    const byBranch = map.get(profileId)!;
+    byBranch.set(branchId, (byBranch.get(branchId) ?? 0) + amount);
+  }
+
+  for (const c of charges) addToMap(deductionsByEmployee, c.profileId, c.branchId, Number(c.amount));
+  for (const r of repayments) addToMap(deductionsByEmployee, r.loan.profileId, r.loan.branchId, Number(r.amount));
+  for (const a of advances) addToMap(deductionsByEmployee, a.profileId, a.branchId, Number(a.approvedAmount ?? a.amount));
+  for (const i of incentives) addToMap(incentivesByEmployee, i.profileId, i.branchId, Number(i.amount));
+
+  // Accumulate per-branch totals across all employees
+  const summary = new Map<string | null, {
+    branchName: string;
+    employeeIds: Set<string>;
+    daysWorked: number;
+    netToEmployees: number;
+    taggedDeductions: number;
+    taggedIncentives: number;
+  }>();
+
+  function getOrInit(branchId: string | null, branchName: string) {
+    if (!summary.has(branchId)) {
+      summary.set(branchId, { branchName, employeeIds: new Set(), daysWorked: 0, netToEmployees: 0, taggedDeductions: 0, taggedIncentives: 0 });
+    }
+    return summary.get(branchId)!;
+  }
+
+  for (const item of items) {
+    if (!item.branches.length) continue;
+
+    const profileId = item.profileId;
+    const dailyRate = Number(item.basicSalary);
+    const empDeductions = deductionsByEmployee.get(profileId) ?? new Map<string | null, number>();
+    const empIncentives = incentivesByEmployee.get(profileId) ?? new Map<string | null, number>();
+
+    // Gross share per branch
+    const grossPerBranch = new Map<string | null, number>();
+    let totalGross = 0;
+    for (const b of item.branches) {
+      const gross = Number(b.daysWorked) * dailyRate;
+      grossPerBranch.set(b.branchId ?? null, gross);
+      totalGross += gross;
+    }
+
+    // Tagged incentives per branch (keyed by branchId)
+    const incentivesPerBranch = new Map<string | null, number>(empIncentives);
+
+    // Tagged deductions per branch: assign to tagged branch, split untagged proportionally
+    const deductionsPerBranch = new Map<string | null, number>();
+    for (const branchId of grossPerBranch.keys()) deductionsPerBranch.set(branchId, 0);
+
+    for (const [branchId, amount] of empDeductions) {
+      if (branchId !== null && grossPerBranch.has(branchId)) {
+        // Tagged to a branch the employee actually worked at
+        deductionsPerBranch.set(branchId, (deductionsPerBranch.get(branchId) ?? 0) + amount);
+      } else if (branchId !== null) {
+        // Tagged to a branch not in the employee's branches — treat as untagged
+        if (totalGross > 0) {
+          for (const [bid, gross] of grossPerBranch) {
+            deductionsPerBranch.set(bid, (deductionsPerBranch.get(bid) ?? 0) + amount * (gross / totalGross));
+          }
+        }
+      } else {
+        // Null / untagged: split proportionally
+        if (totalGross > 0) {
+          for (const [bid, gross] of grossPerBranch) {
+            deductionsPerBranch.set(bid, (deductionsPerBranch.get(bid) ?? 0) + amount * (gross / totalGross));
+          }
+        }
+      }
+    }
+
+    // Net per branch before overflow; negatives = overflow needed
+    const netPerBranch = new Map<string | null, number>();
+    let totalOverflow = 0;
+    for (const [bid, gross] of grossPerBranch) {
+      const net = gross - (deductionsPerBranch.get(bid) ?? 0) + (incentivesPerBranch.get(bid) ?? 0);
+      if (net < 0) {
+        totalOverflow += -net;
+        netPerBranch.set(bid, 0);
+      } else {
+        netPerBranch.set(bid, net);
+      }
+    }
+
+    // Distribute overflow to branches with positive remaining gross
+    if (totalOverflow > 0) {
+      const positiveTotal = Array.from(netPerBranch.values()).reduce((s, v) => s + v, 0);
+      if (positiveTotal > 0) {
+        for (const [bid, net] of netPerBranch) {
+          if (net > 0) {
+            netPerBranch.set(bid, Math.max(0, net - totalOverflow * (net / positiveTotal)));
+          }
+        }
+      }
+    }
+
+    // Accumulate into summary
+    for (const b of item.branches) {
+      const branchId = b.branchId ?? null;
+      const branchName = b.branch?.name ?? "Unassigned";
+      const entry = getOrInit(branchId, branchName);
+      entry.employeeIds.add(profileId);
+      entry.daysWorked += Number(b.daysWorked);
+      entry.netToEmployees += netPerBranch.get(branchId) ?? 0;
+      entry.taggedDeductions += deductionsPerBranch.get(branchId) ?? 0;
+      entry.taggedIncentives += incentivesPerBranch.get(branchId) ?? 0;
+    }
+  }
+
+  return Array.from(summary.entries())
+    .map(([branchId, v]) => ({
+      branchId,
+      branchName: v.branchName,
+      employeeCount: v.employeeIds.size,
+      daysWorked: v.daysWorked,
+      netToEmployees: Math.round(v.netToEmployees * 100) / 100,
+      taggedDeductions: Math.round(v.taggedDeductions * 100) / 100,
+      taggedIncentives: Math.round(v.taggedIncentives * 100) / 100,
+    }))
+    .sort((a, b) => b.netToEmployees - a.netToEmployees);
 }
 
 /** Last `limit` periods that have been calculated (have run items), oldest→newest. */

@@ -67,6 +67,14 @@ export function markChargesApplied(ids: string[], periodId: string) {
  * Reset charges previously applied to a period back to pending, so a
  * recalculation of a (non-approved) period doesn't double-count them.
  */
+/** All charges applied to a period (for branch attribution reporting). */
+export function findChargesForPeriod(periodId: string) {
+  return prisma.charge.findMany({
+    where: { appliedPeriodId: periodId, status: "applied", deletedAt: null },
+    select: { profileId: true, amount: true, branchId: true },
+  });
+}
+
 export function resetChargesForPeriod(periodId: string) {
   return prisma.charge.updateMany({
     where: { appliedPeriodId: periodId, status: "applied" },

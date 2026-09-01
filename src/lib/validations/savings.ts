@@ -23,7 +23,12 @@ export const savingsAdjustmentSchema = z.object({
   note: z.string().trim().max(200, "Keep the note short.").optional().nullable(),
 });
 
-export type UpsertSavingsAccountSchema = z.infer<
-  typeof upsertSavingsAccountSchema
->;
+/** Admin freezes or unfreezes an account by its accountId. */
+export const setSavingsFrozenSchema = z.object({
+  accountId: z.string().min(1),
+  frozen: z.boolean(),
+});
+
+export type UpsertSavingsAccountSchema = z.infer<typeof upsertSavingsAccountSchema>;
 export type SavingsAdjustmentSchema = z.infer<typeof savingsAdjustmentSchema>;
+export type SetSavingsFrozenSchema = z.infer<typeof setSavingsFrozenSchema>;

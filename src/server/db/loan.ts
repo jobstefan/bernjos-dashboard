@@ -110,6 +110,17 @@ export function finalizeRepaymentsForPeriod(periodId: string) {
   });
 }
 
+/** Repayments tagged to a period (for branch attribution reporting). Joins loan for branchId. */
+export function findRepaymentsForPeriod(periodId: string) {
+  return prisma.loanRepayment.findMany({
+    where: { appliedPeriodId: periodId },
+    select: {
+      amount: true,
+      loan: { select: { profileId: true, branchId: true } },
+    },
+  });
+}
+
 /** Reset repayments tagged to a period back to untagged pending (for recalculation). */
 export function resetRepaymentsForPeriod(periodId: string) {
   return prisma.loanRepayment.updateMany({

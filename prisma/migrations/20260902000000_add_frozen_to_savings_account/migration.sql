@@ -1,0 +1,1 @@
+ALTER TABLE "savings_accounts" ADD COLUMN "frozen" BOOLEAN NOT NULL DEFAULT FALSE;

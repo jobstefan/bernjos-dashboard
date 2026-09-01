@@ -481,6 +481,9 @@ model SavingsAccount {
   profileId          String   @unique @map("profile_id")
   /// Recurring amount contributed per payroll period (minimum ₱100).
   contributionAmount Decimal  @default(100) @map("contribution_amount") @db.Decimal(12, 2)
+  /// Admin-controlled freeze: when true, no contributions are pulled from payroll.
+  /// The account remains intact and the balance is preserved.
+  frozen             Boolean  @default(false)
   createdBy          String   @map("created_by")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")

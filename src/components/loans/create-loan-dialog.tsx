@@ -81,7 +81,8 @@ export function AdminCreateLoanButton({
   const [open, setOpen] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState<string>("");
 
-  const account = accounts.find((a) => a.employeeId === selectedId) ?? null;
+  const eligibleAccounts = accounts.filter((a) => !a.frozen);
+  const account = eligibleAccounts.find((a) => a.employeeId === selectedId) ?? null;
   const availableToBorrow = selectedId ? (availableToBorrowMap[selectedId] ?? 0) : 0;
 
   return (
@@ -108,13 +109,13 @@ export function AdminCreateLoanButton({
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select employee…">
                   {(value) => {
-                    const a = accounts.find((a) => a.employeeId === value);
+                    const a = eligibleAccounts.find((a) => a.employeeId === value);
                     return a ? `${a.employeeName} (${a.employeeCode})` : "Select employee…";
                   }}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {accounts.map((a) => (
+                {eligibleAccounts.map((a) => (
                   <SelectItem key={a.employeeId} value={a.employeeId}>
                     <span className="font-medium">{a.employeeName}</span>
                     <span className="ml-2 text-xs text-muted-foreground">

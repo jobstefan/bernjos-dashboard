@@ -81,6 +81,14 @@ export function markCashAdvancesApplied(ids: string[], periodId: string) {
  * Reset advances previously applied to a period back to approved+unapplied, so a
  * recalculation of a (non-approved) period does not double-count or orphan them.
  */
+/** Advances applied to a period (for branch attribution reporting). */
+export function findAdvancesForPeriod(periodId: string) {
+  return prisma.cashAdvance.findMany({
+    where: { appliedPeriodId: periodId, status: "applied", deletedAt: null },
+    select: { profileId: true, approvedAmount: true, amount: true, branchId: true },
+  });
+}
+
 export function resetCashAdvancesForPeriod(periodId: string) {
   return prisma.cashAdvance.updateMany({
     where: { appliedPeriodId: periodId, status: "applied" },

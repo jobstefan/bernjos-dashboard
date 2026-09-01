@@ -18,9 +18,11 @@ export interface SavingsAccountRow {
   employeeName: string;
   /** Recurring amount pulled each payroll period (minimum ₱100). */
   contributionAmount: number;
-  /** Frozen when the employee is no longer active — no contributions are pulled
-   * and the contribution can't be edited. Their balance is preserved. */
+  /** True when contributions are paused for any reason (admin freeze OR inactive
+   * employment). No contributions are pulled and the balance is preserved. */
   frozen: boolean;
+  /** True only when an admin explicitly froze the account (not just inactive). */
+  frozenByAdmin: boolean;
   /** Running balance = sum of all ledger amounts. */
   balance: number;
   lastActivityAt: string | null;

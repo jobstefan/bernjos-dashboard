@@ -45,6 +45,14 @@ export function markIncentivesApplied(ids: string[], periodId: string) {
   });
 }
 
+/** Incentives applied to a period (for branch attribution reporting). */
+export function findIncentivesForPeriod(periodId: string) {
+  return prisma.incentive.findMany({
+    where: { periodId, status: "applied" },
+    select: { profileId: true, amount: true, branchId: true },
+  });
+}
+
 export function resetIncentivesForPeriod(periodId: string) {
   return prisma.incentive.updateMany({
     where: { periodId, status: "applied" },
