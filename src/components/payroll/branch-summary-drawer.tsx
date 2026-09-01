@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import type { BranchSummaryLine } from "@/lib/types/payroll";
 
 function computeBalance(e: BranchSummaryLine) {
-  return e.grossShare - e.netPay;
+  return e.grossShare - e.netCash;
 }
 
 function computeTransfers(lines: BranchSummaryLine[]) {
@@ -101,13 +101,12 @@ export function BranchSummaryDrawer({ summary }: { summary?: BranchSummaryLine[]
 
                     <Separator />
 
-                    {/* Financials */}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
                       <span className="text-muted-foreground">Gross share</span>
                       <span className="font-mono text-right">{formatPeso(e.grossShare)}</span>
 
                       <span className="text-muted-foreground">Cash to employees</span>
-                      <span className="font-mono text-right">−{formatPeso(e.netPay)}</span>
+                      <span className="font-mono text-right">−{formatPeso(e.netCash)}</span>
 
                       <span className="font-medium">{isShort ? "Shortfall" : "Balance"}</span>
                       <span className={cn(
@@ -129,16 +128,23 @@ export function BranchSummaryDrawer({ summary }: { summary?: BranchSummaryLine[]
                     {isExpanded ? <ChevronUp className="size-3.5 shrink-0" /> : <ChevronDown className="size-3.5 shrink-0" />}
                   </button>
 
-                  {/* Employee rows — compact single-line */}
+                  {/* Employee rows */}
                   {isExpanded && (
                     <div className="border-t divide-y divide-border/50 bg-muted/20">
-                      {e.employees.map((emp) => (
-                        <div key={emp.employeeId} className="flex items-center gap-3 px-4 py-2 min-h-[36px]">
-                          <span className="text-xs font-medium truncate flex-1">{emp.employeeName}</span>
-                          <span className="text-xs text-muted-foreground shrink-0">{emp.daysWorked.toFixed(1)}d</span>
-                          <span className="font-mono text-xs font-semibold shrink-0">{formatPeso(emp.netPay)}</span>
-                        </div>
-                      ))}
+                      {e.employees.map((emp) => {
+                        const isDeductionExcess = emp.netCash < -0.005;
+                        return (
+                          <div key={emp.employeeId} className="flex items-center gap-3 px-4 py-2 min-h-[36px]">
+                            <span className="text-xs font-medium truncate flex-1">{emp.employeeName}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">{emp.daysWorked.toFixed(1)}d</span>
+                            {isDeductionExcess ? (
+                              <span className="text-xs text-muted-foreground italic shrink-0">deduction excess</span>
+                            ) : (
+                              <span className="font-mono text-xs font-semibold shrink-0">{formatPeso(emp.netCash)}</span>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

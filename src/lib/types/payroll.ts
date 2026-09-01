@@ -235,8 +235,9 @@ export interface BranchEmployeeLine {
   employeeName: string;
   employeeCode: string;
   daysWorked: number;
-  /** Proportional share of this employee's take-home pay from this branch. */
-  netPay: number;
+  grossShare: number;
+  /** Branch-attributed net cash: grossShare − proportional statutory deductions − branch-tied finance deductions + branch-tied incentives. Negative means this employee's deductions exceed their gross at this branch. */
+  netCash: number;
 }
 
 /** Period-level branch cash summary — result of getPeriodBranchSummary(). */
@@ -247,7 +248,7 @@ export interface BranchSummaryLine {
   daysWorked: number;
   /** Sum of days × daily rate for all employees at this branch. */
   grossShare: number;
-  /** Total take-home pay for all employees attributed to this branch (already includes all deductions and incentives). */
-  netPay: number;
+  /** Sum of employee netCash values. balance = grossShare − netCash; negative balance = shortfall. */
+  netCash: number;
   employees: BranchEmployeeLine[];
 }
