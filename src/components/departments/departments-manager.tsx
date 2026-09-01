@@ -61,7 +61,7 @@ export function DepartmentsManager({
   const [deletePos, setDeletePos] = React.useState<PositionRow | null>(null);
 
   const departmentChoices = React.useMemo(
-    () => departments.map((d) => ({ id: d.id, name: d.name })),
+    () => departments.map((d) => ({ id: d.id, name: d.name, shiftHours: d.shiftHours })),
     [departments],
   );
 

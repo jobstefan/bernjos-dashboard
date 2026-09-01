@@ -37,7 +37,7 @@ import {
 import { findSssBracket } from "@/server/db/statutory";
 import { auditLog } from "@/server/services/audit.service";
 import { summarizeForPayroll } from "@/server/services/attendance.service";
-import { findDepartmentByName } from "@/server/db/departments";
+import { findPositionByNamesAndDept } from "@/server/db/positions";
 import {
   DuplicatePeriodError,
   InvalidStateTransitionError,
@@ -122,11 +122,12 @@ export async function calculateEmployeeDeductions(
   const frequency = period.frequency;
   const dailyRate = new Decimal(employee.basicSalary);
 
-  // Look up the department's standard shift to get a fixed per-minute rate.
-  const dept = employee.department
-    ? await findDepartmentByName(employee.department)
-    : null;
-  const standardShiftMinutes = (dept?.shiftHours ?? 8) * 60;
+  // Look up the position's standard shift to get a fixed per-minute rate.
+  const positionRecord =
+    employee.position && employee.department
+      ? await findPositionByNamesAndDept(employee.position, employee.department)
+      : null;
+  const standardShiftMinutes = (positionRecord?.shiftHours ?? 8) * 60;
 
   // Days worked come from the schedule + attendance when the employee is
   // scheduled in the period; otherwise fall back to the per-frequency default

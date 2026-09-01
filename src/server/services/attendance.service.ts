@@ -18,7 +18,7 @@ import {
 } from "@/server/db/attendance";
 import { findBranchById } from "@/server/db/branches";
 import { findEmployeeByCode } from "@/server/db/employees";
-import { findDepartmentShiftsByNames } from "@/server/db/departments";
+import { findPositionShiftsByKeys } from "@/server/db/positions";
 import { findEntriesForEmployee, findEntriesForRange } from "@/server/db/schedule";
 import { auditLog } from "@/server/services/audit.service";
 import { getAdapter } from "@/lib/attendance/adapters";
@@ -319,8 +319,15 @@ export async function getComparison(
     records.map((r) => [dateKey(r.date, r.profileId), r]),
   );
 
-  const deptNames = [...new Set(entries.map((e) => e.profile.department).filter((d): d is string => !!d))];
-  const deptShiftMap = await findDepartmentShiftsByNames(deptNames);
+  const posShiftKeys = [...new Map(
+    entries
+      .filter((e) => e.profile.department && e.profile.position)
+      .map((e) => [
+        `${e.profile.department}::${e.profile.position}`,
+        { department: e.profile.department!, position: e.profile.position! },
+      ]),
+  ).values()];
+  const posShiftMap = await findPositionShiftsByKeys(posShiftKeys);
 
   const rows: AttendanceComparisonRow[] = [];
   const seen = new Set<string>();
@@ -329,7 +336,10 @@ export async function getComparison(
     const key = dateKey(entry.date, entry.profileId);
     seen.add(key);
     const rec = recByKey.get(key);
-    const deptShiftHours = entry.profile.department ? deptShiftMap.get(entry.profile.department) : undefined;
+    const shiftKey = entry.profile.department && entry.profile.position
+      ? `${entry.profile.department}::${entry.profile.position}`
+      : null;
+    const deptShiftHours = shiftKey ? posShiftMap.get(shiftKey) : undefined;
     const cmp = compareDay({
       startTime: entry.startTime,
       endTime: entry.endTime,

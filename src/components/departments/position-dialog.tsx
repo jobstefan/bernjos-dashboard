@@ -31,6 +31,7 @@ import type { PositionRow } from "@/lib/types/organization";
 interface DepartmentChoice {
   id: string;
   name: string;
+  shiftHours: number;
 }
 
 /**
@@ -59,16 +60,23 @@ export function PositionDialog({
   const [formError, setFormError] = React.useState<string | null>(null);
   const [name, setName] = React.useState("");
   const [departmentId, setDepartmentId] = React.useState("");
+  const [shiftHours, setShiftHours] = React.useState<number>(8);
   const isEdit = Boolean(position);
 
   React.useEffect(() => {
     if (open) {
       setName(position?.name ?? "");
-      setDepartmentId(
-        position?.departmentId ?? defaultDepartmentId ?? "",
-      );
+      const deptId = position?.departmentId ?? defaultDepartmentId ?? "";
+      setDepartmentId(deptId);
+      if (position?.shiftHours !== undefined) {
+        setShiftHours(position.shiftHours);
+      } else {
+        // Pre-fill from the locked/selected department's shift hours.
+        const dept = departments.find((d) => d.id === deptId);
+        setShiftHours(dept?.shiftHours ?? 8);
+      }
     }
-  }, [open, position, defaultDepartmentId]);
+  }, [open, position, defaultDepartmentId, departments]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -76,8 +84,8 @@ export function PositionDialog({
     setFormError(null);
     startTransition(async () => {
       const res = position
-        ? await updatePositionAction({ id: position.id, name, departmentId })
-        : await createPositionAction({ name, departmentId });
+        ? await updatePositionAction({ id: position.id, name, departmentId, shiftHours })
+        : await createPositionAction({ name, departmentId, shiftHours });
       if (res.success) {
         toast.success(isEdit ? "Position updated." : "Position created.");
         onOpenChange(false);
@@ -125,7 +133,11 @@ export function PositionDialog({
                 <Label>Department</Label>
                 <Select
                   value={departmentId}
-                  onValueChange={(v) => setDepartmentId(v ?? "")}
+                  onValueChange={(v) => {
+                    setDepartmentId(v ?? "");
+                    const dept = departments.find((d) => d.id === v);
+                    if (dept) setShiftHours(dept.shiftHours);
+                  }}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a department">
@@ -161,6 +173,38 @@ export function PositionDialog({
               />
               {errors.name?.length ? (
                 <p className="text-xs text-destructive">{errors.name[0]}</p>
+              ) : null}
+            </div>
+            <div className="grid gap-2">
+              <Label>Standard shift</Label>
+              <div className="flex gap-2">
+                {[8, 10, 12].map((h) => (
+                  <Button
+                    key={h}
+                    type="button"
+                    variant={shiftHours === h ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setShiftHours(h)}
+                  >
+                    {h}h
+                  </Button>
+                ))}
+                <Input
+                  type="number"
+                  min={1}
+                  max={24}
+                  value={shiftHours}
+                  onChange={(e) => setShiftHours(Number(e.target.value))}
+                  className="w-20 text-center"
+                  aria-label="Custom shift hours"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Used to compute the per-minute rate for deductions and overtime.
+              </p>
+              {errors.shiftHours?.length ? (
+                <p className="text-xs text-destructive">{errors.shiftHours[0]}</p>
               ) : null}
             </div>
           </div>

@@ -25,6 +25,7 @@ type DepartmentWithPositionRows = Department & {
     id: string;
     name: string;
     departmentId: string;
+    shiftHours: number;
     createdAt: Date;
   }[];
 };
@@ -40,6 +41,7 @@ function toRow(dept: DepartmentWithPositionRows): DepartmentWithPositions {
       id: p.id,
       name: p.name,
       departmentId: p.departmentId,
+      shiftHours: p.shiftHours,
       createdAt: p.createdAt.toISOString(),
     })),
   };
@@ -56,7 +58,8 @@ export async function getDepartmentOptions(): Promise<DepartmentOption[]> {
   return departments.map((d) => ({
     id: d.id,
     name: d.name,
-    positions: d.positions.map((p) => ({ id: p.id, name: p.name })),
+    shiftHours: d.shiftHours,
+    positions: d.positions.map((p) => ({ id: p.id, name: p.name, shiftHours: p.shiftHours })),
   }));
 }
 

@@ -12,6 +12,7 @@ export const updateDepartmentSchema = createDepartmentSchema.partial().extend({
 export const createPositionSchema = z.object({
   name: z.string().trim().min(1, "Position name is required."),
   departmentId: z.string().min(1, "Select a department."),
+  shiftHours: z.number().int().min(1, "Shift must be at least 1 hour.").max(24, "Shift cannot exceed 24 hours.").default(8),
 });
 
 export const updatePositionSchema = createPositionSchema.partial().extend({
