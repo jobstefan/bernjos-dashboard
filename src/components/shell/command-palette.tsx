@@ -17,6 +17,7 @@ import {
   PiggyBank,
   Fingerprint,
   Settings,
+  Gift,
   Search,
   Plus,
   Sun,
@@ -40,6 +41,7 @@ const ICONS: Record<NavIcon, React.ComponentType<{ className?: string }>> = {
   savings: PiggyBank,
   attendance: Fingerprint,
   settings: Settings,
+  incentive: Gift,
 };
 
 /** Role-aware quick actions (navigation shortcuts). */

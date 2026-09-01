@@ -12,7 +12,8 @@ export type NavIcon =
   | "department"
   | "savings"
   | "attendance"
-  | "settings";
+  | "settings"
+  | "incentive";
 
 export interface NavItem {
   label: string;
@@ -94,6 +95,12 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Charges",
         href: "/charges",
         icon: "charge",
+        roles: ADMINS,
+      },
+      {
+        label: "Incentives",
+        href: "/incentives",
+        icon: "incentive",
         roles: ADMINS,
       },
       {

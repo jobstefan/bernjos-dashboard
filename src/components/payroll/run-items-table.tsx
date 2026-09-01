@@ -34,7 +34,9 @@ export interface RunItemRow {
   advanceDeduction: number;
   otherDeductions: number;
   loanDeduction: number;
+  chargeDeduction?: number;
   otherEarnings: number;
+  incentiveEarnings: number;
   savingsContribution: number;
   totalDeductions: number;
   netPay: number;
@@ -65,6 +67,11 @@ export function RunItemsTable({
 
   const hasLoanDeductions = React.useMemo(
     () => rows.some((r) => r.loanDeduction > 0),
+    [rows],
+  );
+
+  const hasIncentiveEarnings = React.useMemo(
+    () => rows.some((r) => r.incentiveEarnings > 0),
     [rows],
   );
 
@@ -137,6 +144,17 @@ export function RunItemsTable({
         enableSorting: false,
         cell: ({ row }) => money(row.original.otherEarnings),
       },
+      ...(hasIncentiveEarnings
+        ? [
+            {
+              accessorKey: "incentiveEarnings",
+              header: "Incentive",
+              enableSorting: false,
+              cell: ({ row }: { row: { original: RunItemRow } }) =>
+                money(row.original.incentiveEarnings),
+            } satisfies ColumnDef<RunItemRow>,
+          ]
+        : []),
       {
         accessorKey: "savingsContribution",
         header: "Savings",
@@ -168,7 +186,7 @@ export function RunItemsTable({
         ),
       },
     ],
-    [hasLoanDeductions],
+    [hasLoanDeductions, hasIncentiveEarnings],
   );
 
   const view: PayslipView | null = selected ? { ...selected, periodLabel } : null;
@@ -185,6 +203,7 @@ export function RunItemsTable({
     { header: "Other Deductions", accessor: (r: RunItemRow) => r.otherDeductions },
     { header: "Loan Deduction", accessor: (r: RunItemRow) => r.loanDeduction },
     { header: "Other Earnings", accessor: (r: RunItemRow) => r.otherEarnings },
+    { header: "Incentive", accessor: (r: RunItemRow) => r.incentiveEarnings },
     { header: "Savings", accessor: (r: RunItemRow) => r.savingsContribution },
     { header: "Total Deductions", accessor: (r: RunItemRow) => r.totalDeductions },
     { header: "Net Pay", accessor: (r: RunItemRow) => r.netPay },

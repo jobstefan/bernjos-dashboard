@@ -12,6 +12,7 @@ export interface PayslipView {
   sssEmployee: number;
   philhealthEmployee: number;
   otherEarnings: number;
+  incentiveEarnings?: number;
   overtimeMinutes?: number;
   lateDeduction?: number;
   advanceDeduction?: number;
@@ -84,6 +85,9 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
             label={`Overtime${payslip.overtimeMinutes ? ` (${payslip.overtimeMinutes} min)` : ""}`}
             value={payslip.otherEarnings}
           />
+        ) : null}
+        {(payslip.incentiveEarnings ?? 0) > 0 ? (
+          <Line label="Incentive" value={payslip.incentiveEarnings!} />
         ) : null}
       </div>
 

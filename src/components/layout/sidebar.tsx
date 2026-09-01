@@ -16,6 +16,7 @@ import {
   Fingerprint,
   LogOut,
   Settings,
+  Gift,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ const ICONS: Record<NavIcon, React.ComponentType<{ className?: string }>> = {
   savings: PiggyBank,
   attendance: Fingerprint,
   settings: Settings,
+  incentive: Gift,
 };
 
 function isActive(pathname: string, href: string): boolean {

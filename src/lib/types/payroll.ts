@@ -147,6 +147,7 @@ export interface Payslip {
   loanDeduction: number;
   chargeDeduction: number;
   otherEarnings: number;
+  incentiveEarnings: number;
   /** Minutes worked past scheduled end for the period (0 when none or not tracked). */
   overtimeMinutes: number;
   /** User savings withheld into their account — not a deduction. */
@@ -170,6 +171,22 @@ export interface BranchNetLine {
 export interface CashAdvanceFilters {
   status?: CashAdvanceStatus;
   profileId?: string;
+}
+
+/** An incentive flattened for display in a table. */
+export type IncentiveStatus = "pending" | "applied" | "cancelled";
+
+export interface IncentiveRow {
+  id: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  amount: number;
+  reason: string | null;
+  status: IncentiveStatus;
+  appliedPeriodLabel: string | null;
+  createdAt: string;
+  cancelledAt: string | null;
 }
 
 /** A charge flattened for display in a table. */

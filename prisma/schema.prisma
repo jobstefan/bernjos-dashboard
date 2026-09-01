@@ -88,6 +88,12 @@ enum LoanStatus {
   cancelled
 }
 
+enum IncentiveStatus {
+  pending
+  applied
+  cancelled
+}
+
 enum AbsenceRequestStatus {
   pending
   approved
@@ -134,6 +140,7 @@ model UserProfile {
   runItems          PayrollRunItem[]
   cashAdvances      CashAdvance[]
   charges           Charge[]
+  incentives        Incentive[]
   scheduleEntries   ScheduleEntry[]
   absenceRequests   AbsenceRequest[]
   savingsAccount    SavingsAccount?
@@ -200,6 +207,7 @@ model PayrollPeriod {
   runItems            PayrollRunItem[]
   cashAdvances        CashAdvance[]
   charges             Charge[]
+  incentives          Incentive[]
   savingsTransactions SavingsTransaction[]
   loanRepayments      LoanRepayment[]
 
@@ -222,6 +230,7 @@ model PayrollRunItem {
   loanDeduction       Decimal       @default(0) @map("loan_deduction") @db.Decimal(12, 2)
   chargeDeduction     Decimal       @default(0) @map("charge_deduction") @db.Decimal(12, 2)
   otherEarnings       Decimal       @default(0) @map("other_earnings") @db.Decimal(12, 2)
+  incentiveEarnings   Decimal       @default(0) @map("incentive_earnings") @db.Decimal(12, 2)
   /// User savings contribution held out of net pay. NOT a deduction — it's the
   /// user's own money moved into their savings account. Kept separate from
   /// `totalDeductions`: netPay = grossPay − totalDeductions − savingsContribution.
@@ -549,6 +558,33 @@ model LoanRepayment {
   @@index([loanId])
   @@index([appliedPeriodId])
   @@map("loan_repayments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Incentive domain (admin-granted extra earnings applied to payroll)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A one-off incentive granted by an admin. Picked up automatically by the
+/// next payroll run; status moves from pending → applied at that point.
+/// Admins can cancel a pending incentive before it is applied.
+model Incentive {
+  id          String          @id @default(cuid())
+  profileId   String          @map("profile_id")
+  amount      Decimal         @db.Decimal(12, 2)
+  reason      String?
+  status      IncentiveStatus @default(pending)
+  periodId    String?         @map("period_id")
+  createdBy   String          @map("created_by")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  cancelledBy String?         @map("cancelled_by")
+  cancelledAt DateTime?       @map("cancelled_at")
+
+  profile UserProfile    @relation(fields: [profileId], references: [id])
+  period  PayrollPeriod? @relation(fields: [periodId], references: [id])
+
+  @@index([profileId])
+  @@index([status])
+  @@map("incentives")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
