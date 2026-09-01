@@ -30,6 +30,15 @@ const withUser = {
   user: { select: { email: true, clerkId: true } },
 } satisfies Prisma.UserProfileInclude;
 
+/** Lightweight query returning only the fields needed for attendance day-off row generation. */
+export function findActiveEmployeeBasics() {
+  return prisma.userProfile.findMany({
+    where: { employmentStatus: "active", deletedAt: null, ...EXCLUDE_ELEVATED },
+    select: { id: true, employeeCode: true, firstName: true, lastName: true },
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+  });
+}
+
 export function findEmployees(filters?: ProfileFilters) {
   return prisma.userProfile.findMany({
     where: buildWhere(filters),
