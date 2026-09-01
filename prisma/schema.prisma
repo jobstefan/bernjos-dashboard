@@ -294,6 +294,7 @@ model AuditLog {
 model CashAdvance {
   id              String            @id @default(cuid())
   profileId       String            @map("profile_id")
+  branchId        String?           @map("branch_id")
   amount          Decimal           @db.Decimal(12, 2)
   /// Amount the approver granted; may differ from the requested `amount`. Null until approved.
   approvedAmount  Decimal?          @map("approved_amount") @db.Decimal(12, 2)
@@ -314,9 +315,11 @@ model CashAdvance {
   updatedAt       DateTime          @updatedAt @map("updated_at")
 
   profile       UserProfile    @relation(fields: [profileId], references: [id])
+  branch        Branch?        @relation(fields: [branchId], references: [id])
   appliedPeriod PayrollPeriod? @relation(fields: [appliedPeriodId], references: [id])
 
   @@index([profileId])
+  @@index([branchId])
   @@index([status])
   @@map("cash_advances")
 }
@@ -410,6 +413,7 @@ model Branch {
   charges            Charge[]
   loans              Loan[]
   incentives         Incentive[]
+  cashAdvances       CashAdvance[]
 
   @@map("branches")
 }

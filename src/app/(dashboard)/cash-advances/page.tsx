@@ -8,11 +8,13 @@ import {
 } from "@/lib/auth/rbac";
 import { getCashAdvances } from "@/server/services/cash-advance.service";
 import { getEmployees } from "@/server/services/employee.service";
+import { findBranches } from "@/server/db/branches";
 import { getCashAdvancePulse } from "@/server/services/analytics.service";
 import { CashAdvancesTable } from "@/components/cash-advances/cash-advances-table";
 import {
   AdminCreateCashAdvanceButton,
   type EmployeeOption,
+  type BranchOption,
 } from "@/components/cash-advances/admin-create-cash-advance-button";
 import { EmptyState } from "@/components/payroll/empty-state";
 import { KpiCard } from "@/components/ui/kpi-card";
@@ -28,10 +30,13 @@ export default async function CashAdvancesPage() {
 
   const canAdmin = isAdmin(role);
 
-  const [rows, employeeProfiles] = await Promise.all([
+  const [rows, employeeProfiles, branchRows] = await Promise.all([
     getCashAdvances(),
     canAdmin ? getEmployees({ employmentStatus: "active" }) : Promise.resolve([]),
+    canAdmin ? findBranches() : Promise.resolve([]),
   ]);
+
+  const branchOptions: BranchOption[] = branchRows.map((b) => ({ id: b.id, name: b.name }));
   const pendingCount = rows.filter((r) => r.status === "pending").length;
 
   const employeeOptions: EmployeeOption[] = employeeProfiles.map((e) => ({
@@ -68,7 +73,7 @@ export default async function CashAdvancesPage() {
           </p>
         </div>
         {canAdmin && employeeOptions.length > 0 && (
-          <AdminCreateCashAdvanceButton employees={employeeOptions} />
+          <AdminCreateCashAdvanceButton employees={employeeOptions} branches={branchOptions} />
         )}
       </div>
 

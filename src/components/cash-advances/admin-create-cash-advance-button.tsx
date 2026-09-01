@@ -33,21 +33,30 @@ export interface EmployeeOption {
   lastName: string;
 }
 
+export interface BranchOption {
+  id: string;
+  name: string;
+}
+
 export function AdminCreateCashAdvanceButton({
   employees,
+  branches,
 }: {
   employees: EmployeeOption[];
+  branches: BranchOption[];
 }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
   const [profileId, setProfileId] = React.useState("");
+  const [branchId, setBranchId] = React.useState("");
   const [amount, setAmount] = React.useState("");
   const [reason, setReason] = React.useState("");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
   function reset() {
     setProfileId("");
+    setBranchId("");
     setAmount("");
     setReason("");
     setErrors({});
@@ -62,7 +71,7 @@ export function AdminCreateCashAdvanceButton({
     e.preventDefault();
     setErrors({});
     startTransition(async () => {
-      const res = await adminCreateCashAdvanceAction({ profileId, amount, reason });
+      const res = await adminCreateCashAdvanceAction({ profileId, branchId, amount, reason });
       if (res.success) {
         toast.success("Cash advance created and approved.");
         onOpenChange(false);
@@ -130,6 +139,29 @@ export function AdminCreateCashAdvanceButton({
               </div>
 
               <div className="grid gap-2">
+                <Label>Branch</Label>
+                <Select value={branchId} onValueChange={(v) => v && setBranchId(v)} disabled={!profileId}>
+                  <SelectTrigger className="w-full">
+                    {branchId ? (
+                      <span>{branches.find((b) => b.id === branchId)?.name}</span>
+                    ) : (
+                      <span className="text-muted-foreground">Select branch…</span>
+                    )}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.branchId ? (
+                  <p className="text-xs text-destructive">{errors.branchId}</p>
+                ) : null}
+              </div>
+
+              <div className="grid gap-2">
                 <Label>Amount (₱)</Label>
                 <Input
                   type="number"
@@ -166,7 +198,7 @@ export function AdminCreateCashAdvanceButton({
             </div>
 
             <DialogFooter>
-              <Button type="submit" disabled={pending || !profileId}>
+              <Button type="submit" disabled={pending || !profileId || !branchId}>
                 {pending ? "Creating…" : "Create & approve"}
               </Button>
             </DialogFooter>

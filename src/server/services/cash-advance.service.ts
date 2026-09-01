@@ -40,6 +40,8 @@ function toRow(advance: NonNullable<CashAdvanceWithRelations>): CashAdvanceRow {
     employeeId: advance.profileId,
     employeeCode: advance.profile.employeeCode,
     employeeName: `${advance.profile.firstName} ${advance.profile.lastName}`,
+    branchId: advance.branchId ?? null,
+    branchName: advance.branch?.name ?? null,
     amount: Number(advance.amount),
     approvedAmount:
       advance.approvedAmount != null ? Number(advance.approvedAmount) : null,
@@ -91,6 +93,7 @@ export async function adminCreateCashAdvance(
   const now = new Date();
   const advance = await insertCashAdvance({
     profile: { connect: { id: profile.id } },
+    branch: { connect: { id: input.branchId } },
     amount: input.amount,
     approvedAmount: input.amount,
     reason: input.reason,
