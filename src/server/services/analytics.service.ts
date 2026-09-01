@@ -6,7 +6,10 @@ import { getComparison } from "@/server/services/attendance.service";
 import { getCashAdvances, getCashAdvancesForEmployee } from "@/server/services/cash-advance.service";
 import { getSavingsAccounts, getSavingsForEmployee } from "@/server/services/savings.service";
 import { findAbsenceRequests } from "@/server/db/absence-request";
-import { findLoans } from "@/server/db/loan";
+import { findLoans, findRepaymentsForPeriod } from "@/server/db/loan";
+import { findAdvancesForPeriod } from "@/server/db/cash-advance";
+import { findChargesForPeriod } from "@/server/db/charge";
+import { findIncentivesForPeriod } from "@/server/db/incentive";
 
 // ─── Admin / Manager ────────────────────────────────────────────────────────
 
@@ -365,4 +368,162 @@ export async function getEmployeeSavingsTrend(profileId: string): Promise<Saving
       };
     })
     .slice(-8);
+}
+
+// ─── Branch Summary ──────────────────────────────────────────────────────────
+
+export interface EmployeeBranchLine {
+  profileId: string;
+  employeeName: string;
+  position: string;
+  daysWorked: number;
+  grossShare: number;
+  cashAdvance: number;
+  loanRepayment: number;
+  charges: number;
+  incentives: number;
+  netCash: number;
+}
+
+export interface BranchSummaryRow {
+  branchId: string | null;
+  branchName: string;
+  employees: EmployeeBranchLine[];
+  totalGrossShare: number;
+  totalCashAdvance: number;
+  totalLoanRepayment: number;
+  totalCharges: number;
+  totalIncentives: number;
+  netCash: number;
+}
+
+function buildFinanceMap(
+  rows: { profileId: string; amount: number | string; branchId: string | null }[],
+): Map<string, Map<string, number>> {
+  const map = new Map<string, Map<string, number>>();
+  for (const row of rows) {
+    const profileMap = map.get(row.profileId) ?? new Map<string, number>();
+    const key = row.branchId ?? "__unassigned__";
+    profileMap.set(key, (profileMap.get(key) ?? 0) + Number(row.amount));
+    map.set(row.profileId, profileMap);
+  }
+  return map;
+}
+
+export async function getBranchSummaryForPeriod(periodId: string): Promise<BranchSummaryRow[]> {
+  const [runItems, advances, charges, repayments, incentives] = await Promise.all([
+    getPayrollRunItems(periodId),
+    findAdvancesForPeriod(periodId),
+    findChargesForPeriod(periodId),
+    findRepaymentsForPeriod(periodId),
+    findIncentivesForPeriod(periodId),
+  ]);
+
+  // Normalise repayments: each row has { amount, loan: { profileId, branchId } }
+  const repaymentFlat = repayments.map((r) => ({
+    profileId: r.loan.profileId,
+    amount: r.amount,
+    branchId: r.loan.branchId,
+  }));
+
+  // Normalise advances: use approvedAmount when set
+  const advanceFlat = advances.map((a) => ({
+    profileId: a.profileId,
+    amount: a.approvedAmount ?? a.amount,
+    branchId: a.branchId,
+  }));
+
+  const advanceMap = buildFinanceMap(advanceFlat.map((r) => ({ ...r, amount: Number(r.amount) })));
+  const chargeMap = buildFinanceMap(charges.map((c) => ({ profileId: c.profileId, amount: Number(c.amount), branchId: c.branchId })));
+  const repaymentMap = buildFinanceMap(repaymentFlat.map((r) => ({ ...r, amount: Number(r.amount) })));
+  const incentiveMap = buildFinanceMap(incentives.map((i) => ({ profileId: i.profileId, amount: Number(i.amount), branchId: i.branchId })));
+
+  const branchMap = new Map<string, BranchSummaryRow>();
+
+  for (const item of runItems) {
+    const gross = Number(item.grossPay);
+    const overtime = Number(item.otherEarnings);
+    const sss = Number(item.sssEmployee);
+    const philhealth = Number(item.philhealthEmployee);
+    const late = Number(item.lateDeduction);
+    const savings = Number(item.savingsContribution);
+
+    const totalBranchDays = item.branches.reduce((s, b) => s + Number(b.daysWorked), 0);
+    if (totalBranchDays === 0) continue;
+
+    const profileAdvances = advanceMap.get(item.profileId) ?? new Map();
+    const profileCharges = chargeMap.get(item.profileId) ?? new Map();
+    const profileRepayments = repaymentMap.get(item.profileId) ?? new Map();
+    const profileIncentives = incentiveMap.get(item.profileId) ?? new Map();
+
+    for (const b of item.branches) {
+      const branchKey = b.branchId ?? "__unassigned__";
+      const branchName = b.branch?.name ?? "Unassigned";
+      const days = Number(b.daysWorked);
+      const ratio = days / totalBranchDays;
+
+      const grossShare = (gross + overtime) * ratio;
+      const statutoryShare = (sss + philhealth + late + savings) * ratio;
+
+      const ca = profileAdvances.get(branchKey) ?? 0;
+      const charge = profileCharges.get(branchKey) ?? 0;
+      const repayment = profileRepayments.get(branchKey) ?? 0;
+      const incentive = profileIncentives.get(branchKey) ?? 0;
+
+      const netCash = grossShare - statutoryShare - ca - charge - repayment + incentive;
+
+      const existing = branchMap.get(branchKey);
+      const employeeLine: EmployeeBranchLine = {
+        profileId: item.profileId,
+        employeeName: `${item.profile.firstName} ${item.profile.lastName}`,
+        position: item.profile.position,
+        daysWorked: days,
+        grossShare: Math.round(grossShare * 100) / 100,
+        cashAdvance: Math.round(ca * 100) / 100,
+        loanRepayment: Math.round(repayment * 100) / 100,
+        charges: Math.round(charge * 100) / 100,
+        incentives: Math.round(incentive * 100) / 100,
+        netCash: Math.round(netCash * 100) / 100,
+      };
+
+      if (existing) {
+        existing.employees.push(employeeLine);
+        existing.totalGrossShare += employeeLine.grossShare;
+        existing.totalCashAdvance += employeeLine.cashAdvance;
+        existing.totalLoanRepayment += employeeLine.loanRepayment;
+        existing.totalCharges += employeeLine.charges;
+        existing.totalIncentives += employeeLine.incentives;
+        existing.netCash += employeeLine.netCash;
+      } else {
+        branchMap.set(branchKey, {
+          branchId: b.branchId,
+          branchName,
+          employees: [employeeLine],
+          totalGrossShare: employeeLine.grossShare,
+          totalCashAdvance: employeeLine.cashAdvance,
+          totalLoanRepayment: employeeLine.loanRepayment,
+          totalCharges: employeeLine.charges,
+          totalIncentives: employeeLine.incentives,
+          netCash: employeeLine.netCash,
+        });
+      }
+    }
+  }
+
+  // Round branch totals and sort: named branches alphabetically, Unassigned last
+  return Array.from(branchMap.values())
+    .map((row) => ({
+      ...row,
+      totalGrossShare: Math.round(row.totalGrossShare * 100) / 100,
+      totalCashAdvance: Math.round(row.totalCashAdvance * 100) / 100,
+      totalLoanRepayment: Math.round(row.totalLoanRepayment * 100) / 100,
+      totalCharges: Math.round(row.totalCharges * 100) / 100,
+      totalIncentives: Math.round(row.totalIncentives * 100) / 100,
+      netCash: Math.round(row.netCash * 100) / 100,
+    }))
+    .sort((a, b) => {
+      if (a.branchId === null) return 1;
+      if (b.branchId === null) return -1;
+      return a.branchName.localeCompare(b.branchName);
+    });
 }
