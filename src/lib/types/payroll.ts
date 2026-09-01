@@ -230,25 +230,3 @@ export interface CashAdvanceRow {
   decidedAt: string | null;
 }
 
-export interface BranchEmployeeLine {
-  employeeId: string;
-  employeeName: string;
-  employeeCode: string;
-  daysWorked: number;
-  grossShare: number;
-  /** Branch-attributed net cash: grossShare − proportional statutory deductions − branch-tied finance deductions + branch-tied incentives. Negative means this employee's deductions exceed their gross at this branch. */
-  netCash: number;
-}
-
-/** Period-level branch cash summary — result of getPeriodBranchSummary(). */
-export interface BranchSummaryLine {
-  branchId: string | null;
-  branchName: string;
-  employeeCount: number;
-  daysWorked: number;
-  /** Sum of days × daily rate for all employees at this branch. */
-  grossShare: number;
-  /** Sum of employee netCash values. balance = grossShare − netCash; negative balance = shortfall. */
-  netCash: number;
-  employees: BranchEmployeeLine[];
-}
