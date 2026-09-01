@@ -68,16 +68,6 @@ export function RunItemsTable({
   const [selected, setSelected] = React.useState<RunItemRow | null>(null);
   const [search, setSearch] = React.useState("");
 
-  const hasLoanDeductions = React.useMemo(
-    () => rows.some((r) => r.loanDeduction > 0),
-    [rows],
-  );
-
-  const hasIncentiveEarnings = React.useMemo(
-    () => rows.some((r) => r.incentiveEarnings > 0),
-    [rows],
-  );
-
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return rows;
@@ -115,49 +105,26 @@ export function RunItemsTable({
         cell: ({ row }) => money(row.original.grossPay),
       },
       {
-        accessorKey: "sssEmployee",
-        header: "SSS",
-        cell: ({ row }) => money(row.original.sssEmployee),
-      },
-      {
-        accessorKey: "philhealthEmployee",
-        header: "PhilHealth",
-        cell: ({ row }) => money(row.original.philhealthEmployee),
-      },
-      {
-        accessorKey: "otherDeductions",
-        header: "Other Ded.",
+        id: "govtContrib",
+        header: "Gov't Contrib.",
         enableSorting: false,
-        cell: ({ row }) => money(row.original.otherDeductions),
+        cell: ({ row }) =>
+          money(row.original.sssEmployee + row.original.philhealthEmployee),
       },
-      ...(hasLoanDeductions
-        ? [
-            {
-              accessorKey: "loanDeduction",
-              header: "Loan Ded.",
-              enableSorting: false,
-              cell: ({ row }: { row: { original: RunItemRow } }) =>
-                money(row.original.loanDeduction),
-            } satisfies ColumnDef<RunItemRow>,
-          ]
-        : []),
       {
-        accessorKey: "otherEarnings",
-        header: "Other Earn.",
+        id: "combinedDeductions",
+        header: "Deductions",
         enableSorting: false,
-        cell: ({ row }) => money(row.original.otherEarnings),
+        cell: ({ row }) =>
+          money(row.original.otherDeductions + row.original.loanDeduction),
       },
-      ...(hasIncentiveEarnings
-        ? [
-            {
-              accessorKey: "incentiveEarnings",
-              header: "Incentive",
-              enableSorting: false,
-              cell: ({ row }: { row: { original: RunItemRow } }) =>
-                money(row.original.incentiveEarnings),
-            } satisfies ColumnDef<RunItemRow>,
-          ]
-        : []),
+      {
+        id: "combinedEarnings",
+        header: "Earnings",
+        enableSorting: false,
+        cell: ({ row }) =>
+          money(row.original.otherEarnings + row.original.incentiveEarnings),
+      },
       {
         accessorKey: "savingsContribution",
         header: "Savings",
@@ -189,7 +156,7 @@ export function RunItemsTable({
         ),
       },
     ],
-    [hasLoanDeductions, hasIncentiveEarnings],
+    [],
   );
 
   const view: PayslipView | null = selected ? { ...selected, periodLabel } : null;

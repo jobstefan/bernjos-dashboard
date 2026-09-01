@@ -174,7 +174,6 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
                 value={b.netPay}
               />
             ))}
-            <Line label="Net pay" value={payslip.netPay} emphasis />
             <p className="pt-1 text-xs text-muted-foreground">
               Take-home split by branch worked — pull each amount from that branch.
             </p>
@@ -195,6 +194,14 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
           </div>
         </>
       ) : null}
+
+      <Separator />
+      <div className="rounded-lg bg-muted/50 px-4 py-3 flex items-center justify-between">
+        <span className="text-sm font-semibold text-foreground">Net Pay</span>
+        <span className="font-mono text-xl font-bold text-foreground">
+          {formatPeso(payslip.netPay)}
+        </span>
+      </div>
     </div>
   );
 }

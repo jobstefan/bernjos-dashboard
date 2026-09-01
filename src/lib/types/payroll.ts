@@ -201,6 +201,8 @@ export interface ChargeRow {
   employeeId: string;
   employeeCode: string;
   employeeName: string;
+  branchId: string;
+  branchName: string;
   amount: number;
   reason: string;
   status: ChargeStatus;
