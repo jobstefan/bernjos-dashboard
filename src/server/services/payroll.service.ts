@@ -745,6 +745,28 @@ export async function updatePayslipRemarks(
   });
 }
 
+export async function toggleRunItemStatus(
+  runItemId: string,
+  actor: Actor,
+): Promise<{ status: string }> {
+  const item = await findRunItemById(runItemId);
+  if (!item) throw new NotFoundError("Payslip", runItemId);
+  if (item.period.status === "approved" || item.period.status === "paid") {
+    throw new InvalidStateTransitionError("Cannot modify an approved or paid period.");
+  }
+  const next = item.status === "included" ? "excluded" : "included";
+  const after = await updateRunItem(runItemId, { status: next });
+  await auditLog({
+    actor,
+    action: "payroll.payslip.status_toggled",
+    entityType: "payroll_run_item",
+    entityId: runItemId,
+    before: { status: item.status },
+    after: { status: next },
+  });
+  return { status: after.status };
+}
+
 export async function getEmployeePayslip(
   employeeId: string,
   periodId: string,

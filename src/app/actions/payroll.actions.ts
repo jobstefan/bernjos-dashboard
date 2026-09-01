@@ -14,6 +14,7 @@ import {
   deletePayrollPeriod,
   markPayrollPaid,
   submitForApproval,
+  toggleRunItemStatus,
   updatePayrollPeriodDates,
   updatePayslipRemarks,
 } from "@/server/services/payroll.service";
@@ -134,6 +135,19 @@ export async function updatePeriodDatesAction(
     revalidatePath("/payroll");
     revalidatePath(`/payroll/${parsed.data.id}`);
     return { success: true, data: undefined };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+export async function toggleRunItemStatusAction(
+  runItemId: string,
+): Promise<ActionResult<{ status: string }>> {
+  try {
+    const actor = await requireAdmin();
+    const data = await toggleRunItemStatus(runItemId, actor);
+    revalidatePath("/payroll");
+    return { success: true, data };
   } catch (error) {
     return { success: false, ...toActionError(error) };
   }
