@@ -64,6 +64,7 @@ export default async function EmployeeProfilePage({
     sssEmployee: p.sssEmployee,
     philhealthEmployee: p.philhealthEmployee,
     otherEarnings: p.otherEarnings,
+    incentiveEarnings: p.incentiveEarnings,
     overtimeMinutes: p.overtimeMinutes,
     lateDeduction: p.lateDeduction,
     advanceDeduction: p.advanceDeduction,
@@ -73,6 +74,9 @@ export default async function EmployeeProfilePage({
     totalDeductions: p.totalDeductions,
     netPay: p.netPay,
     branchBreakdown: p.branchBreakdown,
+    daysWorked: p.daysWorked,
+    absentDays: p.absentDays,
+    dayOffDays: p.dayOffDays,
   }));
 
   const fullName = `${employee.firstName} ${employee.middleName ?? ""} ${employee.lastName}`

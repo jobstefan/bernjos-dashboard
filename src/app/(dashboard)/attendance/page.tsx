@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { CalendarClock, UserCheck, Clock, UserX } from "lucide-react";
+import { CalendarClock, UserCheck, Clock, UserX, CalendarOff, CalendarX } from "lucide-react";
 import { canManageAttendance, getCurrentRole } from "@/lib/auth/rbac";
 import {
   getComparison,
@@ -57,13 +57,15 @@ function buildAttendanceStats(rows: AttendanceComparisonRow[]) {
   const totalPresent = rows.filter((r) => r.status === "present" || r.status === "late").length;
   const totalLate = rows.filter((r) => r.status === "late").length;
   const totalAbsent = rows.filter((r) => r.status === "absent").length;
+  const totalRequestedAbsence = rows.filter((r) => r.status === "requested-absence").length;
+  const totalDayOff = rows.filter((r) => r.status === "day-off").length;
 
   const topLate = Array.from(lateByEmployee.values())
     .sort((a, b) => b.minutes - a.minutes)
     .slice(0, 6)
     .map((e) => ({ employeeName: e.name, lateMinutes: e.minutes }));
 
-  return { points, topLate, totalPresent, totalLate, totalAbsent };
+  return { points, topLate, totalPresent, totalLate, totalAbsent, totalRequestedAbsence, totalDayOff };
 }
 
 export default async function AttendancePage({
@@ -137,10 +139,12 @@ export default async function AttendancePage({
 
       {stats && (
         <>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
             <KpiCard label="Present" value={stats.totalPresent} icon={<UserCheck />} sheen />
             <KpiCard label="Late" value={stats.totalLate} icon={<Clock />} sheen={false} />
             <KpiCard label="Absent" value={stats.totalAbsent} icon={<UserX />} sheen={false} />
+            <KpiCard label="Req. Absence" value={stats.totalRequestedAbsence} icon={<CalendarX />} sheen={false} />
+            <KpiCard label="Day-offs" value={stats.totalDayOff} icon={<CalendarOff />} sheen={false} />
           </div>
 
           {stats.points.length > 1 && (

@@ -159,6 +159,12 @@ export interface Payslip {
   remarks: string | null;
   /** Net pay attributed to each branch the profile worked at (empty when none). */
   branchBreakdown: BranchNetLine[];
+  /** Days actually worked per attendance (0 when not attendance-tracked or old data). */
+  daysWorked?: number;
+  /** Scheduled days with no attendance record (0 when not tracked). */
+  absentDays?: number;
+  /** Calendar days in the period minus scheduled days (0 when not tracked). */
+  dayOffDays?: number;
 }
 
 /** One branch's share of a profile's period net (net × its day-share). */
