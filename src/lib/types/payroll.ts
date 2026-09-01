@@ -218,6 +218,8 @@ export interface CashAdvanceRow {
   employeeId: string;
   employeeCode: string;
   employeeName: string;
+  branchId: string | null;
+  branchName: string | null;
   amount: number;
   approvedAmount: number | null;
   reason: string;

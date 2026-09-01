@@ -159,6 +159,16 @@ export function CashAdvancesTable({
         },
       },
       {
+        accessorKey: "branchName",
+        header: "Branch",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {row.original.branchName ?? "—"}
+          </span>
+        ),
+      },
+      {
         accessorKey: "reason",
         header: "Reason",
         enableSorting: false,
@@ -256,6 +266,7 @@ export function CashAdvancesTable({
   const CSV_COLUMNS = [
     { header: "Employee", accessor: (r: CashAdvanceRow) => r.employeeName },
     { header: "Code", accessor: (r: CashAdvanceRow) => r.employeeCode },
+    { header: "Branch", accessor: (r: CashAdvanceRow) => r.branchName ?? "" },
     { header: "Amount", accessor: (r: CashAdvanceRow) => r.approvedAmount ?? r.amount },
     { header: "Reason", accessor: (r: CashAdvanceRow) => r.reason },
     { header: "Status", accessor: (r: CashAdvanceRow) => r.status },
