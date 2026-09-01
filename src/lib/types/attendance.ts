@@ -29,6 +29,8 @@ export interface AttendanceComparisonRow {
   breakMinutes: number;
   /** Punches didn't pair (odd count) — the mid-shift gap needs a manual add-in. */
   needsReview: boolean;
+  /** Branch the employee was scheduled to work at that day. */
+  branchName: string | null;
 }
 
 /** An enrollment id from an export with no matching employee, plus its printed name. */
