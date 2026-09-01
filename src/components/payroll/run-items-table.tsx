@@ -8,19 +8,30 @@ import { DataCard } from "@/components/ui/data-card";
 import { DataToolbar } from "@/components/ui/data-toolbar";
 import { DetailDrawer } from "@/components/ui/detail-drawer";
 import { Button } from "@/components/ui/button";
-import { Building2 } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   PayslipBreakdown,
   type PayslipView,
 } from "@/components/payroll/payslip-breakdown";
-import { BranchSummaryBreakdown } from "@/components/payroll/branch-summary-breakdown";
-import { updatePayslipRemarksAction } from "@/app/actions/payroll.actions";
+import {
+  EmployeeBranchSplit,
+  getEmployeeBranches,
+} from "@/components/payroll/branch-summary-breakdown";
+import { updatePayslipRemarksAction, toggleRunItemStatusAction } from "@/app/actions/payroll.actions";
 import type { BranchSummaryRow } from "@/server/services/analytics.service";
 import { formatPeso } from "@/lib/utils/payroll";
 import { exportToCsv } from "@/lib/utils/csv";
 import { toneClass } from "@/lib/utils/tone";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 export interface RunItemRow {
   id: string;
@@ -70,9 +81,22 @@ export function RunItemsTable({
   canEditRemarks?: boolean;
   branchSummary?: BranchSummaryRow[];
 }) {
+  const router = useRouter();
   const [selected, setSelected] = React.useState<RunItemRow | null>(null);
+  const [branchSplitRow, setBranchSplitRow] = React.useState<RunItemRow | null>(null);
   const [search, setSearch] = React.useState("");
-  const [branchSummaryOpen, setBranchSummaryOpen] = React.useState(false);
+  const [, startStatusTransition] = React.useTransition();
+
+  function handleToggleStatus(runItemId: string) {
+    startStatusTransition(async () => {
+      const res = await toggleRunItemStatusAction(runItemId);
+      if (res.success) {
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    });
+  }
 
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -111,20 +135,6 @@ export function RunItemsTable({
         cell: ({ row }) => money(row.original.grossPay),
       },
       {
-        id: "govtContrib",
-        header: "Gov't Contrib.",
-        enableSorting: false,
-        cell: ({ row }) =>
-          money(row.original.sssEmployee + row.original.philhealthEmployee),
-      },
-      {
-        id: "combinedDeductions",
-        header: "Deductions",
-        enableSorting: false,
-        cell: ({ row }) =>
-          money(row.original.otherDeductions + row.original.loanDeduction),
-      },
-      {
         id: "combinedEarnings",
         header: "Earnings",
         enableSorting: false,
@@ -132,10 +142,23 @@ export function RunItemsTable({
           money(row.original.otherEarnings + row.original.incentiveEarnings),
       },
       {
-        accessorKey: "savingsContribution",
-        header: "Savings",
+        id: "govtContrib",
+        header: "Gov't Contrib.",
         enableSorting: false,
-        cell: ({ row }) => money(row.original.savingsContribution),
+        cell: ({ row }) =>
+          money(row.original.sssEmployee + row.original.philhealthEmployee),
+      },
+      {
+        id: "deductions",
+        header: "Deductions",
+        enableSorting: false,
+        cell: ({ row }) =>
+          money(
+            row.original.otherDeductions +
+            row.original.loanDeduction +
+            (row.original.chargeDeduction ?? 0) +
+            row.original.savingsContribution,
+          ),
       },
       {
         accessorKey: "netPay",
@@ -149,20 +172,46 @@ export function RunItemsTable({
       {
         accessorKey: "status",
         header: "Status",
-        enableSorting: false,
+        enableSorting: true,
         cell: ({ row }) => (
-          <span
-            className={
-              "inline-flex rounded-full border px-2 py-0.5 text-xs font-medium " +
-              toneClass(row.original.status === "included" ? "success" : "neutral")
-            }
-          >
+          <span className={"inline-flex rounded-full border px-2 py-0.5 text-xs font-medium " + toneClass(row.original.status === "included" ? "success" : "neutral")}>
             {row.original.status}
           </span>
         ),
       },
+      ...(canEditRemarks
+        ? [{
+            id: "actions",
+            header: "",
+            enableSorting: false,
+            cell: ({ row }: { row: { original: RunItemRow } }) => {
+              const isIncluded = row.original.status === "included";
+              return (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground">
+                      <MoreHorizontal className="size-4" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setBranchSplitRow(row.original)}>
+                        View branch split
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => handleToggleStatus(row.original.id)}
+                        className={isIncluded ? "text-destructive focus:text-destructive" : ""}
+                      >
+                        {isIncluded ? "Exclude" : "Include"}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              );
+            },
+          } satisfies ColumnDef<RunItemRow>]
+        : []),
     ],
-    [],
+    [canEditRemarks],
   );
 
   const view: PayslipView | null = selected ? { ...selected, periodLabel } : null;
@@ -206,18 +255,12 @@ export function RunItemsTable({
       <DataToolbar
         search={{ value: search, onChange: setSearch, placeholder: "Search employee, code, department…" }}
         onExport={() => exportToCsv(`${periodLabel}-payroll`, CSV_COLUMNS, filtered)}
-      >
-        {branchSummary && (
-          <Button variant="outline" size="sm" onClick={() => setBranchSummaryOpen(true)}>
-            <Building2 className="size-4" /> Branch Summary
-          </Button>
-        )}
-      </DataToolbar>
+      />
       <DataTable
         columns={columns}
         data={filtered}
         onRowClick={(row) => setSelected(row)}
-        initialSorting={[{ id: "employeeName", desc: false }]}
+        initialSorting={[{ id: "status", desc: true }, { id: "employeeName", desc: false }]}
         renderCard={(row) => (
           <DataCard
             title={row.employeeName}
@@ -228,9 +271,30 @@ export function RunItemsTable({
               { label: "Daily Rate", value: <span className="font-mono">{formatPeso(row.basicSalary)}</span> },
             ]}
             actions={
-              <span className={"inline-flex rounded-full border px-2 py-0.5 text-xs font-medium " + toneClass(row.status === "included" ? "success" : "neutral")}>
-                {row.status}
-              </span>
+              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                <span className={"inline-flex rounded-full border px-2 py-0.5 text-xs font-medium " + toneClass(row.status === "included" ? "success" : "neutral")}>
+                  {row.status}
+                </span>
+                {canEditRemarks && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground">
+                      <MoreHorizontal className="size-4" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setBranchSplitRow(row)}>
+                        View branch split
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => handleToggleStatus(row.id)}
+                        className={row.status === "included" ? "text-destructive focus:text-destructive" : ""}
+                      >
+                        {row.status === "included" ? "Exclude" : "Include"}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
             }
             onClick={() => setSelected(row)}
           />
@@ -246,13 +310,32 @@ export function RunItemsTable({
       </DetailDrawer>
 
       <DetailDrawer
-        open={branchSummaryOpen}
-        onOpenChange={setBranchSummaryOpen}
-        title="Branch Summary"
-        description={`Cash breakdown by branch for ${periodLabel}`}
-        className="sm:max-w-lg"
+        open={branchSplitRow !== null}
+        onOpenChange={(open) => !open && setBranchSplitRow(null)}
+        title="Branch Split"
       >
-        {branchSummary && <BranchSummaryBreakdown rows={branchSummary} />}
+        {branchSplitRow && (
+          <EmployeeBranchSplit
+            employeeName={branchSplitRow.employeeName}
+            position={branchSplitRow.position}
+            periodLabel={periodLabel}
+            branches={
+              branchSummary
+                ? getEmployeeBranches(branchSummary, branchSplitRow.employeeId)
+                : branchSplitRow.branchBreakdown.map((b) => ({
+                    branchName: b.branchName,
+                    daysWorked: b.daysWorked,
+                    grossShare: b.netPay,
+                    cashAdvance: 0,
+                    loanRepayment: 0,
+                    charges: 0,
+                    incentives: 0,
+                    netCash: b.netPay,
+                  }))
+            }
+            totalNetPay={branchSplitRow.netPay}
+          />
+        )}
       </DetailDrawer>
     </div>
   );
@@ -303,3 +386,4 @@ function RemarksEditor({
     </div>
   );
 }
+
