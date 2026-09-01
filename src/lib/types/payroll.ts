@@ -229,3 +229,17 @@ export interface CashAdvanceRow {
   requestedAt: string;
   decidedAt: string | null;
 }
+
+/** Period-level branch cost attribution — result of getPeriodBranchSummary(). */
+export interface BranchSummaryLine {
+  branchId: string | null;
+  branchName: string;
+  employeeCount: number;
+  daysWorked: number;
+  /** Cash to pay out to employees attributed to this branch (post-overflow). */
+  netToEmployees: number;
+  /** Charges + loan repayments + cash advances tagged to this branch. */
+  taggedDeductions: number;
+  /** Incentive earnings tagged to this branch. */
+  taggedIncentives: number;
+}

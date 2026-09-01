@@ -4,6 +4,7 @@ import {
   findSavingsAccountByEmployee,
   findSavingsAccounts,
   insertSavingsTransaction,
+  updateSavingsAccountFrozen,
   upsertSavingsAccount as upsertSavingsAccountRow,
 } from "@/server/db/savings";
 import { findEmployeeById } from "@/server/db/employees";
@@ -47,13 +48,15 @@ function toTransactionRow(t: TransactionWithPeriod): SavingsTransactionRow {
 }
 
 function toAccountRow(account: AccountWithRelations): SavingsAccountRow {
+  const inactiveEmployee = account.profile.employmentStatus !== "active";
   return {
     accountId: account.id,
     employeeId: account.profileId,
     employeeCode: account.profile.employeeCode,
     employeeName: `${account.profile.firstName} ${account.profile.lastName}`,
     contributionAmount: Number(account.contributionAmount),
-    frozen: account.profile.employmentStatus !== "active",
+    frozenByAdmin: account.frozen,
+    frozen: account.frozen || inactiveEmployee,
     balance: computeBalance(account),
     lastActivityAt: account.transactions[0]?.createdAt.toISOString() ?? null,
     transactions: account.transactions.map(toTransactionRow),
@@ -81,7 +84,7 @@ export async function getSavingsForEmployee(
     employeeCode: account.profile.employeeCode,
     employeeName: `${account.profile.firstName} ${account.profile.lastName}`,
     contributionAmount: Number(account.contributionAmount),
-    frozen: account.profile.employmentStatus !== "active",
+    frozen: account.frozen || account.profile.employmentStatus !== "active",
     balance: computeBalance(account),
     transactions: account.transactions.map(toTransactionRow),
   };
@@ -101,6 +104,12 @@ export async function upsertSavingsAccount(
   if (profile.employmentStatus !== "active") {
     throw new BadRequestError(
       "This savings account is frozen because the employee is no longer active.",
+    );
+  }
+  const existing = await findSavingsAccountByEmployee(input.employeeId);
+  if (existing?.frozen) {
+    throw new BadRequestError(
+      "This savings account is frozen. Unfreeze it before editing the contribution.",
     );
   }
 
@@ -161,6 +170,24 @@ export async function recordSavingsAdjustment(
     after: transaction,
   });
   return toAccountRow({ ...account, transactions: [transaction as typeof account.transactions[number], ...account.transactions] });
+}
+
+/** Admin freezes or unfreezes a savings account. Frozen accounts preserve their
+ * balance but receive no contributions from payroll until unfrozen. */
+export async function setSavingsAccountFrozen(
+  accountId: string,
+  frozen: boolean,
+  actor: Actor,
+) {
+  const account = await updateSavingsAccountFrozen(accountId, frozen);
+  await auditLog({
+    actor,
+    action: frozen ? "savings.account.frozen" : "savings.account.unfrozen",
+    entityType: "savings_account",
+    entityId: accountId,
+    after: account,
+  });
+  return toAccountRow(account);
 }
 
 /** Admin view of one employee's account (for the savings detail page). */

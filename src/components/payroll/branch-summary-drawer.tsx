@@ -4,42 +4,13 @@ import * as React from "react";
 import { Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DetailDrawer } from "@/components/ui/detail-drawer";
-import { Separator } from "@/components/ui/separator";
 import { formatPeso } from "@/lib/utils/payroll";
-import type { RunItemRow } from "@/components/payroll/run-items-table";
+import type { BranchSummaryLine } from "@/lib/types/payroll";
 
-interface BranchSummaryEntry {
-  branchName: string;
-  netPay: number;
-  employeeCount: number;
-  daysWorked: number;
-}
-
-function aggregateByBranch(rows: RunItemRow[]): BranchSummaryEntry[] {
-  const map = new Map<string, { netPay: number; employeeIds: Set<string>; daysWorked: number }>();
-  for (const row of rows) {
-    for (const b of row.branchBreakdown) {
-      const cur = map.get(b.branchName) ?? { netPay: 0, employeeIds: new Set(), daysWorked: 0 };
-      cur.netPay += b.netPay;
-      cur.employeeIds.add(row.employeeId);
-      cur.daysWorked += b.daysWorked;
-      map.set(b.branchName, cur);
-    }
-  }
-  return Array.from(map.entries())
-    .map(([branchName, v]) => ({
-      branchName,
-      netPay: v.netPay,
-      employeeCount: v.employeeIds.size,
-      daysWorked: v.daysWorked,
-    }))
-    .sort((a, b) => b.netPay - a.netPay);
-}
-
-export function BranchSummaryDrawer({ rows }: { rows: RunItemRow[] }) {
+export function BranchSummaryDrawer({ summary }: { summary?: BranchSummaryLine[] }) {
   const [open, setOpen] = React.useState(false);
-  const entries = React.useMemo(() => aggregateByBranch(rows), [rows]);
-  const totalNetPay = entries.reduce((s, e) => s + e.netPay, 0);
+
+  const hasData = summary && summary.length > 0;
 
   return (
     <>
@@ -52,16 +23,16 @@ export function BranchSummaryDrawer({ rows }: { rows: RunItemRow[] }) {
         open={open}
         onOpenChange={setOpen}
         title="Branch Summary"
-        description="Net pay owed per branch this period, based on days worked."
+        description="Which branch owes what this period — net pay split by attendance, adjusted for tagged finance items."
       >
-        {entries.length === 0 ? (
+        {!hasData ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             No branch data for this period.
           </p>
         ) : (
           <div className="space-y-4 pt-2">
-            {entries.map((e) => (
-              <div key={e.branchName} className="rounded-lg border bg-card p-4">
+            {summary.map((e) => (
+              <div key={e.branchId ?? "unassigned"} className="rounded-lg border bg-card p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-semibold">{e.branchName}</p>
@@ -70,17 +41,34 @@ export function BranchSummaryDrawer({ rows }: { rows: RunItemRow[] }) {
                       {e.daysWorked.toFixed(1)} day{e.daysWorked === 1 ? "" : "s"} worked
                     </p>
                   </div>
-                  <span className="font-mono text-base font-bold">{formatPeso(e.netPay)}</span>
+                  <span className="font-mono text-base font-bold">
+                    {formatPeso(e.netToEmployees)}
+                  </span>
                 </div>
+
+                {(e.taggedDeductions > 0 || e.taggedIncentives > 0) && (
+                  <div className="border-t pt-2 space-y-1">
+                    {e.taggedDeductions > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Tagged deductions</span>
+                        <span className="font-mono text-destructive">
+                          -{formatPeso(e.taggedDeductions)}
+                        </span>
+                      </div>
+                    )}
+                    {e.taggedIncentives > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Tagged incentives</span>
+                        <span className="font-mono text-emerald-600">
+                          +{formatPeso(e.taggedIncentives)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
 
-            <Separator />
-
-            <div className="flex items-center justify-between rounded-lg bg-muted/50 px-4 py-3">
-              <span className="text-sm font-semibold">Total</span>
-              <span className="font-mono text-base font-bold">{formatPeso(totalNetPay)}</span>
-            </div>
           </div>
         )}
       </DetailDrawer>

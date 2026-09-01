@@ -395,7 +395,7 @@ export async function calculatePayrollRun(
     // never moves money into savings.
     const account = await findSavingsAccountByEmployee(employee.id);
     let savingsContribution = ZERO;
-    if (account) {
+    if (account && !account.frozen) {
       const wanted = round2(new Decimal(account.contributionAmount));
       savingsContribution = Decimal.max(
         ZERO,
