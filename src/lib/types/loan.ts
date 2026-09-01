@@ -16,6 +16,8 @@ export interface LoanRow {
   employeeId: string;
   employeeCode: string;
   employeeName: string;
+  branchId: string | null;
+  branchName: string | null;
   amount: number;
   termPeriods: number;
   installmentAmount: number;

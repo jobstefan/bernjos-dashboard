@@ -19,6 +19,8 @@ function toRow(incentive: NonNullable<IncentiveWithRelations>): IncentiveRow {
     employeeId: incentive.profileId,
     employeeCode: incentive.profile.employeeCode,
     employeeName: `${incentive.profile.firstName} ${incentive.profile.lastName}`,
+    branchId: incentive.branchId ?? null,
+    branchName: incentive.branch?.name ?? null,
     amount: Number(incentive.amount),
     reason: incentive.reason ?? null,
     status: incentive.status,
@@ -42,6 +44,7 @@ export async function createIncentive(
 
   const incentive = await insertIncentive({
     profile: { connect: { id: input.profileId } },
+    branch: { connect: { id: input.branchId } },
     amount: input.amount,
     reason: input.reason ?? null,
     status: "pending",

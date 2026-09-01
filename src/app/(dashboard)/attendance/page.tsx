@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { CalendarClock, UserCheck, Clock, UserX, CalendarOff, CalendarX } from "lucide-react";
+import { CalendarClock, UserCheck, CalendarOff, CalendarX } from "lucide-react";
 import { canManageAttendance, getCurrentRole } from "@/lib/auth/rbac";
 import {
   getComparison,
@@ -139,10 +139,8 @@ export default async function AttendancePage({
 
       {stats && (
         <>
-          <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid gap-4 sm:grid-cols-3">
             <KpiCard label="Present" value={stats.totalPresent} icon={<UserCheck />} sheen />
-            <KpiCard label="Late" value={stats.totalLate} icon={<Clock />} sheen={false} />
-            <KpiCard label="Absent" value={stats.totalAbsent} icon={<UserX />} sheen={false} />
             <KpiCard label="Req. Absence" value={stats.totalRequestedAbsence} icon={<CalendarX />} sheen={false} />
             <KpiCard label="Day-offs" value={stats.totalDayOff} icon={<CalendarOff />} sheen={false} />
           </div>

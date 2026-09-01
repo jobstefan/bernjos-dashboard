@@ -23,6 +23,7 @@ export const createLoanSchema = z.object({
 /** Admin creates a loan on behalf of an employee (instant active). */
 export const adminCreateLoanSchema = z.object({
   profileId: z.string().min(1, "Select an employee."),
+  branchId: z.string().min(1, "Select a branch."),
   amount: z.coerce
     .number()
     .positive("Amount must be greater than zero.")
@@ -51,6 +52,7 @@ export const declineLoanSchema = z.object({
 
 export const disburseLoanSchema = z.object({
   id: z.string().min(1),
+  branchId: z.string().min(1, "Select a branch."),
 });
 
 export const cancelLoanSchema = z.object({

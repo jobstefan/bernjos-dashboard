@@ -28,6 +28,7 @@ import { toneClass } from "@/lib/utils/tone";
 import { exportToCsv } from "@/lib/utils/csv";
 import type { LoanRow, LoanStatus } from "@/lib/types/loan";
 import type { Tone } from "@/lib/utils/tone";
+import type { BranchOption } from "@/components/loans/create-loan-dialog";
 
 const ALL = "__all__";
 
@@ -65,9 +66,11 @@ function formatDate(iso: string) {
 export function LoansTable({
   rows,
   mode = "admin",
+  branches = [],
 }: {
   rows: LoanRow[];
   mode?: "admin" | "mine";
+  branches?: BranchOption[];
 }) {
   const [toApprove, setToApprove] = React.useState<LoanRow | null>(null);
   const [toDecline, setToDecline] = React.useState<LoanRow | null>(null);
@@ -153,6 +156,20 @@ export function LoansTable({
           </span>
         ),
       },
+      ...(mode === "admin"
+        ? [
+            {
+              accessorKey: "branchName",
+              header: "Branch",
+              enableSorting: false,
+              cell: ({ row }: { row: { original: LoanRow } }) => (
+                <span className="text-sm text-muted-foreground">
+                  {row.original.branchName ?? "—"}
+                </span>
+              ),
+            } satisfies ColumnDef<LoanRow>,
+          ]
+        : []),
       {
         accessorKey: "status",
         header: "Status",
@@ -229,6 +246,7 @@ export function LoansTable({
   const CSV_COLUMNS = [
     { header: "Employee", accessor: (r: LoanRow) => r.employeeName },
     { header: "Code", accessor: (r: LoanRow) => r.employeeCode },
+    { header: "Branch", accessor: (r: LoanRow) => r.branchName ?? "" },
     { header: "Amount", accessor: (r: LoanRow) => r.amount },
     { header: "Term (periods)", accessor: (r: LoanRow) => r.termPeriods },
     { header: "Outstanding", accessor: (r: LoanRow) => r.outstandingBalance },
@@ -339,6 +357,7 @@ export function LoansTable({
         loan={toDisburse}
         open={toDisburse !== null}
         onOpenChange={(open) => !open && setToDisburse(null)}
+        branches={branches}
       />
       <CancelLoanDialog
         loan={toCancel}

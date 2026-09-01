@@ -14,6 +14,7 @@ const withRelations = {
   profile: {
     select: { id: true, employeeCode: true, firstName: true, lastName: true },
   },
+  branch: { select: { name: true } },
   repayments: {
     orderBy: { installmentNo: "asc" as const },
     include: {

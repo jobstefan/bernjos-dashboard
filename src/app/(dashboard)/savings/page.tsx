@@ -4,6 +4,7 @@ import { canSuperviseSavings, getCurrentRole } from "@/lib/auth/rbac";
 import { getSavingsAccounts } from "@/server/services/savings.service";
 import { getLoans, getOutstandingPrincipalByProfile } from "@/server/services/loan.service";
 import { getSavingsStats } from "@/server/services/analytics.service";
+import { findBranches } from "@/server/db/branches";
 import { SavingsTable } from "@/components/savings/savings-table";
 import { LoansTable } from "@/components/loans/loans-table";
 import { AdminCreateLoanButton } from "@/components/loans/create-loan-dialog";
@@ -19,11 +20,14 @@ export default async function SavingsPage() {
   const role = await getCurrentRole();
   if (!canSuperviseSavings(role)) redirect("/");
 
-  const [rows, loans, outstandingMap] = await Promise.all([
+  const [rows, loans, outstandingMap, branchRows] = await Promise.all([
     getSavingsAccounts(),
     getLoans(),
     getOutstandingPrincipalByProfile(),
+    findBranches(),
   ]);
+
+  const branchOptions = branchRows.map((b) => ({ id: b.id, name: b.name }));
 
   const availableToBorrowMap = Object.fromEntries(
     rows.map((r) => [
@@ -75,11 +79,12 @@ export default async function SavingsPage() {
             <AdminCreateLoanButton
               accounts={rows}
               availableToBorrowMap={availableToBorrowMap}
+              branches={branchOptions}
             />
           }
         />
       ) : (
-        <LoansTable rows={loans} mode="admin" />
+        <LoansTable rows={loans} mode="admin" branches={branchOptions} />
       )}
     </div>
   );
@@ -166,6 +171,7 @@ export default async function SavingsPage() {
         <AdminCreateLoanButton
           accounts={rows}
           availableToBorrowMap={availableToBorrowMap}
+          branches={branchOptions}
         />
       </div>
 
