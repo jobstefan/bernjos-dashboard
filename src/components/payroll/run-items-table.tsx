@@ -14,6 +14,7 @@ import {
   PayslipBreakdown,
   type PayslipView,
 } from "@/components/payroll/payslip-breakdown";
+import { BranchSummaryDrawer } from "@/components/payroll/branch-summary-drawer";
 import { updatePayslipRemarksAction } from "@/app/actions/payroll.actions";
 import { formatPeso } from "@/lib/utils/payroll";
 import { exportToCsv } from "@/lib/utils/csv";
@@ -200,7 +201,9 @@ export function RunItemsTable({
       <DataToolbar
         search={{ value: search, onChange: setSearch, placeholder: "Search employee, code, department…" }}
         onExport={() => exportToCsv(`${periodLabel}-payroll`, CSV_COLUMNS, filtered)}
-      />
+      >
+        <BranchSummaryDrawer rows={rows} />
+      </DataToolbar>
       <DataTable
         columns={columns}
         data={filtered}

@@ -155,6 +155,7 @@ export default async function CashAdvancesPage() {
           mode="admin"
           canApprove={canApproveCashAdvance(role)}
           canDelete={role === "super_admin"}
+          branches={branchOptions}
         />
       )}
     </div>
