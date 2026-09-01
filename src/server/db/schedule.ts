@@ -10,6 +10,7 @@ const withRelations = {
       firstName: true,
       lastName: true,
       department: true,
+      position: true,
     },
   },
   branch: { select: { id: true, name: true } },

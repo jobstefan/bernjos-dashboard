@@ -12,6 +12,7 @@ export interface PositionRow {
   id: string;
   name: string;
   departmentId: string;
+  shiftHours: number;
   createdAt: string;
 }
 
@@ -19,7 +20,6 @@ export interface PositionRow {
 export interface DepartmentRow {
   id: string;
   name: string;
-  shiftHours: number;
   createdAt: string;
   positionCount: number;
 }
@@ -32,5 +32,5 @@ export interface DepartmentWithPositions extends DepartmentRow {
 export interface DepartmentOption {
   id: string;
   name: string;
-  positions: { id: string; name: string }[];
+  positions: { id: string; name: string; shiftHours: number }[];
 }

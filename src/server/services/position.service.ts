@@ -24,6 +24,7 @@ export async function createPosition(
 
   const position = await insertPosition({
     name: input.name,
+    shiftHours: input.shiftHours,
     department: { connect: { id: input.departmentId } },
   });
   await auditLog({
@@ -51,6 +52,7 @@ export async function updatePosition(
 
   const after = await updatePositionRow(id, {
     ...(input.name !== undefined ? { name: input.name } : {}),
+    ...(input.shiftHours !== undefined ? { shiftHours: input.shiftHours } : {}),
     ...(input.departmentId !== undefined
       ? { department: { connect: { id: input.departmentId } } }
       : {}),

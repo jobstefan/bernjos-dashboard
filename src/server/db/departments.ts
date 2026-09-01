@@ -24,16 +24,6 @@ export function findDepartmentByName(name: string) {
   return prisma.department.findFirst({ where: { name, deletedAt: null } });
 }
 
-export async function findDepartmentShiftsByNames(
-  names: string[],
-): Promise<Map<string, number>> {
-  if (!names.length) return new Map();
-  const depts = await prisma.department.findMany({
-    where: { name: { in: names }, deletedAt: null },
-    select: { name: true, shiftHours: true },
-  });
-  return new Map(depts.map((d) => [d.name, d.shiftHours]));
-}
 
 export function insertDepartment(data: Prisma.DepartmentCreateInput) {
   return prisma.department.create({ data });

@@ -74,7 +74,7 @@ export function DepartmentsManager({
               <CardTitle className="text-base">{dept.name}</CardTitle>
               <p className="text-xs text-muted-foreground">
                 {dept.positionCount} position
-                {dept.positionCount === 1 ? "" : "s"} &middot; {dept.shiftHours}hr shift
+                {dept.positionCount === 1 ? "" : "s"}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -127,7 +127,10 @@ export function DepartmentsManager({
                     key={pos.id}
                     className="flex items-center justify-between gap-2 py-2"
                   >
-                    <span className="min-w-0 truncate text-sm">{pos.name}</span>
+                    <div className="min-w-0 flex-1">
+                      <span className="truncate text-sm">{pos.name}</span>
+                      <span className="ml-2 text-xs text-muted-foreground">{pos.shiftHours}hr shift</span>
+                    </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         render={
