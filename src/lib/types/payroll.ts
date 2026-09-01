@@ -1,11 +1,13 @@
 import type {
   CashAdvanceModel,
+  ChargeModel,
   UserProfileModel,
   PayrollPeriodModel,
   PayrollRunItemModel,
 } from "@/generated/prisma/models";
 import type {
   CashAdvanceStatus,
+  ChargeStatus,
   EmploymentStatus,
   PayFrequency,
   PayrollStatus,
@@ -19,8 +21,10 @@ export type Employee = UserProfile;
 export type PayrollPeriod = PayrollPeriodModel;
 export type PayrollRunItem = PayrollRunItemModel;
 export type CashAdvance = CashAdvanceModel;
+export type Charge = ChargeModel;
 export type {
   CashAdvanceStatus,
+  ChargeStatus,
   EmploymentStatus,
   PayFrequency,
   PayrollStatus,
@@ -141,7 +145,9 @@ export interface Payslip {
   advanceDeduction: number;
   otherDeductions: number;
   loanDeduction: number;
+  chargeDeduction: number;
   otherEarnings: number;
+  incentiveEarnings: number;
   /** Minutes worked past scheduled end for the period (0 when none or not tracked). */
   overtimeMinutes: number;
   /** User savings withheld into their account — not a deduction. */
@@ -165,6 +171,35 @@ export interface BranchNetLine {
 export interface CashAdvanceFilters {
   status?: CashAdvanceStatus;
   profileId?: string;
+}
+
+/** An incentive flattened for display in a table. */
+export type IncentiveStatus = "pending" | "applied" | "cancelled";
+
+export interface IncentiveRow {
+  id: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  amount: number;
+  reason: string | null;
+  status: IncentiveStatus;
+  appliedPeriodLabel: string | null;
+  createdAt: string;
+  cancelledAt: string | null;
+}
+
+/** A charge flattened for display in a table. */
+export interface ChargeRow {
+  id: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  amount: number;
+  reason: string;
+  status: ChargeStatus;
+  appliedPeriodLabel: string | null;
+  createdAt: string;
 }
 
 /** A cash-advance request flattened for display in a table. */

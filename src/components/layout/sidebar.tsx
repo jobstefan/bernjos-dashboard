@@ -8,6 +8,7 @@ import {
   Users,
   FileText,
   HandCoins,
+  TriangleAlert,
   CalendarDays,
   Building2,
   Network,
@@ -15,6 +16,7 @@ import {
   Fingerprint,
   LogOut,
   Settings,
+  Gift,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -33,12 +35,14 @@ const ICONS: Record<NavIcon, React.ComponentType<{ className?: string }>> = {
   employees: Users,
   payslip: FileText,
   cashAdvance: HandCoins,
+  charge: TriangleAlert,
   schedule: CalendarDays,
   branch: Building2,
   department: Network,
   savings: PiggyBank,
   attendance: Fingerprint,
   settings: Settings,
+  incentive: Gift,
 };
 
 function isActive(pathname: string, href: string): boolean {

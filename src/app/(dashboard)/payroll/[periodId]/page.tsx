@@ -52,6 +52,7 @@ export default async function PeriodDetailPage({
     otherDeductions: Number(item.otherDeductions),
     loanDeduction: Number(item.loanDeduction),
     otherEarnings: Number(item.otherEarnings),
+    incentiveEarnings: Number(item.incentiveEarnings),
     savingsContribution: Number(item.savingsContribution),
     totalDeductions: Number(item.totalDeductions),
     netPay: Number(item.netPay),

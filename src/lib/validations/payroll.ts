@@ -142,6 +142,17 @@ export const declineCashAdvanceSchema = z.object({
   reason: z.string().trim().min(1, "A reason for declining is required."),
 });
 
+export const createChargeSchema = z.object({
+  profileId: z.string().min(1, "Select an employee."),
+  amount: z.coerce
+    .number()
+    .positive("Amount must be greater than zero.")
+    .max(1_000_000, "Amount is too large."),
+  reason: z.string().trim().min(1, "Please provide a reason for the charge."),
+});
+
+export type CreateChargeSchema = z.infer<typeof createChargeSchema>;
+
 export const employeeFiltersSchema = z.object({
   search: z.string().trim().optional(),
   department: z.string().trim().optional(),

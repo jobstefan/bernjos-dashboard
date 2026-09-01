@@ -12,11 +12,13 @@ export interface PayslipView {
   sssEmployee: number;
   philhealthEmployee: number;
   otherEarnings: number;
+  incentiveEarnings?: number;
   overtimeMinutes?: number;
   lateDeduction?: number;
   advanceDeduction?: number;
   otherDeductions: number;
   loanDeduction?: number;
+  chargeDeduction?: number;
   savingsContribution: number;
   totalDeductions: number;
   netPay: number;
@@ -84,6 +86,9 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
             value={payslip.otherEarnings}
           />
         ) : null}
+        {(payslip.incentiveEarnings ?? 0) > 0 ? (
+          <Line label="Incentive" value={payslip.incentiveEarnings!} />
+        ) : null}
       </div>
 
       <Separator />
@@ -111,6 +116,9 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
         ) : null}
         {(payslip.loanDeduction ?? 0) > 0 ? (
           <Line label="Loan repayment" value={payslip.loanDeduction!} negative />
+        ) : null}
+        {(payslip.chargeDeduction ?? 0) > 0 ? (
+          <Line label="Charges" value={payslip.chargeDeduction!} negative />
         ) : null}
         <Line label="Total deductions" value={payslip.totalDeductions} emphasis negative />
       </div>

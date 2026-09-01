@@ -6,12 +6,14 @@ export type NavIcon =
   | "employees"
   | "payslip"
   | "cashAdvance"
+  | "charge"
   | "schedule"
   | "branch"
   | "department"
   | "savings"
   | "attendance"
-  | "settings";
+  | "settings"
+  | "incentive";
 
 export interface NavItem {
   label: string;
@@ -88,6 +90,18 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/cash-advances",
         icon: "cashAdvance",
         roles: MGRS,
+      },
+      {
+        label: "Charges",
+        href: "/charges",
+        icon: "charge",
+        roles: ADMINS,
+      },
+      {
+        label: "Incentives",
+        href: "/incentives",
+        icon: "incentive",
+        roles: ADMINS,
       },
       {
         label: "My Advances",
