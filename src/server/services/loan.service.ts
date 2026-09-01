@@ -99,6 +99,8 @@ function toLoanRow(loan: LoanWithRelations): LoanRow {
     employeeId: loan.profileId,
     employeeCode: loan.profile.employeeCode,
     employeeName: `${loan.profile.firstName} ${loan.profile.lastName}`,
+    branchId: loan.branchId ?? null,
+    branchName: loan.branch?.name ?? null,
     amount: Number(loan.amount),
     termPeriods: loan.termPeriods,
     installmentAmount,
@@ -213,6 +215,7 @@ export async function adminCreateLoan(
     const created = await tx.loan.create({
       data: {
         profile: { connect: { id: profile.id } },
+        branch: { connect: { id: input.branchId } },
         amount: input.amount,
         termPeriods: input.termPeriods,
         reason: input.reason,
@@ -284,7 +287,7 @@ export async function approveLoan(
 }
 
 /** Admin disburses an approved loan (approved → active). Creates repayment schedule. */
-export async function disburseLoan(id: string, actor: Actor): Promise<void> {
+export async function disburseLoan(id: string, actor: Actor, branchId: string): Promise<void> {
   const loan = await findLoanById(id);
   if (!loan) throw new NotFoundError("Loan", id);
   if (loan.status !== "approved") {
@@ -310,6 +313,7 @@ export async function disburseLoan(id: string, actor: Actor): Promise<void> {
       where: { id },
       data: {
         status: "active",
+        branch: { connect: { id: branchId } },
         disbursedBy: actor.clerkUserId,
         disbursedAt: now,
       },

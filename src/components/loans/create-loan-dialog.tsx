@@ -27,6 +27,11 @@ import { adminCreateLoanAction } from "@/app/actions/loan.actions";
 import { formatPeso } from "@/lib/utils/payroll";
 import type { SavingsAccountRow } from "@/lib/types/savings";
 
+export interface BranchOption {
+  id: string;
+  name: string;
+}
+
 const PRESET_TERMS = [
   { value: "1", label: "1 pay period" },
   { value: "2", label: "2 pay periods" },
@@ -67,9 +72,11 @@ export function CreateLoanDialog({
 export function AdminCreateLoanButton({
   accounts,
   availableToBorrowMap,
+  branches,
 }: {
   accounts: SavingsAccountRow[];
   availableToBorrowMap: Record<string, number>;
+  branches: BranchOption[];
 }) {
   const [open, setOpen] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState<string>("");
@@ -90,6 +97,7 @@ export function AdminCreateLoanButton({
           setOpen(next);
           if (!next) setSelectedId("");
         }}
+        branches={branches}
         employeePicker={
           <div className="grid gap-2">
             <Label>Employee</Label>
@@ -131,17 +139,20 @@ function CreateLoanDialogInner({
   open,
   onOpenChange,
   employeePicker,
+  branches = [],
 }: {
   account: SavingsAccountRow | null;
   availableToBorrow: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   employeePicker?: React.ReactNode;
+  branches?: BranchOption[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const [amount, setAmount] = React.useState("");
   const [termSelect, setTermSelect] = React.useState<string>("1");
+  const [branchId, setBranchId] = React.useState("");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
   const termPeriods = parseInt(termSelect, 10);
@@ -155,6 +166,7 @@ function CreateLoanDialogInner({
     if (open) {
       setAmount("");
       setTermSelect("1");
+      setBranchId("");
       setErrors({});
     }
   }, [open]);
@@ -167,6 +179,7 @@ function CreateLoanDialogInner({
     startTransition(async () => {
       const res = await adminCreateLoanAction({
         profileId: account.employeeId,
+        branchId,
         amount,
         termPeriods,
         reason: String(form.get("reason") ?? ""),
@@ -203,6 +216,35 @@ function CreateLoanDialogInner({
 
           <div className="grid gap-4 py-4">
             {employeePicker}
+
+            {branches.length > 0 && (
+              <div className="grid gap-2">
+                <Label>Branch</Label>
+                <Select
+                  value={branchId}
+                  onValueChange={(v) => v && setBranchId(v)}
+                  disabled={!account}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select branch…">
+                      {(value) =>
+                        branches.find((b) => b.id === value)?.name ?? "Select branch…"
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.branchId ? (
+                  <p className="text-xs text-destructive">{errors.branchId}</p>
+                ) : null}
+              </div>
+            )}
 
             <div className="grid gap-2">
               <Label>Amount (₱)</Label>
@@ -277,7 +319,7 @@ function CreateLoanDialogInner({
           <DialogFooter>
             <Button
               type="submit"
-              disabled={pending || !account}
+              disabled={pending || !account || (branches.length > 0 && !branchId)}
             >
               {pending ? "Creating…" : "Create & disburse"}
             </Button>

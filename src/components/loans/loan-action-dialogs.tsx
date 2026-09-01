@@ -24,6 +24,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   approveLoanAction,
   cancelLoanAction,
   declineLoanAction,
@@ -31,6 +38,7 @@ import {
 } from "@/app/actions/loan.actions";
 import { formatPeso } from "@/lib/utils/payroll";
 import type { LoanRow } from "@/lib/types/loan";
+import type { BranchOption } from "@/components/loans/create-loan-dialog";
 
 function useSubmit(action: () => Promise<{ success: boolean; error?: string }>) {
   const router = useRouter();
@@ -193,18 +201,26 @@ export function DisburseLoanDialog({
   loan,
   open,
   onOpenChange,
+  branches = [],
 }: {
   loan: LoanRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  branches?: BranchOption[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
+  const [branchId, setBranchId] = React.useState("");
 
-  function onConfirm() {
-    if (!loan) return;
+  React.useEffect(() => {
+    if (open) setBranchId("");
+  }, [open]);
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!loan || !branchId) return;
     startTransition(async () => {
-      const res = await disburseLoanAction({ id: loan.id });
+      const res = await disburseLoanAction({ id: loan.id, branchId });
       if (res.success) {
         toast.success("Loan disbursed. Repayment schedule created.");
         onOpenChange(false);
@@ -216,26 +232,51 @@ export function DisburseLoanDialog({
   }
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Disburse loan?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {loan
-              ? `This will disburse ${formatPeso(loan.amount)} to ${loan.employeeName} and create ${loan.termPeriods} repayment installment${loan.termPeriods > 1 ? "s" : ""} of ${formatPeso(Math.floor(loan.amount / loan.termPeriods))} each. Deductions will begin in the next payroll run.`
-              : ""}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
-            Cancel
-          </Button>
-          <Button onClick={onConfirm} disabled={pending}>
-            {pending ? "Disbursing…" : "Disburse"}
-          </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <form onSubmit={onSubmit}>
+          <DialogHeader>
+            <DialogTitle>Disburse loan?</DialogTitle>
+            <DialogDescription>
+              {loan
+                ? `This will disburse ${formatPeso(loan.amount)} to ${loan.employeeName} and create ${loan.termPeriods} repayment installment${loan.termPeriods > 1 ? "s" : ""} of ${formatPeso(Math.floor(loan.amount / loan.termPeriods))} each. Deductions will begin in the next payroll run.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          {branches.length > 0 && (
+            <div className="grid gap-2 py-4">
+              <Label>Branch</Label>
+              <Select value={branchId} onValueChange={(v) => v && setBranchId(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select branch…">
+                    {(value) =>
+                      branches.find((b) => b.id === value)?.name ?? "Select branch…"
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {branches.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={() => onOpenChange(false)} disabled={pending}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={pending || (branches.length > 0 && !branchId)}>
+              {pending ? "Disbursing…" : "Disburse"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
