@@ -14,8 +14,6 @@ import {
   PayslipBreakdown,
   type PayslipView,
 } from "@/components/payroll/payslip-breakdown";
-import { BranchSummaryDrawer } from "@/components/payroll/branch-summary-drawer";
-import type { BranchSummaryLine } from "@/lib/types/payroll";
 import { updatePayslipRemarksAction } from "@/app/actions/payroll.actions";
 import { formatPeso } from "@/lib/utils/payroll";
 import { exportToCsv } from "@/lib/utils/csv";
@@ -62,12 +60,10 @@ export function RunItemsTable({
   rows,
   periodLabel,
   canEditRemarks = false,
-  branchSummary,
 }: {
   rows: RunItemRow[];
   periodLabel: string;
   canEditRemarks?: boolean;
-  branchSummary?: BranchSummaryLine[];
 }) {
   const [selected, setSelected] = React.useState<RunItemRow | null>(null);
   const [search, setSearch] = React.useState("");
@@ -205,7 +201,6 @@ export function RunItemsTable({
         search={{ value: search, onChange: setSearch, placeholder: "Search employee, code, department…" }}
         onExport={() => exportToCsv(`${periodLabel}-payroll`, CSV_COLUMNS, filtered)}
       >
-        <BranchSummaryDrawer summary={branchSummary} />
       </DataToolbar>
       <DataTable
         columns={columns}

@@ -4,8 +4,7 @@ import { ArrowLeft, Users } from "lucide-react";
 import { getCurrentRole, canViewPayroll, isAdmin, isSuperAdmin } from "@/lib/auth/rbac";
 import { findPeriodById } from "@/server/db/payroll";
 import { getPayrollRunItems } from "@/server/services/payroll.service";
-import { getPeriodDeductionMix, getPeriodBranchSummary } from "@/server/services/analytics.service";
-import type { BranchSummaryLine } from "@/lib/types/payroll";
+import { getPeriodDeductionMix } from "@/server/services/analytics.service";
 import { StatusBadge } from "@/components/payroll/status-badge";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { PeriodActions } from "@/components/payroll/period-actions";
@@ -91,12 +90,8 @@ export default async function PeriodDetailPage({
   );
 
   let deductionMix: Awaited<ReturnType<typeof getPeriodDeductionMix>> = [];
-  let branchSummary: BranchSummaryLine[] = [];
   try {
-    [deductionMix, branchSummary] = await Promise.all([
-      getPeriodDeductionMix(periodId),
-      getPeriodBranchSummary(periodId),
-    ]);
+    deductionMix = await getPeriodDeductionMix(periodId);
   } catch {
     // Tolerate analytics failures
   }
@@ -198,7 +193,6 @@ export default async function PeriodDetailPage({
           rows={rows}
           periodLabel={period.periodLabel}
           canEditRemarks={admin}
-          branchSummary={branchSummary}
         />
       )}
     </div>
