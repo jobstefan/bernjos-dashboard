@@ -100,7 +100,7 @@ export function compareDay(
     if (outMin < inMin) outMin += 24 * 60; // clocked out past midnight
     undertimeMinutes = Math.max(0, effectiveEnd - outMin);
     const rawOt = Math.max(0, outMin - effectiveEnd);
-    overtimeMinutes = rawOt > OT_GRACE_MINUTES ? rawOt : 0;
+    overtimeMinutes = rawOt > OT_GRACE_MINUTES ? rawOt - OT_GRACE_MINUTES : 0;
   }
 
   // Unresolved (odd) punches deduct nothing until an admin adds the gap manually.
