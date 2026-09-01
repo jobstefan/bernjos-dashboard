@@ -6,6 +6,7 @@ export type NavIcon =
   | "employees"
   | "payslip"
   | "cashAdvance"
+  | "charge"
   | "schedule"
   | "branch"
   | "department"
@@ -88,6 +89,12 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/cash-advances",
         icon: "cashAdvance",
         roles: MGRS,
+      },
+      {
+        label: "Charges",
+        href: "/charges",
+        icon: "charge",
+        roles: ADMINS,
       },
       {
         label: "My Advances",

@@ -22,6 +22,11 @@ import {
   resetCashAdvancesForPeriod,
 } from "@/server/db/cash-advance";
 import {
+  findPendingChargesForEmployee,
+  markChargesApplied,
+  resetChargesForPeriod,
+} from "@/server/db/charge";
+import {
   finalizeRepaymentsForPeriod,
   findFullyRepaidLoansInPeriod,
   findPendingRepaymentsForEmployee,
@@ -305,6 +310,7 @@ export async function calculatePayrollRun(
   await resetCashAdvancesForPeriod(periodId);
   await resetRepaymentsForPeriod(periodId);
   await resetSavingsContributionsForPeriod(periodId);
+  await resetChargesForPeriod(periodId);
 
   const employees = await findActiveEmployeesByFrequency(period.frequency);
 
@@ -313,6 +319,7 @@ export async function calculatePayrollRun(
   })[] = [];
   const appliedAdvanceIds: string[] = [];
   const taggedRepaymentIds: string[] = [];
+  const appliedChargeIds: string[] = [];
   let totalGross = ZERO;
   let totalDeductions = ZERO;
   let totalNet = ZERO;
@@ -343,6 +350,15 @@ export async function calculatePayrollRun(
     }
     loanDeduction = round2(loanDeduction);
 
+    // Fold pending charges (admin-imposed deductions) into a dedicated charge line.
+    const pendingCharges = await findPendingChargesForEmployee(employee.id);
+    let chargeDeduction = ZERO;
+    for (const charge of pendingCharges) {
+      chargeDeduction = chargeDeduction.add(charge.amount);
+      appliedChargeIds.push(charge.id);
+    }
+    chargeDeduction = round2(chargeDeduction);
+
     // Summarize attendance on the run item for transparency on the payslip.
     const attendanceNote = b.attendanceTracked
       ? `Attendance: ${b.daysWorked} day(s) worked` +
@@ -353,7 +369,7 @@ export async function calculatePayrollRun(
       : null;
 
     const overtimeEarnings = round2(new Decimal(b.overtimeEarnings));
-    const itemTotalDeductions = round2(new Decimal(b.totalDeductions).add(otherDeductions).add(loanDeduction));
+    const itemTotalDeductions = round2(new Decimal(b.totalDeductions).add(otherDeductions).add(loanDeduction).add(chargeDeduction));
     const payAfterDeductions = round2(new Decimal(b.grossPay).add(overtimeEarnings).sub(itemTotalDeductions));
 
     // Savings is the employee's own money moved into their account — NOT a
@@ -399,6 +415,7 @@ export async function calculatePayrollRun(
       advanceDeduction,
       otherDeductions,
       loanDeduction,
+      chargeDeduction,
       otherEarnings: overtimeEarnings,
       savingsContribution,
       totalDeductions: itemTotalDeductions,
@@ -420,6 +437,9 @@ export async function calculatePayrollRun(
   }
   if (taggedRepaymentIds.length > 0) {
     await markRepaymentsTagged(taggedRepaymentIds, periodId);
+  }
+  if (appliedChargeIds.length > 0) {
+    await markChargesApplied(appliedChargeIds, periodId);
   }
   const updated = await updatePeriod(periodId, { status: "calculated" });
 
@@ -642,6 +662,7 @@ function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
     advanceDeduction: toNum(item.advanceDeduction),
     otherDeductions: toNum(item.otherDeductions),
     loanDeduction: toNum(item.loanDeduction),
+    chargeDeduction: toNum(item.chargeDeduction),
     otherEarnings: toNum(item.otherEarnings),
     overtimeMinutes: parseOvertimeMinutes(item.notes),
     savingsContribution: toNum(item.savingsContribution),

@@ -52,7 +52,7 @@ export async function getPeriodDeductionMix(periodId: string): Promise<Deduction
   for (const item of items) {
     sss += Number(item.sssEmployee);
     philhealth += Number(item.philhealthEmployee);
-    other += Number(item.otherDeductions);
+    other += Number(item.otherDeductions) + Number(item.chargeDeduction);
     savings += Number(item.savingsContribution);
   }
   return [
@@ -79,7 +79,7 @@ export async function getPayrollTrend(limit = 6): Promise<PayrollTrendPoint[]> {
         net += Number(item.netPay);
         sss += Number(item.sssEmployee);
         philhealth += Number(item.philhealthEmployee);
-        other += Number(item.otherDeductions);
+        other += Number(item.otherDeductions) + Number(item.chargeDeduction);
         savings += Number(item.savingsContribution);
       }
       return { periodId: p.id, label: p.periodLabel, gross, deductions, net, sss, philhealth, other, savings };
