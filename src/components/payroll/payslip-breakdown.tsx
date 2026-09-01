@@ -29,9 +29,7 @@ export interface PayslipView {
     daysWorked: number;
     netPay: number;
   }[];
-  /** Days actually worked (only set when attendance-tracked). */
-  daysWorked?: number;
-  /** Scheduled days the employee did not attend. */
+  /** Scheduled days the employee did not attend (only set when attendance-tracked). */
   absentDays?: number;
   /** Calendar days in the period with no scheduled shift. */
   dayOffDays?: number;
@@ -103,6 +101,20 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
         <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Deductions
         </div>
+        {(payslip.absentDays ?? 0) > 0 ? (
+          <Line
+            label={`Absent (${payslip.absentDays} day${payslip.absentDays === 1 ? "" : "s"})`}
+            value={(payslip.absentDays ?? 0) * payslip.basicSalary}
+            negative
+          />
+        ) : null}
+        {(payslip.dayOffDays ?? 0) > 0 ? (
+          <Line
+            label={`Day-off (${payslip.dayOffDays} day${payslip.dayOffDays === 1 ? "" : "s"})`}
+            value={(payslip.dayOffDays ?? 0) * payslip.basicSalary}
+            negative
+          />
+        ) : null}
         {payslip.sssEmployee > 0 ? (
           <Line label="SSS" value={payslip.sssEmployee} negative />
         ) : null}
@@ -166,38 +178,6 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
             <p className="pt-1 text-xs text-muted-foreground">
               Take-home split by branch worked — pull each amount from that branch.
             </p>
-          </div>
-        </>
-      ) : null}
-
-      {payslip.daysWorked != null ? (
-        <>
-          <Separator />
-          <div>
-            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Attendance
-            </div>
-            <div className="flex items-center justify-between py-1.5 text-sm">
-              <span className="text-muted-foreground">Days worked</span>
-              <span className="font-mono">{payslip.daysWorked}</span>
-            </div>
-            {(payslip.absentDays ?? 0) > 0 || (payslip.dayOffDays ?? 0) > 0 ? (
-              <div className="flex items-center justify-between py-1.5 text-sm">
-                <span className="text-muted-foreground">
-                  Absent &amp; day-off
-                  {(payslip.absentDays ?? 0) > 0 && (payslip.dayOffDays ?? 0) > 0
-                    ? ` (${payslip.absentDays} absent, ${payslip.dayOffDays} day-off)`
-                    : (payslip.absentDays ?? 0) > 0
-                    ? ` (${payslip.absentDays} absent)`
-                    : ` (${payslip.dayOffDays} day-off)`}
-                </span>
-                <span className="font-mono text-muted-foreground">
-                  {(payslip.absentDays ?? 0) > 0
-                    ? `${formatPeso((payslip.absentDays ?? 0) * payslip.basicSalary)} foregone`
-                    : "—"}
-                </span>
-              </div>
-            ) : null}
           </div>
         </>
       ) : null}

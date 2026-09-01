@@ -18,7 +18,7 @@ import {
 } from "@/server/db/attendance";
 import { findAbsenceRequestsInRange } from "@/server/db/absence-request";
 import { findBranchById } from "@/server/db/branches";
-import { findEmployeeByCode } from "@/server/db/employees";
+import { findActiveEmployeeBasics, findEmployeeByCode } from "@/server/db/employees";
 import { findPositionShiftsByKeys } from "@/server/db/positions";
 import { findEntriesForEmployee, findEntriesForRange } from "@/server/db/schedule";
 import { auditLog } from "@/server/services/audit.service";
@@ -312,10 +312,11 @@ export async function getComparison(
   from: Date,
   to: Date,
 ): Promise<AttendanceComparisonRow[]> {
-  const [entries, records, absenceRequests] = await Promise.all([
+  const [entries, records, absenceRequests, activeEmployees] = await Promise.all([
     findEntriesForRange(from, to),
     findRecordsForRange(from, to),
     findAbsenceRequestsInRange(from, to),
+    findActiveEmployeeBasics(),
   ]);
   const recByKey = new Map(
     records.map((r) => [dateKey(r.date, r.profileId), r]),
@@ -341,8 +342,14 @@ export async function getComparison(
 
   const rows: AttendanceComparisonRow[] = [];
   const seen = new Set<string>();
-  // Track employee info for generating day-off rows later.
-  const employeeInfoMap = new Map<string, { code: string; name: string }>();
+  // Pre-seed with all active employees so day-off rows are generated even on
+  // dates where no schedule entries or attendance records exist.
+  const employeeInfoMap = new Map<string, { code: string; name: string }>(
+    activeEmployees.map((e) => [
+      e.id,
+      { code: e.employeeCode, name: `${e.firstName} ${e.lastName}` },
+    ]),
+  );
 
   for (const entry of entries) {
     const key = dateKey(entry.date, entry.profileId);
@@ -362,7 +369,6 @@ export async function getComparison(
     }, { deptShiftHours });
 
     const empName = `${entry.profile.firstName} ${entry.profile.lastName}`;
-    employeeInfoMap.set(entry.profileId, { code: entry.profile.employeeCode, name: empName });
 
     // Scheduled + absence request → mark as requested-absence.
     const isRequestedAbsence = cmp.status === "absent" && ar != null;
@@ -398,7 +404,6 @@ export async function getComparison(
     if (seen.has(key)) continue;
     seen.add(key);
     const empName = `${rec.profile.firstName} ${rec.profile.lastName}`;
-    employeeInfoMap.set(rec.profileId, { code: rec.profile.employeeCode, name: empName });
     rows.push({
       date: rec.date.toISOString().slice(0, 10),
       employeeId: rec.profileId,
@@ -431,7 +436,6 @@ export async function getComparison(
     if (seen.has(key)) continue;
     seen.add(key);
     const empName = `${ar.profile.firstName} ${ar.profile.lastName}`;
-    employeeInfoMap.set(ar.profileId, { code: ar.profile.employeeCode, name: empName });
     rows.push({
       date: ar.date.toISOString().slice(0, 10),
       employeeId: ar.profileId,
