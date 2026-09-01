@@ -41,6 +41,14 @@ export function findAbsenceRequestsForEmployee(profileId: string) {
   });
 }
 
+export function findAbsenceRequestsInRange(from: Date, to: Date) {
+  return prisma.absenceRequest.findMany({
+    where: { date: { gte: from, lte: to } },
+    include: withProfile,
+    orderBy: { date: "asc" },
+  });
+}
+
 export function findAbsenceRequestsForDate(date: Date) {
   return prisma.absenceRequest.findMany({
     where: { date },

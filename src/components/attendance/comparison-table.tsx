@@ -14,12 +14,22 @@ import type { AttendanceStatus } from "@/lib/attendance/compare";
 
 const STATUS_META: Record<
   AttendanceStatus,
-  { label: string; variant: "secondary" | "destructive" | "outline" }
+  { label: string; variant: "secondary" | "destructive" | "outline"; className?: string }
 > = {
   present: { label: "Present", variant: "secondary" },
   late: { label: "Late", variant: "destructive" },
   absent: { label: "Absent", variant: "destructive" },
   "no-schedule": { label: "No schedule", variant: "outline" },
+  "day-off": {
+    label: "Day-off",
+    variant: "outline",
+    className: "border-sky-300 bg-sky-100 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-400",
+  },
+  "requested-absence": {
+    label: "Requested absence",
+    variant: "outline",
+    className: "border-amber-300 bg-amber-100 text-amber-700 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-400",
+  },
 };
 
 const range = (from: string | null, to: string | null) =>
@@ -104,7 +114,7 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
           const { status, lateMinutes } = row.original;
           const meta = STATUS_META[status];
           return (
-            <Badge variant={meta.variant}>
+            <Badge variant={meta.variant} className={meta.className}>
               {meta.label}
               {status === "late" ? ` ${lateMinutes}m` : ""}
             </Badge>
@@ -113,10 +123,22 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
       },
       {
         id: "variance",
-        header: "Late / Undertime / Overtime / Out",
+        header: "Late / Undertime / Overtime / Note",
         enableSorting: false,
         cell: ({ row }) => {
-          const { lateMinutes, undertimeMinutes, overtimeMinutes, breakMinutes, status } = row.original;
+          const { lateMinutes, undertimeMinutes, overtimeMinutes, breakMinutes, status, absenceRequest } = row.original;
+          if (absenceRequest) {
+            const label = absenceRequest.status === "approved"
+              ? "Approved"
+              : absenceRequest.status === "pending"
+              ? "Pending"
+              : "Declined";
+            return (
+              <span className="text-sm text-muted-foreground">
+                {label}{absenceRequest.reason ? ` — ${absenceRequest.reason}` : ""}
+              </span>
+            );
+          }
           const parts = [
             status === "late" ? `${lateMinutes}m late` : null,
             undertimeMinutes ? `${undertimeMinutes}m under` : null,
@@ -159,12 +181,17 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
         initialSorting={[{ id: "date", desc: true }]}
         renderCard={(row) => {
           const meta = STATUS_META[row.status];
-          const varianceParts = [
-            row.status === "late" ? `${row.lateMinutes}m late` : null,
-            row.undertimeMinutes ? `${row.undertimeMinutes}m under` : null,
-            row.overtimeMinutes ? `${row.overtimeMinutes}m overtime` : null,
-            row.breakMinutes ? `${row.breakMinutes}m out` : null,
-          ].filter(Boolean);
+          const varianceParts = row.absenceRequest
+            ? [
+                row.absenceRequest.status === "approved" ? "Approved" : row.absenceRequest.status === "pending" ? "Pending" : "Declined",
+                row.absenceRequest.reason ?? null,
+              ].filter(Boolean)
+            : [
+                row.status === "late" ? `${row.lateMinutes}m late` : null,
+                row.undertimeMinutes ? `${row.undertimeMinutes}m under` : null,
+                row.overtimeMinutes ? `${row.overtimeMinutes}m overtime` : null,
+                row.breakMinutes ? `${row.breakMinutes}m out` : null,
+              ].filter(Boolean);
           return (
             <DataCard
               title={row.employeeName}
@@ -182,7 +209,7 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
                   ) : "—",
                 },
               ]}
-              actions={<Badge variant={meta.variant}>{meta.label}{row.status === "late" ? ` ${row.lateMinutes}m` : ""}</Badge>}
+              actions={<Badge variant={meta.variant} className={meta.className}>{meta.label}{row.status === "late" ? ` ${row.lateMinutes}m` : ""}</Badge>}
               onClick={() => setEditingRow(row)}
             />
           );

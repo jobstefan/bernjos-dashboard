@@ -1,6 +1,6 @@
 import { DEPT_SHIFT_BREAK_BUFFER_HOURS, GRACE_MINUTES, OT_GRACE_MINUTES } from "./config";
 
-export type AttendanceStatus = "present" | "late" | "absent" | "no-schedule";
+export type AttendanceStatus = "present" | "late" | "absent" | "no-schedule" | "day-off" | "requested-absence";
 
 export interface DayComparisonInput {
   /** Scheduled shift start `HH:MM`, or null if the employee isn't scheduled. */

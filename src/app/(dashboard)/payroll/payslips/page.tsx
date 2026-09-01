@@ -42,16 +42,21 @@ export default async function MyPayslipsPage() {
     sssEmployee: p.sssEmployee,
     philhealthEmployee: p.philhealthEmployee,
     otherEarnings: p.otherEarnings,
+    incentiveEarnings: p.incentiveEarnings,
     overtimeMinutes: p.overtimeMinutes,
     lateDeduction: p.lateDeduction,
     advanceDeduction: p.advanceDeduction,
     otherDeductions: p.otherDeductions,
     loanDeduction: p.loanDeduction,
+    chargeDeduction: p.chargeDeduction,
     savingsContribution: p.savingsContribution,
     totalDeductions: p.totalDeductions,
     netPay: p.netPay,
     remarks: p.remarks,
     branchBreakdown: p.branchBreakdown,
+    daysWorked: p.daysWorked,
+    absentDays: p.absentDays,
+    dayOffDays: p.dayOffDays,
   }));
 
   return (

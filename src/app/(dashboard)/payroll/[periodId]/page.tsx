@@ -36,34 +36,48 @@ export default async function PeriodDetailPage({
 
   const items = await getPayrollRunItems(periodId);
 
-  const rows: RunItemRow[] = items.map((item) => ({
-    id: item.id,
-    employeeId: item.profileId,
-    employeeName: `${item.profile.firstName} ${item.profile.lastName}`,
-    employeeCode: item.profile.employeeCode,
-    position: item.profile.position,
-    department: item.profile.department,
-    basicSalary: Number(item.basicSalary),
-    grossPay: Number(item.grossPay),
-    sssEmployee: Number(item.sssEmployee),
-    philhealthEmployee: Number(item.philhealthEmployee),
-    lateDeduction: Number(item.lateDeduction),
-    advanceDeduction: Number(item.advanceDeduction),
-    otherDeductions: Number(item.otherDeductions),
-    loanDeduction: Number(item.loanDeduction),
-    otherEarnings: Number(item.otherEarnings),
-    incentiveEarnings: Number(item.incentiveEarnings),
-    savingsContribution: Number(item.savingsContribution),
-    totalDeductions: Number(item.totalDeductions),
-    netPay: Number(item.netPay),
-    status: item.status,
-    remarks: item.remarks,
-    branchBreakdown: item.branches.map((b) => ({
-      branchName: b.branch?.name ?? "Unassigned",
-      daysWorked: Number(b.daysWorked),
-      netPay: Number(b.netPay),
-    })),
-  }));
+  const calendarDays =
+    Math.round((period.periodEnd.getTime() - period.periodStart.getTime()) / 86400000) + 1;
+
+  const rows: RunItemRow[] = items.map((item) => {
+    const dwMatch = item.notes?.match(/Attendance: (\d+) day/)?.[1];
+    const abMatch = item.notes?.match(/(\d+) absent/)?.[1];
+    const dw = dwMatch ? parseInt(dwMatch, 10) : undefined;
+    const ab = abMatch ? parseInt(abMatch, 10) : undefined;
+    const scheduled = dw != null ? (dw + (ab ?? 0)) : undefined;
+    return {
+      id: item.id,
+      employeeId: item.profileId,
+      employeeName: `${item.profile.firstName} ${item.profile.lastName}`,
+      employeeCode: item.profile.employeeCode,
+      position: item.profile.position,
+      department: item.profile.department,
+      basicSalary: Number(item.basicSalary),
+      grossPay: Number(item.grossPay),
+      sssEmployee: Number(item.sssEmployee),
+      philhealthEmployee: Number(item.philhealthEmployee),
+      lateDeduction: Number(item.lateDeduction),
+      advanceDeduction: Number(item.advanceDeduction),
+      otherDeductions: Number(item.otherDeductions),
+      loanDeduction: Number(item.loanDeduction),
+      chargeDeduction: Number(item.chargeDeduction),
+      otherEarnings: Number(item.otherEarnings),
+      incentiveEarnings: Number(item.incentiveEarnings),
+      savingsContribution: Number(item.savingsContribution),
+      totalDeductions: Number(item.totalDeductions),
+      netPay: Number(item.netPay),
+      status: item.status,
+      remarks: item.remarks,
+      branchBreakdown: item.branches.map((b) => ({
+        branchName: b.branch?.name ?? "Unassigned",
+        daysWorked: Number(b.daysWorked),
+        netPay: Number(b.netPay),
+      })),
+      daysWorked: dw,
+      absentDays: ab,
+      dayOffDays: scheduled != null ? Math.max(0, calendarDays - scheduled) : undefined,
+    };
+  });
 
   const totals = rows.reduce(
     (acc, r) => {

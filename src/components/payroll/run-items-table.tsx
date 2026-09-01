@@ -47,6 +47,9 @@ export interface RunItemRow {
     daysWorked: number;
     netPay: number;
   }[];
+  daysWorked?: number;
+  absentDays?: number;
+  dayOffDays?: number;
 }
 
 const money = (v: number) => (
@@ -202,6 +205,7 @@ export function RunItemsTable({
     { header: "PhilHealth", accessor: (r: RunItemRow) => r.philhealthEmployee },
     { header: "Other Deductions", accessor: (r: RunItemRow) => r.otherDeductions },
     { header: "Loan Deduction", accessor: (r: RunItemRow) => r.loanDeduction },
+    { header: "Charge Deduction", accessor: (r: RunItemRow) => r.chargeDeduction ?? 0 },
     { header: "Other Earnings", accessor: (r: RunItemRow) => r.otherEarnings },
     { header: "Incentive", accessor: (r: RunItemRow) => r.incentiveEarnings },
     { header: "Savings", accessor: (r: RunItemRow) => r.savingsContribution },

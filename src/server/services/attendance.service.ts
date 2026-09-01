@@ -16,6 +16,7 @@ import {
   updateImportRow,
   upsertEmployeeDevice,
 } from "@/server/db/attendance";
+import { findAbsenceRequestsInRange } from "@/server/db/absence-request";
 import { findBranchById } from "@/server/db/branches";
 import { findEmployeeByCode } from "@/server/db/employees";
 import { findPositionShiftsByKeys } from "@/server/db/positions";
@@ -311,12 +312,21 @@ export async function getComparison(
   from: Date,
   to: Date,
 ): Promise<AttendanceComparisonRow[]> {
-  const [entries, records] = await Promise.all([
+  const [entries, records, absenceRequests] = await Promise.all([
     findEntriesForRange(from, to),
     findRecordsForRange(from, to),
+    findAbsenceRequestsInRange(from, to),
   ]);
   const recByKey = new Map(
     records.map((r) => [dateKey(r.date, r.profileId), r]),
+  );
+
+  // Build a map of absence requests keyed by date|employeeId for O(1) lookup.
+  const absenceMap = new Map(
+    absenceRequests.map((ar) => [
+      dateKey(ar.date, ar.profileId),
+      ar,
+    ]),
   );
 
   const posShiftKeys = [...new Map(
@@ -331,11 +341,14 @@ export async function getComparison(
 
   const rows: AttendanceComparisonRow[] = [];
   const seen = new Set<string>();
+  // Track employee info for generating day-off rows later.
+  const employeeInfoMap = new Map<string, { code: string; name: string }>();
 
   for (const entry of entries) {
     const key = dateKey(entry.date, entry.profileId);
     seen.add(key);
     const rec = recByKey.get(key);
+    const ar = absenceMap.get(key);
     const shiftKey = entry.profile.department && entry.profile.position
       ? `${entry.profile.department}::${entry.profile.position}`
       : null;
@@ -347,11 +360,18 @@ export async function getComparison(
       timeOut: rec?.timeOut ?? null,
       breakMinutes: rec?.breakMinutes ?? null,
     }, { deptShiftHours });
+
+    const empName = `${entry.profile.firstName} ${entry.profile.lastName}`;
+    employeeInfoMap.set(entry.profileId, { code: entry.profile.employeeCode, name: empName });
+
+    // Scheduled + absence request → mark as requested-absence.
+    const isRequestedAbsence = cmp.status === "absent" && ar != null;
+
     rows.push({
       date: entry.date.toISOString().slice(0, 10),
       employeeId: entry.profileId,
       employeeCode: entry.profile.employeeCode,
-      employeeName: `${entry.profile.firstName} ${entry.profile.lastName}`,
+      employeeName: empName,
       scheduledStart: entry.startTime,
       scheduledEnd: entry.endTime,
       actualIn: rec?.timeIn ?? null,
@@ -361,13 +381,14 @@ export async function getComparison(
       gap2Start: rec?.gap2Start ?? null,
       gap2End: rec?.gap2End ?? null,
       source: deriveSource(rec),
-      status: cmp.status,
+      status: isRequestedAbsence ? "requested-absence" : cmp.status,
       lateMinutes: cmp.lateMinutes,
       undertimeMinutes: cmp.undertimeMinutes,
       overtimeMinutes: cmp.overtimeMinutes,
       breakMinutes: cmp.breakMinutes,
       needsReview: cmp.needsReview,
       branchName: entry.branch?.name ?? null,
+      absenceRequest: ar ? { id: ar.id, status: ar.status, reason: ar.reason ?? null } : null,
     });
   }
 
@@ -375,11 +396,14 @@ export async function getComparison(
   for (const rec of records) {
     const key = dateKey(rec.date, rec.profileId);
     if (seen.has(key)) continue;
+    seen.add(key);
+    const empName = `${rec.profile.firstName} ${rec.profile.lastName}`;
+    employeeInfoMap.set(rec.profileId, { code: rec.profile.employeeCode, name: empName });
     rows.push({
       date: rec.date.toISOString().slice(0, 10),
       employeeId: rec.profileId,
       employeeCode: rec.profile.employeeCode,
-      employeeName: `${rec.profile.firstName} ${rec.profile.lastName}`,
+      employeeName: empName,
       scheduledStart: null,
       scheduledEnd: null,
       actualIn: rec.timeIn,
@@ -396,7 +420,78 @@ export async function getComparison(
       breakMinutes: rec.breakMinutes ?? 0,
       needsReview: rec.timeIn !== null && rec.breakMinutes === null,
       branchName: null,
+      absenceRequest: null,
     });
+  }
+
+  // Add rows for absence requests on non-scheduled days (employee has no schedule
+  // entry that day and no attendance record, but submitted a request).
+  for (const ar of absenceRequests) {
+    const key = dateKey(ar.date, ar.profileId);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const empName = `${ar.profile.firstName} ${ar.profile.lastName}`;
+    employeeInfoMap.set(ar.profileId, { code: ar.profile.employeeCode, name: empName });
+    rows.push({
+      date: ar.date.toISOString().slice(0, 10),
+      employeeId: ar.profileId,
+      employeeCode: ar.profile.employeeCode,
+      employeeName: empName,
+      scheduledStart: null,
+      scheduledEnd: null,
+      actualIn: null,
+      actualOut: null,
+      gapStart: null,
+      gapEnd: null,
+      gap2Start: null,
+      gap2End: null,
+      source: null,
+      status: "requested-absence",
+      lateMinutes: 0,
+      undertimeMinutes: 0,
+      overtimeMinutes: 0,
+      breakMinutes: 0,
+      needsReview: false,
+      branchName: null,
+      absenceRequest: { id: ar.id, status: ar.status, reason: ar.reason ?? null },
+    });
+  }
+
+  // Generate day-off rows: for every employee who appears in the range,
+  // fill in any calendar date that has no row yet.
+  const fromTime = from.getTime();
+  const toTime = to.getTime();
+  const MS_PER_DAY = 86400000;
+  for (const [employeeId, info] of employeeInfoMap) {
+    for (let t = fromTime; t <= toTime; t += MS_PER_DAY) {
+      const dateStr = new Date(t).toISOString().slice(0, 10);
+      const key = `${dateStr}|${employeeId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push({
+        date: dateStr,
+        employeeId,
+        employeeCode: info.code,
+        employeeName: info.name,
+        scheduledStart: null,
+        scheduledEnd: null,
+        actualIn: null,
+        actualOut: null,
+        gapStart: null,
+        gapEnd: null,
+        gap2Start: null,
+        gap2End: null,
+        source: null,
+        status: "day-off",
+        lateMinutes: 0,
+        undertimeMinutes: 0,
+        overtimeMinutes: 0,
+        breakMinutes: 0,
+        needsReview: false,
+        branchName: null,
+        absenceRequest: null,
+      });
+    }
   }
 
   rows.sort(

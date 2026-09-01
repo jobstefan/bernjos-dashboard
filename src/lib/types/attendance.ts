@@ -31,6 +31,8 @@ export interface AttendanceComparisonRow {
   needsReview: boolean;
   /** Branch the employee was scheduled to work at that day. */
   branchName: string | null;
+  /** Absence request for this day, if one exists (pending or approved). */
+  absenceRequest: { id: string; status: "pending" | "approved" | "declined"; reason: string | null } | null;
 }
 
 /** An enrollment id from an export with no matching employee, plus its printed name. */

@@ -655,7 +655,27 @@ function parseOvertimeMinutes(notes: string | null): number {
   return match ? parseInt(match[1], 10) : 0;
 }
 
+function parseDaysWorked(notes: string | null): number {
+  const match = notes?.match(/Attendance: (\d+) day/) ?? null;
+  return match ? parseInt(match[1], 10) : 0;
+}
+
+function parseAbsentDays(notes: string | null): number {
+  const match = notes?.match(/(\d+) absent/) ?? null;
+  return match ? parseInt(match[1], 10) : 0;
+}
+
 function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
+  const daysWorked = parseDaysWorked(item.notes);
+  const absentDays = parseAbsentDays(item.notes);
+  const scheduledDays = daysWorked + absentDays;
+  const calendarDays = scheduledDays > 0
+    ? Math.round(
+        (item.period.periodEnd.getTime() - item.period.periodStart.getTime()) / 86400000,
+      ) + 1
+    : 0;
+  const dayOffDays = scheduledDays > 0 ? Math.max(0, calendarDays - scheduledDays) : 0;
+
   return {
     runItemId: item.id,
     period: {
@@ -696,6 +716,9 @@ function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
       daysWorked: toNum(b.daysWorked),
       netPay: toNum(b.netPay),
     })),
+    daysWorked: scheduledDays > 0 ? daysWorked : undefined,
+    absentDays: scheduledDays > 0 ? absentDays : undefined,
+    dayOffDays: scheduledDays > 0 ? dayOffDays : undefined,
   };
 }
 
