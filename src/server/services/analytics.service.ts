@@ -100,9 +100,17 @@ export async function getPeriodBranchSummary(periodId: string): Promise<BranchSu
   }
 
   for (const c of charges) addToMap(chargesByEmployee, c.profileId, c.branchId, Number(c.amount));
+  // Repayments: stored for branch attribution ratios only — total comes from item.loanDeduction
   for (const r of repayments) addToMap(repaymentsByEmployee, r.loan.profileId, r.loan.branchId, Number(r.amount));
   for (const a of advances) addToMap(advancesByEmployee, a.profileId, a.branchId, Number(a.approvedAmount ?? a.amount));
   for (const i of incentives) addToMap(incentivesByEmployee, i.profileId, i.branchId, Number(i.amount));
+
+  // Authoritative loan deduction per employee — what payroll actually withheld this period
+  const loanDeductionByEmployee = new Map<string, number>();
+  for (const item of items) {
+    const total = Number(item.loanDeduction);
+    if (total > 0) loanDeductionByEmployee.set(item.profileId, total);
+  }
 
   // Accumulate per-branch totals across all employees
   const summary = new Map<string | null, {
@@ -160,9 +168,25 @@ export async function getPeriodBranchSummary(periodId: string): Promise<BranchSu
     }
 
     const chargesPerBranch = distributeFinance(empCharges);
-    const repaymentsPerBranch = distributeFinance(empRepayments);
     const advancesPerBranch = distributeFinance(empAdvances);
     const incentivesPerBranch = distributeFinance(empIncentives);
+
+    // Loan repayments: use authoritative total from item.loanDeduction, repayment records for branch ratios
+    const authLoanTotal = loanDeductionByEmployee.get(profileId) ?? 0;
+    let repaymentsPerBranch: Map<string | null, number>;
+    if (authLoanTotal === 0) {
+      repaymentsPerBranch = new Map(Array.from(grossPerBranch.keys()).map((k) => [k, 0]));
+    } else if (empRepayments.size === 0) {
+      // No branch tags — spread by gross share
+      repaymentsPerBranch = distributeFinance(new Map([[null, authLoanTotal]]));
+    } else {
+      // Scale repayment records to the authoritative total (fixes any DB drift in amounts)
+      const repaymentRawTotal = Array.from(empRepayments.values()).reduce((s, v) => s + v, 0);
+      const scale = repaymentRawTotal > 0 ? authLoanTotal / repaymentRawTotal : 1;
+      const scaled = new Map<string | null, number>();
+      for (const [bid, amt] of empRepayments) scaled.set(bid, amt * scale);
+      repaymentsPerBranch = distributeFinance(scaled);
+    }
 
     // Accumulate raw numbers — no overflow redistribution; let the drawer surface the shortfall
     for (const b of item.branches) {
