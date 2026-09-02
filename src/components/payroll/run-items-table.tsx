@@ -61,6 +61,8 @@ export interface RunItemRow {
   daysWorked?: number;
   absentDays?: number;
   dayOffDays?: number;
+  lateMinutes?: number;
+  undertimeMinutes?: number;
 }
 
 const money = (v: number) => (

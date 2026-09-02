@@ -57,6 +57,8 @@ export default async function PeriodDetailPage({
       sssEmployee: Number(item.sssEmployee),
       philhealthEmployee: Number(item.philhealthEmployee),
       lateDeduction: Number(item.lateDeduction),
+      lateMinutes: parseInt(item.notes?.match(/(\d+) late-min/)?.[1] ?? "0", 10),
+      undertimeMinutes: parseInt(item.notes?.match(/(\d+) undertime-min/)?.[1] ?? "0", 10),
       advanceDeduction: Number(item.advanceDeduction),
       otherDeductions: Number(item.otherDeductions),
       loanDeduction: Number(item.loanDeduction),
