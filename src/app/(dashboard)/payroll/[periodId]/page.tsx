@@ -17,7 +17,6 @@ import {
   type RunItemRow,
 } from "@/components/payroll/run-items-table";
 import { EmptyState } from "@/components/payroll/empty-state";
-import { BranchCashSummary } from "@/components/payroll/branch-cash-summary";
 import { formatDate, formatPeso } from "@/lib/utils/payroll";
 import { Wallet, PiggyBank, TrendingDown } from "lucide-react";
 
@@ -187,8 +186,6 @@ export default async function PeriodDetailPage({
           )}
         </div>
       )}
-
-      {branchCash.length > 0 && <BranchCashSummary rows={branchCash} />}
 
       {rows.length === 0 ? (
         <EmptyState
