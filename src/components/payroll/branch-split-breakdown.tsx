@@ -44,16 +44,47 @@ export function BranchSplitBreakdown({
   const covered = totalSurplus >= totalDeficit;
   const remainder = Math.round((totalSurplus - totalDeficit) * 100) / 100;
 
-  // Greedy allocation: prefer one branch covering a deficit fully; combine only when needed.
-  // pool tracks remaining surplus per branch (mutable across deficit iterations)
-  const pool = surpluses.map((s) => ({ branchName: s.branchName, remaining: s.netCash }));
+  // ── Phase 1: Net Pay Sourcing ──────────────────────────────────────────────
+  // Determine which branch(es) to physically pull the net pay from.
+  // Prefer a single branch; pool only when necessary.
+  const netPayPool = surpluses.map((s) => ({ branchName: s.branchName, remaining: s.netCash }));
+  const netPaySources: { branchName: string; amount: number }[] = [];
+  const netPayCovered = totalSurplus >= totalNetPay;
+
+  if (netPayCovered) {
+    let stillNeed = Math.round(totalNetPay * 100) / 100;
+
+    // Try smallest single branch that fully covers net pay (preserves larger ones for deficit pool)
+    const singleCover = netPayPool
+      .filter((s) => s.remaining >= stillNeed)
+      .sort((a, b) => a.remaining - b.remaining)[0];
+
+    if (singleCover) {
+      netPaySources.push({ branchName: singleCover.branchName, amount: stillNeed });
+      singleCover.remaining = Math.round((singleCover.remaining - stillNeed) * 100) / 100;
+    } else {
+      // Greedy pool from largest-first
+      const sorted = [...netPayPool].sort((a, b) => b.remaining - a.remaining);
+      for (const entry of sorted) {
+        if (stillNeed <= 0) break;
+        const poolEntry = netPayPool.find((p) => p.branchName === entry.branchName)!;
+        if (poolEntry.remaining <= 0) continue;
+        const take = Math.round(Math.min(poolEntry.remaining, stillNeed) * 100) / 100;
+        netPaySources.push({ branchName: poolEntry.branchName, amount: take });
+        poolEntry.remaining = Math.round((poolEntry.remaining - take) * 100) / 100;
+        stillNeed = Math.round((stillNeed - take) * 100) / 100;
+      }
+    }
+  }
+
+  // ── Phase 2: Deficit Coverage (uses what remains in netPayPool after Phase 1) ──
+  // pool now holds the remainder after net pay was allocated
+  const pool = netPayPool;
 
   const cards = deficits.map((deficit) => {
     const need = Math.round(Math.abs(deficit.netCash) * 100) / 100;
     const sources: { branchName: string; amount: number }[] = [];
 
-    // 1. Try to find a single surplus branch that covers this deficit fully.
-    //    Pick the smallest one that still covers (saves larger surpluses for other deficits).
     const fullCover = pool
       .filter((s) => s.remaining >= need)
       .sort((a, b) => a.remaining - b.remaining)[0];
@@ -62,7 +93,6 @@ export function BranchSplitBreakdown({
       sources.push({ branchName: fullCover.branchName, amount: need });
       fullCover.remaining = Math.round((fullCover.remaining - need) * 100) / 100;
     } else {
-      // 2. No single branch can cover — fill greedily from the largest available surplus.
       let stillNeed = need;
       const sorted = [...pool].sort((a, b) => b.remaining - a.remaining);
       for (const entry of sorted) {
@@ -89,6 +119,7 @@ export function BranchSplitBreakdown({
 
       <Separator />
 
+      {/* Branch table */}
       <div>
         <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Branch
@@ -111,6 +142,50 @@ export function BranchSplitBreakdown({
         ))}
       </div>
 
+      {/* Net Pay sourcing — which branch(es) to pull net pay from */}
+      <Separator />
+
+      <div className="space-y-2">
+        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Net Pay
+        </div>
+
+        {netPayCovered ? (
+          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-sm">
+            <div className="flex items-center gap-1.5 font-medium text-emerald-700">
+              <span>Pay</span>
+              <span className="font-mono font-semibold">{formatPeso(totalNetPay)}</span>
+              <span>to</span>
+              <span className="font-semibold">{employeeName}</span>
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+              <ArrowRight className="size-3 shrink-0" />
+              <span>from</span>
+              {netPaySources.map((s, i) => (
+                <span key={s.branchName} className="inline-flex items-center gap-1">
+                  <span className="font-semibold text-foreground">{s.branchName}</span>
+                  {netPaySources.length > 1 && (
+                    <span className="font-mono text-muted-foreground">({formatPeso(s.amount)})</span>
+                  )}
+                  {i < netPaySources.length - 1 && <span>and</span>}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            <AlertCircle className="size-3.5 shrink-0" />
+            <span>
+              Shortfall — only{" "}
+              <span className="font-mono font-semibold">{formatPeso(totalSurplus)}</span>{" "}
+              available across all branches, need{" "}
+              <span className="font-mono font-semibold">{formatPeso(totalNetPay)}</span>
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Cash to disburse — inter-branch reimbursement with the remainder */}
       {cards.length > 0 && (
         <>
           <Separator />
@@ -125,7 +200,6 @@ export function BranchSplitBreakdown({
                 key={deficit.branchName}
                 className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm"
               >
-                {/* Header: Give X to Branch */}
                 <div className="flex items-center gap-1.5 text-destructive font-medium">
                   <span>Give</span>
                   <span className="font-mono font-semibold">{formatPeso(need)}</span>
@@ -133,7 +207,6 @@ export function BranchSplitBreakdown({
                   <span className="font-semibold">{deficit.branchName}</span>
                 </div>
 
-                {/* Sources */}
                 {sources.length > 0 && (
                   <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
                     <ArrowRight className="size-3 shrink-0" />
