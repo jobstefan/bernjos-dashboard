@@ -45,6 +45,8 @@ export default async function MyPayslipsPage() {
     incentiveEarnings: p.incentiveEarnings,
     overtimeMinutes: p.overtimeMinutes,
     lateDeduction: p.lateDeduction,
+    lateMinutes: p.lateMinutes,
+    undertimeMinutes: p.undertimeMinutes,
     advanceDeduction: p.advanceDeduction,
     otherDeductions: p.otherDeductions,
     loanDeduction: p.loanDeduction,

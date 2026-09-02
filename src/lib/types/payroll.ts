@@ -150,6 +150,8 @@ export interface Payslip {
   incentiveEarnings: number;
   /** Minutes worked past scheduled end for the period (0 when none or not tracked). */
   overtimeMinutes: number;
+  lateMinutes: number;
+  undertimeMinutes: number;
   /** User savings withheld into their account — not a deduction. */
   savingsContribution: number;
   totalDeductions: number;

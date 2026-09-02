@@ -14,6 +14,8 @@ export interface PayslipView {
   otherEarnings: number;
   incentiveEarnings?: number;
   overtimeMinutes?: number;
+  lateMinutes?: number;
+  undertimeMinutes?: number;
   lateDeduction?: number;
   advanceDeduction?: number;
   otherDeductions: number;
@@ -73,7 +75,7 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
           {payslip.employeeCode} · {payslip.position} · {payslip.department}
         </div>
         <div className="mt-1 text-xs text-muted-foreground">
-          {payslip.periodLabel}
+          {payslip.periodLabel} · {formatPeso(payslip.basicSalary)}/day
         </div>
       </div>
 
@@ -83,7 +85,7 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
         <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Earnings
         </div>
-        <Line label="Basic (daily rate)" value={payslip.basicSalary} />
+        <Line label="Gross" value={payslip.grossPay} />
         {payslip.otherEarnings > 0 ? (
           <Line
             label={`Overtime${payslip.overtimeMinutes ? ` (${payslip.overtimeMinutes} min)` : ""}`}
@@ -130,9 +132,23 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
         {payslip.philhealthEmployee > 0 ? (
           <Line label="PhilHealth" value={payslip.philhealthEmployee} negative />
         ) : null}
-        {(payslip.lateDeduction ?? 0) > 0 ? (
-          <Line label="Late / undertime" value={payslip.lateDeduction!} negative />
-        ) : null}
+        {(payslip.lateDeduction ?? 0) > 0 ? (() => {
+          const late = payslip.lateMinutes ?? 0;
+          const under = payslip.undertimeMinutes ?? 0;
+          const total = payslip.lateDeduction!;
+          if (late > 0 && under > 0) {
+            const lateAmt = Math.round(total * late / (late + under) * 100) / 100;
+            return (
+              <>
+                <Line label={`Late (${late} min)`} value={lateAmt} negative />
+                <Line label={`Undertime (${under} min)`} value={total - lateAmt} negative />
+              </>
+            );
+          }
+          if (late > 0) return <Line label={`Late (${late} min)`} value={total} negative />;
+          if (under > 0) return <Line label={`Undertime (${under} min)`} value={total} negative />;
+          return <Line label="Late / undertime" value={total} negative />;
+        })() : null}
         {(payslip.advanceDeduction ?? 0) > 0 ? (
           <Line label="Cash advances" value={payslip.advanceDeduction!} negative />
         ) : null}
