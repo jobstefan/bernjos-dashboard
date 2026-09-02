@@ -33,7 +33,10 @@ export function BranchSplitBreakdown({
     );
   }
 
-  const deficits = branches.filter((b) => b.netCash < 0);
+  // Largest deficit first — maximises chance each gets single-branch full coverage
+  const deficits = branches
+    .filter((b) => b.netCash < 0)
+    .sort((a, b) => a.netCash - b.netCash);
   const surpluses = branches.filter((b) => b.netCash > 0);
 
   const totalDeficit = deficits.reduce((s, b) => s + Math.abs(b.netCash), 0);
@@ -41,18 +44,38 @@ export function BranchSplitBreakdown({
   const covered = totalSurplus >= totalDeficit;
   const remainder = Math.round((totalSurplus - totalDeficit) * 100) / 100;
 
-  // For each deficit, list which surplus branches cover it (proportional)
+  // Greedy allocation: prefer one branch covering a deficit fully; combine only when needed.
+  // pool tracks remaining surplus per branch (mutable across deficit iterations)
+  const pool = surpluses.map((s) => ({ branchName: s.branchName, remaining: s.netCash }));
+
   const cards = deficits.map((deficit) => {
-    const need = Math.abs(deficit.netCash);
-    const sources = surpluses
-      .filter((s) => s.netCash > 0)
-      .map((s) => ({
-        branchName: s.branchName,
-        amount: totalSurplus > 0
-          ? Math.round((s.netCash / totalSurplus) * Math.min(need, totalSurplus) * 100) / 100
-          : 0,
-      }))
-      .filter((s) => s.amount > 0);
+    const need = Math.round(Math.abs(deficit.netCash) * 100) / 100;
+    const sources: { branchName: string; amount: number }[] = [];
+
+    // 1. Try to find a single surplus branch that covers this deficit fully.
+    //    Pick the smallest one that still covers (saves larger surpluses for other deficits).
+    const fullCover = pool
+      .filter((s) => s.remaining >= need)
+      .sort((a, b) => a.remaining - b.remaining)[0];
+
+    if (fullCover) {
+      sources.push({ branchName: fullCover.branchName, amount: need });
+      fullCover.remaining = Math.round((fullCover.remaining - need) * 100) / 100;
+    } else {
+      // 2. No single branch can cover — fill greedily from the largest available surplus.
+      let stillNeed = need;
+      const sorted = [...pool].sort((a, b) => b.remaining - a.remaining);
+      for (const entry of sorted) {
+        if (stillNeed <= 0) break;
+        const poolEntry = pool.find((p) => p.branchName === entry.branchName)!;
+        if (poolEntry.remaining <= 0) continue;
+        const take = Math.round(Math.min(poolEntry.remaining, stillNeed) * 100) / 100;
+        sources.push({ branchName: poolEntry.branchName, amount: take });
+        poolEntry.remaining = Math.round((poolEntry.remaining - take) * 100) / 100;
+        stillNeed = Math.round((stillNeed - take) * 100) / 100;
+      }
+    }
+
     return { deficit, need, sources };
   });
 
