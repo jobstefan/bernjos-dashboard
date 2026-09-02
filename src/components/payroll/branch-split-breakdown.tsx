@@ -49,7 +49,8 @@ export function BranchSplitBreakdown({
   // Prefer a single branch; pool only when necessary.
   const netPayPool = surpluses.map((s) => ({ branchName: s.branchName, remaining: s.netCash }));
   const netPaySources: { branchName: string; amount: number }[] = [];
-  const netPayCovered = totalSurplus >= totalNetPay;
+  // Compare in integer cents to avoid floating-point drift (e.g. 2592.32 vs 2592.33)
+  const netPayCovered = Math.round(totalSurplus * 100) >= Math.round(totalNetPay * 100);
 
   if (netPayCovered) {
     let stillNeed = Math.round(totalNetPay * 100) / 100;
