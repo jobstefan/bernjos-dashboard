@@ -65,8 +65,8 @@ export function findRunItem(periodId: string, profileId: string) {
 }
 
 export function findRunItemById(id: string) {
-  return prisma.payrollRunItem.findFirst({
-    where: { id, deletedAt: null },
+  return prisma.payrollRunItem.findUnique({
+    where: { id },
     include: { profile: true, period: true, branches: { include: { branch: true } } },
   });
 }
