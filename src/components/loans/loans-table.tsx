@@ -299,14 +299,16 @@ export function LoansTable({
             title={mode === "admin" ? row.employeeName : formatPeso(row.amount)}
             subtitle={mode === "admin" ? row.employeeCode : formatDate(row.requestedAt)}
             fields={[
-              {
-                label: "Amount",
-                value: (
-                  <span className="font-mono font-semibold">
-                    {formatPeso(row.amount)}
-                  </span>
-                ),
-              },
+              mode === "admin"
+                ? {
+                    label: "Amount",
+                    value: (
+                      <span className="font-mono font-semibold">
+                        {formatPeso(row.amount)}
+                      </span>
+                    ),
+                  }
+                : { label: "Reason", value: row.reason ?? "—" },
               { label: "Term", value: `${row.termPeriods} period${row.termPeriods > 1 ? "s" : ""}` },
               {
                 label: "Status",

@@ -282,8 +282,9 @@ export function CashAdvancesTable({
             title={mode === "admin" ? row.employeeName : formatPeso(row.approvedAmount ?? row.amount)}
             subtitle={mode === "admin" ? row.employeeCode : formatDate(row.requestedAt)}
             fields={[
-              { label: "Amount", value: <span className="font-mono">{formatPeso(row.approvedAmount ?? row.amount)}</span> },
-              { label: "Reason", value: <span className="line-clamp-2 text-xs">{row.reason}</span> },
+              mode === "admin"
+                ? { label: "Amount", value: <span className="font-mono">{formatPeso(row.approvedAmount ?? row.amount)}</span> }
+                : { label: "Reason", value: <span className="line-clamp-2 text-xs">{row.reason ?? "—"}</span> },
               { label: "Requested", value: formatDate(row.requestedAt) },
             ]}
             actions={<StatusPill status={row.status} />}
