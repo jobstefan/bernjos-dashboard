@@ -624,6 +624,11 @@ export async function deletePayrollPeriod(
       "Approved or paid periods cannot be deleted.",
     );
   }
+  await resetCashAdvancesForPeriod(periodId);
+  await resetRepaymentsForPeriod(periodId);
+  await resetSavingsContributionsForPeriod(periodId);
+  await resetChargesForPeriod(periodId);
+  await resetIncentivesForPeriod(periodId);
   await softDeletePeriod(periodId);
   await auditLog({
     actor,

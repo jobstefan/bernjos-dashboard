@@ -4,19 +4,12 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
-import { MoreHorizontal } from "lucide-react";
 import { DataTable } from "@/components/payroll/data-table";
 import { DataCard } from "@/components/ui/data-card";
 import { DetailDrawer } from "@/components/ui/detail-drawer";
 import { DeletionFooter } from "@/components/ui/deletion-footer";
 import { CashAdvanceSlip } from "@/components/cash-advances/cash-advance-slip";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { DataToolbar } from "@/components/ui/data-toolbar";
 import { exportToCsv } from "@/lib/utils/csv";
 import {
@@ -206,48 +199,8 @@ export function CashAdvancesTable({
       },
     );
 
-    if (canApprove) {
-      cols.push({
-        id: "actions",
-        header: "",
-        enableSorting: false,
-        cell: ({ row }) => {
-          const advance = row.original;
-          const isPending = advance.status === "pending";
-          if (!isPending) return null;
-          return (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Row actions"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <MoreHorizontal className="size-4" />
-                  </Button>
-                }
-              />
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setToApprove(advance); }}>
-                  Approve
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={(e) => { e.stopPropagation(); setToDecline(advance); }}
-                >
-                  Decline
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          );
-        },
-      });
-    }
-
     return cols;
-  }, [mode, canApprove]);
+  }, [mode]);
 
   const CSV_COLUMNS = [
     { header: "Employee", accessor: (r: CashAdvanceRow) => r.employeeName },
@@ -301,6 +254,23 @@ export function CashAdvancesTable({
         footer={
           selected ? (
             <div className="space-y-2">
+              {canApprove && selected.status === "pending" && (
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1"
+                    onClick={() => { setSelected(null); setToApprove(selected); }}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-destructive/30 text-destructive hover:bg-destructive/10"
+                    onClick={() => { setSelected(null); setToDecline(selected); }}
+                  >
+                    Decline
+                  </Button>
+                </div>
+              )}
               {mode === "mine" && selected.status === "pending" && (
                 <Button
                   variant="outline"

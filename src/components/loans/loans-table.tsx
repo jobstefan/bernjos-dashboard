@@ -95,18 +95,29 @@ export function LoansTable({
   }, [searchParams, rows]);
   const [statusFilter, setStatusFilter] = React.useState<string>(ALL);
 
+  const STATUS_ORDER: Record<string, number> = { pending: 0, approved: 1, active: 2, completed: 3, cancelled: 4 };
+
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
-      if (statusFilter !== ALL && r.status !== statusFilter) return false;
-      if (
-        q &&
-        !r.employeeName.toLowerCase().includes(q) &&
-        !r.employeeCode.toLowerCase().includes(q)
-      )
-        return false;
-      return true;
-    });
+    return rows
+      .filter((r) => {
+        if (statusFilter === ALL && (r.status === "completed" || r.status === "cancelled")) return false;
+        if (statusFilter !== ALL && r.status !== statusFilter) return false;
+        if (
+          q &&
+          !r.employeeName.toLowerCase().includes(q) &&
+          !r.employeeCode.toLowerCase().includes(q)
+        )
+          return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const byStatus = (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99);
+        if (byStatus !== 0) return byStatus;
+        const byBalance = b.outstandingBalance - a.outstandingBalance;
+        if (byBalance !== 0) return byBalance;
+        return new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime();
+      });
   }, [rows, search, statusFilter]);
 
   const columns = React.useMemo<ColumnDef<LoanRow>[]>(() => {
