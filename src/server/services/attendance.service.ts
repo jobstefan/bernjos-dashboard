@@ -590,15 +590,15 @@ export async function summarizeForPayroll(
     // scheduled branch, else leave it unassigned (null).
     const branchId = rec?.branchId ?? entry.branchId ?? null;
     daysByBranch.set(branchId, (daysByBranch.get(branchId) ?? 0) + 1);
-    // Charge late/undertime from the first minute (no grace) — pro-rated by the
-    // shift length so it's a per-minute deduction of the daily rate.
-    lateMinutes += cmp.lateMinutes;
+    // Only count late minutes that exceed the grace threshold — consistent with
+    // what the deduction actually charges.
+    const effectiveLate = cmp.lateMinutes > LATE_DEDUCTION_GRACE_MINUTES ? cmp.lateMinutes : 0;
+    lateMinutes += effectiveLate;
     undertimeMinutes += cmp.undertimeMinutes;
     overtimeMinutes += cmp.overtimeMinutes;
     scheduledMinutes += cmp.scheduledMinutes;
     breakMinutes += cmp.breakMinutes;
     if (standardShiftMinutes > 0) {
-      const effectiveLate = cmp.lateMinutes > LATE_DEDUCTION_GRACE_MINUTES ? cmp.lateMinutes : 0;
       deductionDays +=
         (effectiveLate + cmp.undertimeMinutes) /
         standardShiftMinutes;
