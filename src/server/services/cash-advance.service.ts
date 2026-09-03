@@ -51,6 +51,8 @@ function toRow(advance: NonNullable<CashAdvanceWithRelations>): CashAdvanceRow {
     appliedPeriodLabel: advance.appliedPeriod?.periodLabel ?? null,
     requestedAt: advance.createdAt.toISOString(),
     decidedAt: advance.decidedAt?.toISOString() ?? null,
+    deletionRequestedAt: advance.deletionRequestedAt?.toISOString() ?? null,
+    deletionRequestedBy: advance.deletionRequestedBy ?? null,
   };
 }
 
@@ -127,6 +129,7 @@ export async function requestCashAdvance(
 
   const advance = await insertCashAdvance({
     profile: { connect: { id: profile.id } },
+    branch: { connect: { id: input.branchId } },
     amount: input.amount,
     reason: input.reason,
     status: "pending",
@@ -242,6 +245,28 @@ export async function deleteCashAdvance(id: string, actor: Actor) {
   await auditLog({
     actor,
     action: "cash_advance.deleted",
+    entityType: "cash_advance",
+    entityId: id,
+    before,
+    after,
+  });
+}
+
+export async function requestCashAdvanceDeletion(id: string, actor: Actor): Promise<void> {
+  const before = await findCashAdvanceById(id);
+  if (!before) throw new NotFoundError("Cash advance", id);
+  if (before.deletionRequestedAt) {
+    throw new BadRequestError("Deletion already requested for this cash advance.");
+  }
+
+  const after = await updateCashAdvance(id, {
+    deletionRequestedAt: new Date(),
+    deletionRequestedBy: actor.clerkUserId,
+  });
+
+  await auditLog({
+    actor,
+    action: "cash_advance.deletion_requested",
     entityType: "cash_advance",
     entityId: id,
     before,

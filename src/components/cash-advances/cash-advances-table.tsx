@@ -1,20 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { MoreHorizontal } from "lucide-react";
 import { DataTable } from "@/components/payroll/data-table";
 import { DataCard } from "@/components/ui/data-card";
 import { DetailDrawer } from "@/components/ui/detail-drawer";
+import { DeletionFooter } from "@/components/ui/deletion-footer";
 import { CashAdvanceSlip } from "@/components/cash-advances/cash-advance-slip";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DataToolbar } from "@/components/ui/data-toolbar";
@@ -37,6 +37,7 @@ import type { BranchOption } from "@/components/cash-advances/admin-create-cash-
 import {
   cancelCashAdvanceAction,
   deleteCashAdvanceAction,
+  requestCashAdvanceDeletionAction,
 } from "@/app/actions/cash-advance.actions";
 import {
   formatDate,
@@ -74,6 +75,7 @@ export function CashAdvancesTable({
   mode,
   canApprove = false,
   canDelete = false,
+  canRequestDeletion = false,
   hideSearch = false,
   branches = [],
 }: {
@@ -82,17 +84,26 @@ export function CashAdvancesTable({
   mode: "admin" | "mine";
   canApprove?: boolean;
   canDelete?: boolean;
+  canRequestDeletion?: boolean;
   hideSearch?: boolean;
   branches?: BranchOption[];
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [status, setStatus] = React.useState(ALL);
   const [search, setSearch] = React.useState("");
   const [selected, setSelected] = React.useState<CashAdvanceRow | null>(null);
   const [toApprove, setToApprove] = React.useState<CashAdvanceRow | null>(null);
+
+  React.useEffect(() => {
+    const slipId = searchParams.get("slip");
+    if (slipId) {
+      const match = rows.find((r) => r.id === slipId);
+      if (match) setSelected(match);
+    }
+  }, [searchParams, rows]);
   const [toDecline, setToDecline] = React.useState<CashAdvanceRow | null>(null);
   const [toCancel, setToCancel] = React.useState<CashAdvanceRow | null>(null);
-  const [toDelete, setToDelete] = React.useState<CashAdvanceRow | null>(null);
   const [pending, startTransition] = React.useTransition();
 
   const filtered = React.useMemo(() => {
@@ -195,8 +206,7 @@ export function CashAdvancesTable({
       },
     );
 
-    const showActions = canApprove || canDelete || mode === "mine";
-    if (showActions) {
+    if (canApprove) {
       cols.push({
         id: "actions",
         header: "",
@@ -204,9 +214,7 @@ export function CashAdvancesTable({
         cell: ({ row }) => {
           const advance = row.original;
           const isPending = advance.status === "pending";
-          const canApproveThis = canApprove && isPending;
-          const canCancelThis = mode === "mine" && isPending;
-          if (!canApproveThis && !canCancelThis && !canDelete) return null;
+          if (!isPending) return null;
           return (
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -222,40 +230,15 @@ export function CashAdvancesTable({
                 }
               />
               <DropdownMenuContent align="end">
-                {canApproveThis ? (
-                  <>
-                    <DropdownMenuItem onClick={() => setToApprove(advance)}>
-                      Approve
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-destructive"
-                      onClick={() => setToDecline(advance)}
-                    >
-                      Decline
-                    </DropdownMenuItem>
-                  </>
-                ) : null}
-                {canCancelThis ? (
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onClick={() => setToCancel(advance)}
-                  >
-                    Cancel request
-                  </DropdownMenuItem>
-                ) : null}
-                {canDelete ? (
-                  <>
-                    {canApproveThis || canCancelThis ? (
-                      <DropdownMenuSeparator />
-                    ) : null}
-                    <DropdownMenuItem
-                      className="text-destructive"
-                      onClick={() => setToDelete(advance)}
-                    >
-                      Delete
-                    </DropdownMenuItem>
-                  </>
-                ) : null}
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setToApprove(advance); }}>
+                  Approve
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={(e) => { e.stopPropagation(); setToDecline(advance); }}
+                >
+                  Decline
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           );
@@ -264,7 +247,7 @@ export function CashAdvancesTable({
     }
 
     return cols;
-  }, [mode, canApprove, canDelete]);
+  }, [mode, canApprove]);
 
   const CSV_COLUMNS = [
     { header: "Employee", accessor: (r: CashAdvanceRow) => r.employeeName },
@@ -314,6 +297,30 @@ export function CashAdvancesTable({
         onOpenChange={(open) => !open && setSelected(null)}
         title="Cash Advance"
         description={selected ? `${selected.employeeName} · ${selected.employeeCode}` : undefined}
+        footer={
+          selected ? (
+            <div className="space-y-2">
+              {mode === "mine" && selected.status === "pending" && (
+                <Button
+                  variant="outline"
+                  className="w-full border-destructive/30 text-destructive hover:bg-destructive/10"
+                  onClick={() => setToCancel(selected)}
+                >
+                  Cancel request
+                </Button>
+              )}
+              <DeletionFooter
+                canDelete={canDelete}
+                canRequestDeletion={canRequestDeletion}
+                deletionRequestedAt={selected.deletionRequestedAt}
+                itemLabel={`${formatPeso(selected.amount)} cash advance for ${selected.employeeName}`}
+                onRequestDeletion={() => requestCashAdvanceDeletionAction(selected.id)}
+                onDelete={() => deleteCashAdvanceAction(selected.id)}
+                onClose={() => setSelected(null)}
+              />
+            </div>
+          ) : undefined
+        }
       >
         {selected ? <CashAdvanceSlip advance={selected} /> : null}
       </DetailDrawer>
@@ -350,7 +357,7 @@ export function CashAdvancesTable({
                 runAction(
                   () => cancelCashAdvanceAction(toCancel.id),
                   "Request cancelled.",
-                  () => setToCancel(null),
+                  () => { setToCancel(null); setSelected(null); },
                 );
               }}
               disabled={pending}
@@ -362,39 +369,6 @@ export function CashAdvancesTable({
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog
-        open={toDelete !== null}
-        onOpenChange={(open) => !open && setToDelete(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this request?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {toDelete
-                ? `The ${formatPeso(toDelete.amount)} request from ${toDelete.employeeName} will be removed (soft delete).`
-                : ""}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                if (!toDelete) return;
-                runAction(
-                  () => deleteCashAdvanceAction(toDelete.id),
-                  "Request deleted.",
-                  () => setToDelete(null),
-                );
-              }}
-              disabled={pending}
-              className="bg-destructive/10 text-destructive hover:bg-destructive/20"
-            >
-              {pending ? "Deleting…" : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

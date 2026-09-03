@@ -1,13 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { MoreHorizontal } from "lucide-react";
 import { DataTable } from "@/components/payroll/data-table";
 import { DataCard } from "@/components/ui/data-card";
 import { Button } from "@/components/ui/button";
+import { DetailDrawer } from "@/components/ui/detail-drawer";
+import { DeletionFooter } from "@/components/ui/deletion-footer";
+import { IncentiveSlip } from "@/components/incentives/incentive-slip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +29,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { cancelIncentiveAction } from "@/app/actions/incentive.actions";
+import {
+  cancelIncentiveAction,
+  deleteIncentiveAction,
+  requestIncentiveDeletionAction,
+} from "@/app/actions/incentive.actions";
 import { formatDate, formatPeso } from "@/lib/utils/payroll";
 import type { IncentiveRow, IncentiveStatus } from "@/lib/types/payroll";
 
@@ -62,12 +69,31 @@ function StatusPill({ status }: { status: IncentiveStatus }) {
   );
 }
 
-export function IncentivesTable({ rows }: { rows: IncentiveRow[] }) {
+export function IncentivesTable({
+  rows,
+  canDelete = false,
+  canRequestDeletion = false,
+}: {
+  rows: IncentiveRow[];
+  canDelete?: boolean;
+  canRequestDeletion?: boolean;
+}) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [status, setStatus] = React.useState(ALL);
   const [search, setSearch] = React.useState("");
+  const [selected, setSelected] = React.useState<IncentiveRow | null>(null);
   const [toCancel, setToCancel] = React.useState<IncentiveRow | null>(null);
   const [pending, startTransition] = React.useTransition();
+
+  // Auto-open slip when navigated here with ?slip=<id>
+  React.useEffect(() => {
+    const slipId = searchParams.get("slip");
+    if (slipId) {
+      const match = rows.find((r) => r.id === slipId);
+      if (match) setSelected(match);
+    }
+  }, [searchParams, rows]);
 
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -171,7 +197,7 @@ export function IncentivesTable({ rows }: { rows: IncentiveRow[] }) {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
                   className="text-destructive"
-                  onClick={() => setToCancel(incentive)}
+                  onClick={(e) => { e.stopPropagation(); setToCancel(incentive); }}
                 >
                   Cancel
                 </DropdownMenuItem>
@@ -217,6 +243,7 @@ export function IncentivesTable({ rows }: { rows: IncentiveRow[] }) {
         columns={columns}
         data={filtered}
         initialSorting={[{ id: "createdAt", desc: true }]}
+        onRowClick={(row) => setSelected(row)}
         renderCard={(row) => (
           <DataCard
             title={row.employeeName}
@@ -244,6 +271,30 @@ export function IncentivesTable({ rows }: { rows: IncentiveRow[] }) {
         )}
       />
 
+      {/* Detail slip */}
+      <DetailDrawer
+        open={selected !== null}
+        onOpenChange={(open) => !open && setSelected(null)}
+        title="Incentive"
+        description={selected ? `${selected.employeeName} · ${selected.employeeCode}` : undefined}
+        footer={
+          selected ? (
+            <DeletionFooter
+              canDelete={canDelete}
+              canRequestDeletion={canRequestDeletion}
+              deletionRequestedAt={selected.deletionRequestedAt}
+              itemLabel={`${formatPeso(selected.amount)} incentive for ${selected.employeeName}`}
+              onRequestDeletion={() => requestIncentiveDeletionAction(selected.id)}
+              onDelete={() => deleteIncentiveAction(selected.id)}
+              onClose={() => setSelected(null)}
+            />
+          ) : undefined
+        }
+      >
+        {selected && <IncentiveSlip incentive={selected} />}
+      </DetailDrawer>
+
+      {/* Cancel confirmation */}
       <AlertDialog
         open={toCancel !== null}
         onOpenChange={(open) => !open && setToCancel(null)}

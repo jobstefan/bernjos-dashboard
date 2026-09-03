@@ -3,6 +3,7 @@ import {
   findIncentives,
   findIncentiveById,
   insertIncentive,
+  softDeleteIncentive,
   updateIncentive,
 } from "@/server/db/incentive";
 import { findEmployeeById } from "@/server/db/employees";
@@ -27,6 +28,8 @@ function toRow(incentive: NonNullable<IncentiveWithRelations>): IncentiveRow {
     appliedPeriodLabel: incentive.period?.periodLabel ?? null,
     createdAt: incentive.createdAt.toISOString(),
     cancelledAt: incentive.cancelledAt?.toISOString() ?? null,
+    deletionRequestedAt: incentive.deletionRequestedAt?.toISOString() ?? null,
+    deletionRequestedBy: incentive.deletionRequestedBy ?? null,
   };
 }
 
@@ -83,6 +86,44 @@ export async function cancelIncentive(
     action: "incentive.cancelled",
     entityType: "incentive",
     entityId: input.id,
+    before,
+    after,
+  });
+}
+
+export async function requestIncentiveDeletion(id: string, actor: Actor): Promise<void> {
+  const before = await findIncentiveById(id);
+  if (!before) throw new NotFoundError("Incentive", id);
+  if (before.deletionRequestedAt) {
+    throw new BadRequestError("Deletion already requested for this incentive.");
+  }
+
+  const after = await updateIncentive(id, {
+    deletionRequestedAt: new Date(),
+    deletionRequestedBy: actor.clerkUserId,
+  });
+
+  await auditLog({
+    actor,
+    action: "incentive.deletion_requested",
+    entityType: "incentive",
+    entityId: id,
+    before,
+    after,
+  });
+}
+
+export async function deleteIncentive(id: string, actor: Actor): Promise<void> {
+  const before = await findIncentiveById(id);
+  if (!before) throw new NotFoundError("Incentive", id);
+
+  const after = await softDeleteIncentive(id);
+
+  await auditLog({
+    actor,
+    action: "incentive.deleted",
+    entityType: "incentive",
+    entityId: id,
     before,
     after,
   });

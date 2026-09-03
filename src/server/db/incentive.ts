@@ -12,6 +12,7 @@ const withRelations = {
 
 export function findIncentives() {
   return prisma.incentive.findMany({
+    where: { deletedAt: null },
     include: withRelations,
     orderBy: { createdAt: "desc" },
   });
@@ -25,8 +26,15 @@ export function findPendingIncentivesForEmployee(profileId: string) {
 
 export function findIncentiveById(id: string) {
   return prisma.incentive.findFirst({
-    where: { id },
+    where: { id, deletedAt: null },
     include: withRelations,
+  });
+}
+
+export function softDeleteIncentive(id: string) {
+  return prisma.incentive.update({
+    where: { id },
+    data: { deletedAt: new Date() },
   });
 }
 

@@ -1,32 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
-import { toast } from "sonner";
-import { MoreHorizontal } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { DataTable } from "@/components/payroll/data-table";
 import { DataCard } from "@/components/ui/data-card";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { DataToolbar } from "@/components/ui/data-toolbar";
+import { DetailDrawer } from "@/components/ui/detail-drawer";
+import { DeletionFooter } from "@/components/ui/deletion-footer";
+import { ChargeSlip } from "@/components/charges/charge-slip";
 import { exportToCsv } from "@/lib/utils/csv";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { deleteChargeAction } from "@/app/actions/charge.actions";
+import { deleteChargeAction, requestChargeDeletionAction } from "@/app/actions/charge.actions";
 import { formatDate, formatPeso } from "@/lib/utils/payroll";
 import type { ChargeRow, ChargeStatus } from "@/lib/types/payroll";
 
@@ -61,16 +45,27 @@ function StatusPill({ status }: { status: ChargeStatus }) {
 
 export function ChargesTable({
   rows,
+  mode = "admin",
   canDelete = false,
+  canRequestDeletion = false,
 }: {
   rows: ChargeRow[];
+  mode?: "admin" | "mine";
   canDelete?: boolean;
+  canRequestDeletion?: boolean;
 }) {
-  const router = useRouter();
+  const searchParams = useSearchParams();
   const [status, setStatus] = React.useState(ALL);
   const [search, setSearch] = React.useState("");
-  const [toDelete, setToDelete] = React.useState<ChargeRow | null>(null);
-  const [pending, startTransition] = React.useTransition();
+  const [selected, setSelected] = React.useState<ChargeRow | null>(null);
+
+  React.useEffect(() => {
+    const slipId = searchParams.get("slip");
+    if (slipId) {
+      const match = rows.find((r) => r.id === slipId);
+      if (match) setSelected(match);
+    }
+  }, [searchParams, rows]);
 
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -87,8 +82,9 @@ export function ChargesTable({
   }, [rows, status, search]);
 
   const columns = React.useMemo<ColumnDef<ChargeRow>[]>(() => {
-    const cols: ColumnDef<ChargeRow>[] = [
-      {
+    const cols: ColumnDef<ChargeRow>[] = [];
+    if (mode === "admin") {
+      cols.push({
         accessorKey: "employeeName",
         header: "Employee",
         cell: ({ row }) => (
@@ -99,7 +95,9 @@ export function ChargesTable({
             </div>
           </div>
         ),
-      },
+      });
+    }
+    cols.push(
       {
         accessorKey: "amount",
         header: "Amount",
@@ -145,46 +143,9 @@ export function ChargesTable({
           </span>
         ),
       },
-    ];
-
-    if (canDelete) {
-      cols.push({
-        id: "actions",
-        header: "",
-        enableSorting: false,
-        cell: ({ row }) => {
-          const charge = row.original;
-          if (charge.status === "applied") return null;
-          return (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Row actions"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <MoreHorizontal className="size-4" />
-                  </Button>
-                }
-              />
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={() => setToDelete(charge)}
-                >
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          );
-        },
-      });
-    }
-
+    );
     return cols;
-  }, [canDelete]);
+  }, [mode]);
 
   const CSV_COLUMNS = [
     { header: "Employee", accessor: (r: ChargeRow) => r.employeeName },
@@ -200,11 +161,11 @@ export function ChargesTable({
   return (
     <div className="space-y-4">
       <DataToolbar
-        search={{
+        search={mode === "admin" ? {
           value: search,
           onChange: setSearch,
           placeholder: "Search employee…",
-        }}
+        } : undefined}
         filters={[
           {
             value: status,
@@ -220,17 +181,15 @@ export function ChargesTable({
         columns={columns}
         data={filtered}
         initialSorting={[{ id: "createdAt", desc: true }]}
+        onRowClick={(row) => setSelected(row)}
         renderCard={(row) => (
           <DataCard
-            title={row.employeeName}
-            subtitle={row.employeeCode}
+            title={mode === "admin" ? row.employeeName : formatPeso(row.amount)}
+            subtitle={mode === "admin" ? row.employeeCode : formatDate(row.createdAt)}
             fields={[
-              {
-                label: "Amount",
-                value: (
-                  <span className="font-mono">{formatPeso(row.amount)}</span>
-                ),
-              },
+              ...(mode === "admin"
+                ? [{ label: "Amount", value: <span className="font-mono">{formatPeso(row.amount)}</span> }]
+                : []),
               {
                 label: "Reason",
                 value: (
@@ -243,48 +202,33 @@ export function ChargesTable({
               },
             ]}
             actions={<StatusPill status={row.status} />}
+            onClick={() => setSelected(row)}
           />
         )}
       />
 
-      <AlertDialog
-        open={toDelete !== null}
-        onOpenChange={(open) => !open && setToDelete(null)}
+      {/* Detail slip */}
+      <DetailDrawer
+        open={selected !== null}
+        onOpenChange={(open) => !open && setSelected(null)}
+        title="Charge"
+        description={selected ? `${selected.employeeName} · ${selected.employeeCode}` : undefined}
+        footer={
+          selected ? (
+            <DeletionFooter
+              canDelete={canDelete}
+              canRequestDeletion={canRequestDeletion}
+              deletionRequestedAt={selected.deletionRequestedAt}
+              itemLabel={`${formatPeso(selected.amount)} charge for ${selected.employeeName}`}
+              onRequestDeletion={() => requestChargeDeletionAction(selected.id)}
+              onDelete={() => deleteChargeAction(selected.id)}
+              onClose={() => setSelected(null)}
+            />
+          ) : undefined
+        }
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this charge?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {toDelete
-                ? `The ${formatPeso(toDelete.amount)} charge for ${toDelete.employeeName} will be removed and will not be deducted.`
-                : ""}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                if (!toDelete) return;
-                startTransition(async () => {
-                  const res = await deleteChargeAction(toDelete.id);
-                  if (res.success) {
-                    toast.success("Charge deleted.");
-                    setToDelete(null);
-                    router.refresh();
-                  } else {
-                    toast.error(res.error ?? "Something went wrong.");
-                  }
-                });
-              }}
-              disabled={pending}
-              className="bg-destructive/10 text-destructive hover:bg-destructive/20"
-            >
-              {pending ? "Deleting…" : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {selected && <ChargeSlip charge={selected} />}
+      </DetailDrawer>
     </div>
   );
 }

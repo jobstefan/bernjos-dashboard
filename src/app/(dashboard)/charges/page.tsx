@@ -62,7 +62,8 @@ export default async function ChargesPage() {
       ) : (
         <ChargesTable
           rows={rows}
-          canDelete={role === "super_admin" || role === "admin"}
+          canDelete={role === "super_admin"}
+          canRequestDeletion={role === "admin"}
         />
       )}
     </div>

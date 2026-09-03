@@ -1,4 +1,5 @@
 import type { BranchModel } from "@/generated/prisma/models";
+import type { AbsenceRequestRow } from "@/server/services/absence-request.service";
 
 // Re-export the Prisma model under a friendly app-layer name.
 export type Branch = BranchModel;
@@ -29,3 +30,8 @@ export interface ScheduleRow {
   note: string | null;
   isDayOff: boolean;
 }
+
+export type ScheduleDayItem =
+  | { type: "shift"; date: string; row: ScheduleRow; request?: AbsenceRequestRow }
+  | { type: "day-off"; date: string; row: ScheduleRow; request?: AbsenceRequestRow }
+  | { type: "absence"; date: string; request: AbsenceRequestRow };

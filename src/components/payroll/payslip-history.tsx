@@ -43,23 +43,6 @@ export function PayslipHistory({ rows }: { rows: PayslipHistoryRow[] }) {
         enableSorting: false,
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
-      {
-        id: "actions",
-        header: "",
-        enableSorting: false,
-        cell: ({ row }) => (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelected(row.original);
-            }}
-          >
-            View Payslip
-          </Button>
-        ),
-      },
     ],
     [],
   );
@@ -79,11 +62,6 @@ export function PayslipHistory({ rows }: { rows: PayslipHistoryRow[] }) {
               { label: "Net pay", value: <span className="font-mono">{formatPeso(row.netPay)}</span> },
               { label: "Status", value: <StatusBadge status={row.status} /> },
             ]}
-            actions={
-              <Button variant="outline" size="sm" onClick={() => setSelected(row)}>
-                View
-              </Button>
-            }
             onClick={() => setSelected(row)}
           />
         )}

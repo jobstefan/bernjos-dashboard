@@ -286,10 +286,12 @@ export function CancelLoanDialog({
   loan,
   open,
   onOpenChange,
+  onSuccess,
 }: {
   loan: LoanRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
@@ -301,6 +303,7 @@ export function CancelLoanDialog({
       if (res.success) {
         toast.success("Loan request cancelled.");
         onOpenChange(false);
+        onSuccess?.();
         router.refresh();
       } else {
         toast.error(res.error);

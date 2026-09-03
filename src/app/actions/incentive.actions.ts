@@ -1,9 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth/rbac";
+import { requireAdmin, requireSuperAdmin } from "@/lib/auth/rbac";
 import { createIncentiveSchema, cancelIncentiveSchema } from "@/lib/validations/incentive";
-import { createIncentive, cancelIncentive } from "@/server/services/incentive.service";
+import {
+  cancelIncentive,
+  createIncentive,
+  deleteIncentive,
+  requestIncentiveDeletion,
+} from "@/server/services/incentive.service";
 import { toActionError } from "@/server/errors";
 import type { ActionResult } from "@/lib/types/action";
 
@@ -42,6 +47,28 @@ export async function cancelIncentiveAction(
       return { success: false, error: "Invalid request." };
     }
     await cancelIncentive(parsed.data, actor);
+    revalidate();
+    return { success: true, data: undefined };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+export async function requestIncentiveDeletionAction(id: string): Promise<ActionResult<void>> {
+  try {
+    const actor = await requireAdmin();
+    await requestIncentiveDeletion(id, actor);
+    revalidate();
+    return { success: true, data: undefined };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+export async function deleteIncentiveAction(id: string): Promise<ActionResult<void>> {
+  try {
+    const actor = await requireSuperAdmin();
+    await deleteIncentive(id, actor);
     revalidate();
     return { success: true, data: undefined };
   } catch (error) {

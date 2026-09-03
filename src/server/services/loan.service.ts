@@ -113,6 +113,8 @@ function toLoanRow(loan: LoanWithRelations): LoanRow {
     totalRepaid,
     outstandingBalance,
     repayments: loan.repayments.map(toRepaymentRow),
+    deletionRequestedAt: loan.deletionRequestedAt?.toISOString() ?? null,
+    deletionRequestedBy: loan.deletionRequestedBy ?? null,
   };
 }
 
@@ -175,6 +177,7 @@ export async function requestLoan(
 
   const loan = await insertLoan({
     profile: { connect: { id: profile.id } },
+    branch: { connect: { id: input.branchId } },
     amount: input.amount,
     termPeriods: input.termPeriods,
     reason: input.reason,
@@ -352,6 +355,42 @@ export async function declineLoan(
     action: "loan.declined",
     entityType: "loan",
     entityId: input.id,
+    before: loan,
+    after,
+  });
+}
+
+export async function requestLoanDeletion(id: string, actor: Actor): Promise<void> {
+  const loan = await findLoanById(id);
+  if (!loan) throw new NotFoundError("Loan", id);
+  if (loan.deletionRequestedAt) {
+    throw new BadRequestError("Deletion already requested for this loan.");
+  }
+
+  const after = await updateLoan(id, {
+    deletionRequestedAt: new Date(),
+    deletionRequestedBy: actor.clerkUserId,
+  });
+
+  await auditLog({
+    actor,
+    action: "loan.deletion_requested",
+    entityType: "loan",
+    entityId: id,
+    before: loan,
+    after,
+  });
+}
+
+export async function deleteLoan(id: string, actor: Actor): Promise<void> {
+  const loan = await findLoanById(id);
+  if (!loan) throw new NotFoundError("Loan", id);
+  const after = await softDeleteLoan(id);
+  await auditLog({
+    actor,
+    action: "loan.deleted",
+    entityType: "loan",
+    entityId: id,
     before: loan,
     after,
   });

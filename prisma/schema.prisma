@@ -311,6 +311,9 @@ model CashAdvance {
   appliedPeriodId String?           @map("applied_period_id")
   appliedAt       DateTime?         @map("applied_at")
   deletedAt       DateTime?         @map("deleted_at")
+  /// Admin-requested deletion flag; superadmin confirms and hard-deletes.
+  deletionRequestedAt DateTime?     @map("deletion_requested_at")
+  deletionRequestedBy String?       @map("deletion_requested_by")
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")
 
@@ -338,6 +341,9 @@ model Charge {
   appliedPeriodId String?      @map("applied_period_id")
   appliedAt       DateTime?    @map("applied_at")
   deletedAt       DateTime?    @map("deleted_at")
+  /// Admin-requested deletion flag; superadmin confirms and hard-deletes.
+  deletionRequestedAt DateTime? @map("deletion_requested_at")
+  deletionRequestedBy String?   @map("deletion_requested_by")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
@@ -542,6 +548,9 @@ model Loan {
   disbursedAt  DateTime?  @map("disbursed_at")
   disbursedBy  String?    @map("disbursed_by")
   deletedAt    DateTime?  @map("deleted_at")
+  /// Admin-requested deletion flag; superadmin confirms and hard-deletes.
+  deletionRequestedAt DateTime? @map("deletion_requested_at")
+  deletionRequestedBy String?   @map("deletion_requested_by")
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
@@ -595,6 +604,10 @@ model Incentive {
   createdAt   DateTime        @default(now()) @map("created_at")
   cancelledBy String?         @map("cancelled_by")
   cancelledAt DateTime?       @map("cancelled_at")
+  deletedAt   DateTime?       @map("deleted_at")
+  /// Admin-requested deletion flag; superadmin confirms and hard-deletes.
+  deletionRequestedAt DateTime? @map("deletion_requested_at")
+  deletionRequestedBy String?   @map("deletion_requested_by")
 
   profile UserProfile    @relation(fields: [profileId], references: [id])
   branch  Branch?        @relation(fields: [branchId], references: [id])

@@ -57,7 +57,11 @@ export default async function IncentivesPage() {
           description="Incentives added here will be automatically included in the employee's next payroll run."
         />
       ) : (
-        <IncentivesTable rows={rows} />
+        <IncentivesTable
+          rows={rows}
+          canDelete={role === "super_admin"}
+          canRequestDeletion={role === "admin"}
+        />
       )}
     </div>
   );

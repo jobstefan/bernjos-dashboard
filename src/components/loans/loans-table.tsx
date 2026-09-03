@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
 import { DataTable } from "@/components/payroll/data-table";
@@ -13,7 +14,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -23,9 +23,11 @@ import {
   DisburseLoanDialog,
 } from "@/components/loans/loan-action-dialogs";
 import { LoanRepaymentLedger } from "@/components/loans/loan-repayment-ledger";
+import { DeletionFooter } from "@/components/ui/deletion-footer";
 import { formatPeso } from "@/lib/utils/payroll";
 import { toneClass } from "@/lib/utils/tone";
 import { exportToCsv } from "@/lib/utils/csv";
+import { deleteLoanAction, requestLoanDeletionAction } from "@/app/actions/loan.actions";
 import type { LoanRow, LoanStatus } from "@/lib/types/loan";
 import type { Tone } from "@/lib/utils/tone";
 import type { BranchOption } from "@/components/loans/create-loan-dialog";
@@ -67,17 +69,30 @@ export function LoansTable({
   rows,
   mode = "admin",
   branches = [],
+  canDelete = false,
+  canRequestDeletion = false,
 }: {
   rows: LoanRow[];
   mode?: "admin" | "mine";
   branches?: BranchOption[];
+  canDelete?: boolean;
+  canRequestDeletion?: boolean;
 }) {
+  const searchParams = useSearchParams();
   const [toApprove, setToApprove] = React.useState<LoanRow | null>(null);
   const [toDecline, setToDecline] = React.useState<LoanRow | null>(null);
   const [toDisburse, setToDisburse] = React.useState<LoanRow | null>(null);
   const [toCancel, setToCancel] = React.useState<LoanRow | null>(null);
   const [toView, setToView] = React.useState<LoanRow | null>(null);
   const [search, setSearch] = React.useState("");
+
+  React.useEffect(() => {
+    const slipId = searchParams.get("slip");
+    if (slipId) {
+      const match = rows.find((r) => r.id === slipId);
+      if (match) setToView(match);
+    }
+  }, [searchParams, rows]);
   const [statusFilter, setStatusFilter] = React.useState<string>(ALL);
 
   const filtered = React.useMemo(() => {
@@ -190,46 +205,41 @@ export function LoansTable({
         enableSorting: false,
         cell: ({ row }) => {
           const loan = row.original;
+          const hasActions =
+            mode === "admin" && (loan.status === "pending" || loan.status === "approved");
+          if (!hasActions) return null;
           return (
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <Button variant="ghost" size="icon-sm" aria-label="Row actions">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Row actions"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <MoreHorizontal className="size-4" />
                   </Button>
                 }
               />
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setToView(loan)}>
-                  View schedule
-                </DropdownMenuItem>
-                {mode === "admin" && loan.status === "pending" ? (
+                {loan.status === "pending" ? (
                   <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setToApprove(loan)}>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setToApprove(loan); }}>
                       Approve
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setToDecline(loan)}>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setToDecline(loan); }}>
                       Decline
                     </DropdownMenuItem>
                   </>
                 ) : null}
-                {mode === "admin" && loan.status === "approved" ? (
+                {loan.status === "approved" ? (
                   <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setToDisburse(loan)}>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setToDisburse(loan); }}>
                       Disburse
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setToCancel(loan)}>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setToCancel(loan); }}>
                       Cancel
-                    </DropdownMenuItem>
-                  </>
-                ) : null}
-                {mode === "mine" && loan.status === "pending" ? (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setToCancel(loan)}>
-                      Cancel request
                     </DropdownMenuItem>
                   </>
                 ) : null}
@@ -257,11 +267,11 @@ export function LoansTable({
   return (
     <div className="space-y-4">
       <DataToolbar
-        search={{
+        search={mode === "admin" ? {
           value: search,
           onChange: setSearch,
-          placeholder: mode === "admin" ? "Search employee…" : "Search loans…",
-        }}
+          placeholder: "Search employee…",
+        } : undefined}
         filters={[
           {
             value: statusFilter,
@@ -283,9 +293,10 @@ export function LoansTable({
         columns={columns}
         data={filtered}
         initialSorting={[{ id: "requestedAt", desc: true }]}
+        onRowClick={(row) => setToView(row)}
         renderCard={(row) => (
           <DataCard
-            title={mode === "admin" ? row.employeeName : row.reason}
+            title={mode === "admin" ? row.employeeName : formatPeso(row.amount)}
             subtitle={mode === "admin" ? row.employeeCode : formatDate(row.requestedAt)}
             fields={[
               {
@@ -320,25 +331,104 @@ export function LoansTable({
       <DetailDrawer
         open={toView !== null}
         onOpenChange={(open) => !open && setToView(null)}
-        title="Loan repayment schedule"
+        title="Loan"
         description={
           toView
-            ? `${toView.employeeName} · ${formatPeso(toView.amount)} · ${toView.termPeriods} period${toView.termPeriods > 1 ? "s" : ""}`
+            ? `${toView.employeeName} · ${toView.employeeCode}`
             : undefined
         }
         className="sm:max-w-lg"
+        footer={
+          toView ? (
+            <div className="space-y-2">
+              {mode === "mine" && toView.status === "pending" && (
+                <Button
+                  variant="outline"
+                  className="w-full border-destructive/30 text-destructive hover:bg-destructive/10"
+                  onClick={() => setToCancel(toView)}
+                >
+                  Cancel request
+                </Button>
+              )}
+              <DeletionFooter
+                canDelete={canDelete}
+                canRequestDeletion={canRequestDeletion}
+                deletionRequestedAt={toView.deletionRequestedAt}
+                itemLabel={`${formatPeso(toView.amount)} loan for ${toView.employeeName}`}
+                onRequestDeletion={() => requestLoanDeletionAction(toView.id)}
+                onDelete={() => deleteLoanAction(toView.id)}
+                onClose={() => setToView(null)}
+              />
+            </div>
+          ) : undefined
+        }
       >
         {toView ? (
           <div className="space-y-4">
+            {/* Loan summary */}
+            <div className="space-y-1.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Amount</span>
+                <span className="font-mono font-semibold">{formatPeso(toView.amount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Term</span>
+                <span>{toView.termPeriods} period{toView.termPeriods > 1 ? "s" : ""}</span>
+              </div>
+              {(toView.status === "active" || toView.status === "completed") && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Installment</span>
+                  <span className="font-mono">{formatPeso(toView.installmentAmount)}</span>
+                </div>
+              )}
+              {toView.status === "active" && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Outstanding</span>
+                  <span className="font-mono">{formatPeso(toView.outstandingBalance)}</span>
+                </div>
+              )}
+              {toView.branchName && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Branch</span>
+                  <span>{toView.branchName}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Status</span>
+                <LoanStatusBadge status={toView.status} />
+              </div>
+              {toView.disbursedAt && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Disbursed</span>
+                  <span>{formatDate(toView.disbursedAt)}</span>
+                </div>
+              )}
+            </div>
+            {toView.reason && (
+              <div>
+                <p className="mb-0.5 text-sm text-muted-foreground">Reason</p>
+                <p className="text-sm">{toView.reason}</p>
+              </div>
+            )}
             {toView.decisionNote ? (
-              <p className="text-sm text-muted-foreground">
-                <span className="font-medium">Note:</span> {toView.decisionNote}
-              </p>
+              <div>
+                <p className="mb-0.5 text-sm text-muted-foreground">Decision note</p>
+                <p className="text-sm">{toView.decisionNote}</p>
+              </div>
             ) : null}
-            <LoanRepaymentLedger
-              repayments={toView.repayments}
-              termPeriods={toView.termPeriods}
-            />
+            {toView.repayments.length > 0 && (
+              <>
+                <div className="border-t pt-4">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Repayment Schedule
+                  </p>
+                  <LoanRepaymentLedger
+                    repayments={toView.repayments}
+                    termPeriods={toView.termPeriods}
+                  />
+                </div>
+              </>
+            )}
           </div>
         ) : null}
       </DetailDrawer>
@@ -363,6 +453,7 @@ export function LoansTable({
         loan={toCancel}
         open={toCancel !== null}
         onOpenChange={(open) => !open && setToCancel(null)}
+        onSuccess={() => setToView(null)}
       />
     </div>
   );

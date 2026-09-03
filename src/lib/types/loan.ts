@@ -30,6 +30,8 @@ export interface LoanRow {
   totalRepaid: number;
   outstandingBalance: number;
   repayments: LoanRepaymentRow[];
+  deletionRequestedAt: string | null;
+  deletionRequestedBy: string | null;
 }
 
 /** Self-service view: employee's loans + how much they can still borrow. */

@@ -197,6 +197,8 @@ export interface IncentiveRow {
   appliedPeriodLabel: string | null;
   createdAt: string;
   cancelledAt: string | null;
+  deletionRequestedAt: string | null;
+  deletionRequestedBy: string | null;
 }
 
 /** A charge flattened for display in a table. */
@@ -212,6 +214,8 @@ export interface ChargeRow {
   status: ChargeStatus;
   appliedPeriodLabel: string | null;
   createdAt: string;
+  deletionRequestedAt: string | null;
+  deletionRequestedBy: string | null;
 }
 
 /** A cash-advance request flattened for display in a table. */
@@ -230,5 +234,7 @@ export interface CashAdvanceRow {
   appliedPeriodLabel: string | null;
   requestedAt: string;
   decidedAt: string | null;
+  deletionRequestedAt: string | null;
+  deletionRequestedBy: string | null;
 }
 

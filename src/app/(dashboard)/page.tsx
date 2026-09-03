@@ -98,10 +98,12 @@ async function AdminDashboard({ actor }: { actor: Awaited<ReturnType<typeof getA
   }
 
   const netSparkline = trend.map((p) => p.net);
+  const isSuperAdmin = actor.role === "super_admin";
   const totalPending =
     (approvals?.absenceCount ?? 0) +
     (approvals?.advanceCount ?? 0) +
-    (approvals?.loanCount ?? 0);
+    (approvals?.loanCount ?? 0) +
+    (isSuperAdmin ? (approvals?.deletionRequestCount ?? 0) : 0);
 
   return (
     <div className="space-y-6">
@@ -162,6 +164,9 @@ async function AdminDashboard({ actor }: { actor: Awaited<ReturnType<typeof getA
                     `${approvals?.absenceCount ?? 0} absence`,
                     `${approvals?.advanceCount ?? 0} advance`,
                     `${approvals?.loanCount ?? 0} loan`,
+                    ...(isSuperAdmin && (approvals?.deletionRequestCount ?? 0) > 0
+                      ? [`${approvals!.deletionRequestCount} deletion`]
+                      : []),
                   ].join(" · ")
                 : undefined
             }
@@ -290,6 +295,28 @@ async function AdminDashboard({ actor }: { actor: Awaited<ReturnType<typeof getA
                       <span>{l.employeeName}</span>
                       <Link href="/savings" className="text-xs text-primary hover:underline">
                         {formatPeso(l.amount)} →
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {isSuperAdmin && approvals.deletionRequests.length > 0 && (
+              <div>
+                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-destructive/70">
+                  Deletion Requests
+                </p>
+                <ul className="divide-y divide-border">
+                  {approvals.deletionRequests.map((r) => (
+                    <li key={`${r.type}-${r.id}`} className="flex items-center justify-between py-2 text-sm">
+                      <span className="flex items-center gap-2">
+                        <span>{r.employeeName}</span>
+                        <span className="rounded-full border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-xs capitalize text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+                          {r.type.replace("_", " ")}
+                        </span>
+                      </span>
+                      <Link href={`${r.href}?slip=${r.id}`} className="text-xs text-destructive hover:underline">
+                        {formatPeso(r.amount)} →
                       </Link>
                     </li>
                   ))}
