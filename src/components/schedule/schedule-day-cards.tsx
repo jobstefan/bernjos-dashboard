@@ -122,6 +122,24 @@ export function ScheduleDayHero({
             )}
           </div>
         </div>
+      ) : item.request?.status === "approved" ? (
+        // Approved absence overrides the shift entirely
+        <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
+          <div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CalendarOff className="size-4 shrink-0" />
+              {formatScheduleDate(item.date)}
+            </div>
+            {item.request.reason ? (
+              <div className="mt-0.5 text-sm text-muted-foreground italic">
+                &ldquo;{item.request.reason}&rdquo;
+              </div>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-3">
+            <AbsenceStatusBadge status="approved" />
+          </div>
+        </div>
       ) : (
         // Shift hero (may also have a pending absence request alongside)
         <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
@@ -236,11 +254,13 @@ export function ScheduleDayRow({ item }: { item: ScheduleDayItem }) {
         {item.request?.status === "pending" ? (
           <CancelAbsenceButton requestId={item.request.id} />
         ) : null}
-        <div className="font-mono text-sm">
-          {item.row.startTime && item.row.endTime
-            ? `${formatTime12h(item.row.startTime)} – ${formatTime12h(item.row.endTime)}`
-            : "Day off"}
-        </div>
+        {item.request?.status !== "approved" ? (
+          <div className="font-mono text-sm">
+            {item.row.startTime && item.row.endTime
+              ? `${formatTime12h(item.row.startTime)} – ${formatTime12h(item.row.endTime)}`
+              : "Day off"}
+          </div>
+        ) : null}
       </div>
     </div>
   );
