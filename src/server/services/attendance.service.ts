@@ -600,7 +600,7 @@ export async function summarizeForPayroll(
     if (standardShiftMinutes > 0) {
       const effectiveLate = cmp.lateMinutes > LATE_DEDUCTION_GRACE_MINUTES ? cmp.lateMinutes : 0;
       deductionDays +=
-        (effectiveLate + cmp.undertimeMinutes + cmp.breakMinutes) /
+        (effectiveLate + cmp.undertimeMinutes) /
         standardShiftMinutes;
     }
   }
