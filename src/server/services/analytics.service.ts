@@ -34,7 +34,7 @@ export async function getSavingsStats(): Promise<SavingsStats> {
     .sort((a, b) => b.balance - a.balance)
     .slice(0, 6)
     .map((a) => ({ name: a.employeeName, balance: a.balance }));
-  return { totalBalance, memberCount: accounts.length, avgContribution, topBalances };
+  return { totalBalance, memberCount: active.length, avgContribution, topBalances };
 }
 
 export interface PayrollTrendPoint {
