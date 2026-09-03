@@ -2,6 +2,7 @@ import { HandCoins } from "lucide-react";
 import { getActor } from "@/lib/auth/rbac";
 import { getEmployeeByClerkUser } from "@/server/services/employee.service";
 import { getCashAdvancesForEmployee } from "@/server/services/cash-advance.service";
+import { findBranches } from "@/server/db/branches";
 import { CashAdvancesTable } from "@/components/cash-advances/cash-advances-table";
 import { RequestCashAdvanceDialog } from "@/components/cash-advances/request-cash-advance-dialog";
 import { EmptyState } from "@/components/payroll/empty-state";
@@ -23,7 +24,11 @@ export default async function MyCashAdvancesPage() {
     );
   }
 
-  const rows = await getCashAdvancesForEmployee(employee.id);
+  const [rows, branchRows] = await Promise.all([
+    getCashAdvancesForEmployee(employee.id),
+    findBranches(),
+  ]);
+  const branchOptions = branchRows.map((b) => ({ id: b.id, name: b.name }));
 
   return (
     <div className="space-y-6">
@@ -34,7 +39,7 @@ export default async function MyCashAdvancesPage() {
             {employee.firstName} {employee.lastName} · {employee.employeeCode}
           </p>
         </div>
-        <RequestCashAdvanceDialog />
+        <RequestCashAdvanceDialog branches={branchOptions} />
       </div>
 
       {rows.length === 0 ? (
@@ -42,7 +47,7 @@ export default async function MyCashAdvancesPage() {
           icon={HandCoins}
           title="No requests yet"
           description="Submit a cash advance request and track its status here."
-          action={<RequestCashAdvanceDialog />}
+          action={<RequestCashAdvanceDialog branches={branchOptions} />}
         />
       ) : (
         <CashAdvancesTable rows={rows} mode="mine" />

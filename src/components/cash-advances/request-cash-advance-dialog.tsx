@@ -17,19 +17,40 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { requestCashAdvanceAction } from "@/app/actions/cash-advance.actions";
 
-export function RequestCashAdvanceDialog() {
+export function RequestCashAdvanceDialog({
+  branches,
+}: {
+  branches: { id: string; name: string }[];
+}) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
   const [errors, setErrors] = React.useState<Record<string, string[]>>({});
   const [formError, setFormError] = React.useState<string | null>(null);
+  const [branchId, setBranchId] = React.useState("");
+
+  React.useEffect(() => {
+    if (open) {
+      setBranchId("");
+      setErrors({});
+      setFormError(null);
+    }
+  }, [open]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const input = {
+      branchId,
       amount: String(form.get("amount") ?? ""),
       reason: String(form.get("reason") ?? ""),
     };
@@ -86,6 +107,27 @@ export function RequestCashAdvanceDialog() {
 
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
+              <Label>Branch</Label>
+              <Select value={branchId} onValueChange={(v) => setBranchId(v ?? "")} required>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select branch">
+                    {(value) => branches.find((b) => b.id === value)?.name ?? "Select branch"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {branches.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.branchId?.length ? (
+                <p className="text-xs text-destructive">{errors.branchId[0]}</p>
+              ) : null}
+            </div>
+
+            <div className="grid gap-2">
               <Label>Amount (₱)</Label>
               <Input
                 name="amount"
@@ -98,6 +140,7 @@ export function RequestCashAdvanceDialog() {
                 <p className="text-xs text-destructive">{errors.amount[0]}</p>
               ) : null}
             </div>
+
             <div className="grid gap-2">
               <Label>Reason</Label>
               <Textarea

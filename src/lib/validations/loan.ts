@@ -4,6 +4,7 @@ const TERM_OPTIONS = [1, 2, 3, 4] as const;
 
 /** Employee requests a loan. */
 export const createLoanSchema = z.object({
+  branchId: z.string().min(1, "Select a branch."),
   amount: z.coerce
     .number()
     .positive("Amount must be greater than zero.")

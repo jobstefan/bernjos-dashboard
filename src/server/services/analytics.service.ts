@@ -10,6 +10,7 @@ import { findLoans, findRepaymentsForPeriod } from "@/server/db/loan";
 import { findAdvancesForPeriod } from "@/server/db/cash-advance";
 import { findChargesForPeriod } from "@/server/db/charge";
 import { findIncentivesForPeriod } from "@/server/db/incentive";
+import { prisma } from "@/lib/db";
 
 // ─── Admin / Manager ────────────────────────────────────────────────────────
 
@@ -260,21 +261,105 @@ export async function getCashAdvancePulse(): Promise<CashAdvancePulse> {
   };
 }
 
+export interface DeletionRequestItem {
+  id: string;
+  employeeName: string;
+  amount: number;
+  type: "cash_advance" | "incentive" | "charge" | "loan";
+  href: string;
+  requestedAt: string;
+}
+
 export interface PendingApprovals {
   absences: { id: string; employeeName: string; date: string }[];
   advances: { id: string; employeeName: string; amount: number }[];
   loans: { id: string; employeeName: string; amount: number }[];
+  deletionRequests: DeletionRequestItem[];
   absenceCount: number;
   advanceCount: number;
   loanCount: number;
+  deletionRequestCount: number;
 }
 
 export async function getPendingApprovals(): Promise<PendingApprovals> {
-  const [absenceRows, advanceRows, loanRows] = await Promise.all([
-    findAbsenceRequests({ status: "pending" }),
-    getCashAdvances({ status: "pending" }),
-    findLoans({ status: "pending" }),
-  ]);
+  const [absenceRows, advanceRows, loanRows, caDelRows, incentiveDelRows, chargeDelRows, loanDelRows] =
+    await Promise.all([
+      findAbsenceRequests({ status: "pending" }),
+      getCashAdvances({ status: "pending" }),
+      findLoans({ status: "pending" }),
+      // Deletion requests across all four finance types
+      prisma.cashAdvance.findMany({
+        where: { deletionRequestedAt: { not: null }, deletedAt: null },
+        select: {
+          id: true,
+          amount: true,
+          deletionRequestedAt: true,
+          profile: { select: { firstName: true, lastName: true } },
+        },
+      }),
+      prisma.incentive.findMany({
+        where: { deletionRequestedAt: { not: null }, deletedAt: null },
+        select: {
+          id: true,
+          amount: true,
+          deletionRequestedAt: true,
+          profile: { select: { firstName: true, lastName: true } },
+        },
+      }),
+      prisma.charge.findMany({
+        where: { deletionRequestedAt: { not: null }, deletedAt: null },
+        select: {
+          id: true,
+          amount: true,
+          deletionRequestedAt: true,
+          profile: { select: { firstName: true, lastName: true } },
+        },
+      }),
+      prisma.loan.findMany({
+        where: { deletionRequestedAt: { not: null }, deletedAt: null },
+        select: {
+          id: true,
+          amount: true,
+          deletionRequestedAt: true,
+          profile: { select: { firstName: true, lastName: true } },
+        },
+      }),
+    ]);
+
+  const deletionRequests: DeletionRequestItem[] = [
+    ...caDelRows.map((r) => ({
+      id: r.id,
+      employeeName: `${r.profile.firstName} ${r.profile.lastName}`,
+      amount: Number(r.amount),
+      type: "cash_advance" as const,
+      href: "/cash-advances",
+      requestedAt: r.deletionRequestedAt!.toISOString(),
+    })),
+    ...incentiveDelRows.map((r) => ({
+      id: r.id,
+      employeeName: `${r.profile.firstName} ${r.profile.lastName}`,
+      amount: Number(r.amount),
+      type: "incentive" as const,
+      href: "/incentives",
+      requestedAt: r.deletionRequestedAt!.toISOString(),
+    })),
+    ...chargeDelRows.map((r) => ({
+      id: r.id,
+      employeeName: `${r.profile.firstName} ${r.profile.lastName}`,
+      amount: Number(r.amount),
+      type: "charge" as const,
+      href: "/charges",
+      requestedAt: r.deletionRequestedAt!.toISOString(),
+    })),
+    ...loanDelRows.map((r) => ({
+      id: r.id,
+      employeeName: `${r.profile.firstName} ${r.profile.lastName}`,
+      amount: Number(r.amount),
+      type: "loan" as const,
+      href: "/savings",
+      requestedAt: r.deletionRequestedAt!.toISOString(),
+    })),
+  ].sort((a, b) => new Date(a.requestedAt).getTime() - new Date(b.requestedAt).getTime());
 
   return {
     absences: absenceRows.map((r) => ({
@@ -292,9 +377,11 @@ export async function getPendingApprovals(): Promise<PendingApprovals> {
       employeeName: `${r.profile.firstName} ${r.profile.lastName}`,
       amount: Number(r.amount),
     })),
+    deletionRequests,
     absenceCount: absenceRows.length,
     advanceCount: advanceRows.length,
     loanCount: loanRows.length,
+    deletionRequestCount: deletionRequests.length,
   };
 }
 

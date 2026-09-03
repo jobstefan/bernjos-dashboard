@@ -29,7 +29,7 @@ export function RequestAbsenceDialog() {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const dateIso = String(form.get("date") ?? "");
-    const reason = String(form.get("reason") ?? "").trim() || undefined;
+    const reason = String(form.get("reason") ?? "").trim();
     setError(null);
     startTransition(async () => {
       const res = await requestAbsenceAction(dateIso, reason);
@@ -88,11 +88,13 @@ export function RequestAbsenceDialog() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="absence-reason">Reason (optional)</Label>
+              <Label htmlFor="absence-reason">Reason</Label>
               <Textarea
                 id="absence-reason"
                 name="reason"
                 placeholder="Briefly explain the reason for your absence"
+                required
+                minLength={3}
               />
             </div>
           </div>

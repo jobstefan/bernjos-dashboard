@@ -109,6 +109,12 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: "cashAdvance",
         roles: ["employee"],
       },
+      {
+        label: "My Charges",
+        href: "/charges/mine",
+        icon: "charge",
+        roles: ["employee"],
+      },
       { label: "Loans & Savings", href: "/savings", icon: "savings", roles: ADMINS },
       {
         label: "My Loans & Savings",

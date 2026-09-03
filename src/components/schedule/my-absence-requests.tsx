@@ -73,29 +73,13 @@ export function MyAbsenceRequests({
 }: {
   requests: AbsenceRequestRow[];
 }) {
-  const active = requests.filter((r) => r.status !== "declined");
-  const past = requests.filter((r) => r.status === "declined");
-
-  if (requests.length === 0) {
-    return (
-      <div className="space-y-3">
-        <h2 className="text-base font-semibold">Absence Requests</h2>
-        <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
-          <CalendarOff className="size-4 shrink-0" />
-          No absence requests yet. Use &ldquo;Request Absence&rdquo; to submit one.
-        </div>
-      </div>
-    );
-  }
+  if (requests.length === 0) return null;
 
   return (
     <div className="space-y-3">
-      <h2 className="text-base font-semibold">Absence Requests</h2>
+      <h2 className="text-base font-semibold">Declined Requests</h2>
       <div className="divide-y divide-border rounded-xl border border-border bg-card">
-        {active.map((req) => (
-          <AbsenceRow key={req.id} req={req} />
-        ))}
-        {past.map((req) => (
+        {requests.map((req) => (
           <AbsenceRow key={req.id} req={req} />
         ))}
       </div>

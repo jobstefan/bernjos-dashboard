@@ -110,6 +110,7 @@ export const cashAdvanceStatusEnum = z.enum([
 ]);
 
 export const createCashAdvanceSchema = z.object({
+  branchId: z.string().min(1, "Select a branch."),
   amount: z.coerce
     .number()
     .positive("Amount must be greater than zero.")

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin, getActor } from "@/lib/auth/rbac";
+import { requireAdmin, requireSuperAdmin, getActor } from "@/lib/auth/rbac";
 import {
   adminCreateLoanSchema,
   approveLoanSchema,
@@ -15,8 +15,10 @@ import {
   approveLoan,
   cancelLoan,
   declineLoan,
+  deleteLoan,
   disburseLoan,
   requestLoan,
+  requestLoanDeletion,
 } from "@/server/services/loan.service";
 import { toActionError } from "@/server/errors";
 import type { ActionResult } from "@/lib/types/action";
@@ -139,6 +141,28 @@ export async function cancelLoanAction(
       return { success: false, error: "Invalid request." };
     }
     await cancelLoan(parsed.data.id, actor);
+    revalidate();
+    return { success: true, data: undefined };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+export async function requestLoanDeletionAction(id: string): Promise<ActionResult<void>> {
+  try {
+    const actor = await requireAdmin();
+    await requestLoanDeletion(id, actor);
+    revalidate();
+    return { success: true, data: undefined };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+export async function deleteLoanAction(id: string): Promise<ActionResult<void>> {
+  try {
+    const actor = await requireSuperAdmin();
+    await deleteLoan(id, actor);
     revalidate();
     return { success: true, data: undefined };
   } catch (error) {

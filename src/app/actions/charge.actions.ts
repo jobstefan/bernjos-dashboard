@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth/rbac";
+import { requireAdmin, requireSuperAdmin } from "@/lib/auth/rbac";
 import { createChargeSchema } from "@/lib/validations/payroll";
-import { createCharge, deleteCharge } from "@/server/services/charge.service";
+import { createCharge, deleteCharge, requestChargeDeletion } from "@/server/services/charge.service";
 import { toActionError } from "@/server/errors";
 import type { ActionResult } from "@/lib/types/action";
 
@@ -34,8 +34,19 @@ export async function createChargeAction(
 
 export async function deleteChargeAction(id: string): Promise<ActionResult> {
   try {
-    const actor = await requireAdmin();
+    const actor = await requireSuperAdmin();
     await deleteCharge(id, actor);
+    revalidate();
+    return { success: true, data: undefined };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+export async function requestChargeDeletionAction(id: string): Promise<ActionResult<void>> {
+  try {
+    const actor = await requireAdmin();
+    await requestChargeDeletion(id, actor);
     revalidate();
     return { success: true, data: undefined };
   } catch (error) {

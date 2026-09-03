@@ -37,14 +37,17 @@ const TERM_OPTIONS = [
 /** Employee requests a loan against their savings balance. */
 export function RequestLoanDialog({
   availableToBorrow,
+  branches,
 }: {
   availableToBorrow: number;
+  branches: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
   const [amount, setAmount] = React.useState("");
   const [termPeriods, setTermPeriods] = React.useState<number>(1);
+  const [branchId, setBranchId] = React.useState("");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
   const parsedAmount = parseFloat(amount) || 0;
@@ -57,6 +60,7 @@ export function RequestLoanDialog({
     if (open) {
       setAmount("");
       setTermPeriods(1);
+      setBranchId("");
       setErrors({});
     }
   }, [open]);
@@ -67,6 +71,7 @@ export function RequestLoanDialog({
     setErrors({});
     startTransition(async () => {
       const res = await requestLoanAction({
+        branchId,
         amount,
         termPeriods,
         reason: String(form.get("reason") ?? ""),
@@ -108,6 +113,27 @@ export function RequestLoanDialog({
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Branch</Label>
+              <Select value={branchId} onValueChange={(v) => setBranchId(v ?? "")} required>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select branch">
+                    {(value) => branches.find((b) => b.id === value)?.name ?? "Select branch"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {branches.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.branchId ? (
+                <p className="text-xs text-destructive">{errors.branchId}</p>
+              ) : null}
+            </div>
+
             <div className="grid gap-2">
               <Label>Amount (₱)</Label>
               <Input

@@ -5,6 +5,7 @@ import {
   findChargesForEmployee,
   insertCharge,
   softDeleteCharge,
+  updateCharge,
 } from "@/server/db/charge";
 import { findEmployeeById } from "@/server/db/employees";
 import { auditLog } from "@/server/services/audit.service";
@@ -30,6 +31,8 @@ function toRow(charge: NonNullable<ChargeWithRelations>): ChargeRow {
     status: charge.status,
     appliedPeriodLabel: charge.appliedPeriod?.periodLabel ?? null,
     createdAt: charge.createdAt.toISOString(),
+    deletionRequestedAt: charge.deletionRequestedAt?.toISOString() ?? null,
+    deletionRequestedBy: charge.deletionRequestedBy ?? null,
   };
 }
 
@@ -75,7 +78,7 @@ export async function createCharge(input: CreateChargeSchema, actor: Actor) {
   return charge;
 }
 
-/** Admin soft-deletes a pending charge. Applied charges cannot be deleted. */
+/** Superadmin soft-deletes a charge. Applied charges cannot be deleted. */
 export async function deleteCharge(id: string, actor: Actor) {
   const before = await findChargeById(id);
   if (!before) throw new NotFoundError("Charge", id);
@@ -86,6 +89,28 @@ export async function deleteCharge(id: string, actor: Actor) {
   await auditLog({
     actor,
     action: "charge.deleted",
+    entityType: "charge",
+    entityId: id,
+    before,
+    after,
+  });
+}
+
+export async function requestChargeDeletion(id: string, actor: Actor): Promise<void> {
+  const before = await findChargeById(id);
+  if (!before) throw new NotFoundError("Charge", id);
+  if (before.deletionRequestedAt) {
+    throw new BadRequestError("Deletion already requested for this charge.");
+  }
+
+  const after = await updateCharge(id, {
+    deletionRequestedAt: new Date(),
+    deletionRequestedBy: actor.clerkUserId,
+  });
+
+  await auditLog({
+    actor,
+    action: "charge.deletion_requested",
     entityType: "charge",
     entityId: id,
     before,

@@ -15,6 +15,7 @@ import {
   declineCashAdvance,
   deleteCashAdvance,
   requestCashAdvance,
+  requestCashAdvanceDeletion,
 } from "@/server/services/cash-advance.service";
 import { toActionError } from "@/server/errors";
 import type { ActionResult } from "@/lib/types/action";
@@ -133,6 +134,17 @@ export async function deleteCashAdvanceAction(id: string): Promise<ActionResult>
   try {
     const actor = await requireRole("super_admin");
     await deleteCashAdvance(id, actor);
+    revalidate();
+    return { success: true, data: undefined };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+export async function requestCashAdvanceDeletionAction(id: string): Promise<ActionResult<void>> {
+  try {
+    const actor = await requireAdmin();
+    await requestCashAdvanceDeletion(id, actor);
     revalidate();
     return { success: true, data: undefined };
   } catch (error) {

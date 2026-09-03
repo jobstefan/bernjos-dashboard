@@ -84,7 +84,13 @@ export default async function SavingsPage() {
           }
         />
       ) : (
-        <LoansTable rows={loans} mode="admin" branches={branchOptions} />
+        <LoansTable
+          rows={loans}
+          mode="admin"
+          branches={branchOptions}
+          canDelete={role === "super_admin"}
+          canRequestDeletion={role === "admin"}
+        />
       )}
     </div>
   );

@@ -81,10 +81,32 @@ export async function getMyUpcoming(
   to.setUTCDate(to.getUTCDate() + days);
 
   const entries = await findEntriesForEmployee(profile.id, from, to);
-  return entries.map((entry) => ({
+  const result = entries.map((entry) => ({
     date: entry.date.toISOString().slice(0, 10),
     row: entryToRow(entry),
   }));
+
+  const todayIso = from.toISOString().slice(0, 10);
+  const hasToday = result.some((r) => r.date === todayIso);
+  if (!hasToday) {
+    result.unshift({
+      date: todayIso,
+      row: {
+        employeeId: profile.id,
+        employeeCode: profile.employeeCode,
+        employeeName: `${profile.firstName} ${profile.lastName}`,
+        department: profile.department,
+        branchId: null,
+        branchName: null,
+        startTime: null,
+        endTime: null,
+        note: null,
+        isDayOff: true,
+      },
+    });
+  }
+
+  return result;
 }
 
 /**

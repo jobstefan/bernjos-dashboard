@@ -8,9 +8,11 @@ import type { LoanRow } from "@/lib/types/loan";
 export function MyLoans({
   loans,
   availableToBorrow,
+  branches,
 }: {
   loans: LoanRow[];
   availableToBorrow: number;
+  branches: { id: string; name: string }[];
 }) {
   return (
     <div className="space-y-4">
@@ -24,7 +26,7 @@ export function MyLoans({
           icon={Landmark}
           title="No loan history"
           description="Request a loan against your savings balance. Repayments are deducted automatically from your payroll."
-          action={<RequestLoanDialog availableToBorrow={availableToBorrow} />}
+          action={<RequestLoanDialog availableToBorrow={availableToBorrow} branches={branches} />}
         />
       ) : (
         <LoansTable rows={loans} mode="mine" />

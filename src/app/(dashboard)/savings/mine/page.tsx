@@ -3,6 +3,7 @@ import { getActor } from "@/lib/auth/rbac";
 import { getEmployeeByClerkUser } from "@/server/services/employee.service";
 import { getSavingsForEmployee } from "@/server/services/savings.service";
 import { getMyLoans } from "@/server/services/loan.service";
+import { findBranches } from "@/server/db/branches";
 import { MySavings } from "@/components/savings/my-savings";
 import { MyLoans } from "@/components/loans/my-loans";
 import { RequestLoanDialog } from "@/components/loans/request-loan-dialog";
@@ -26,15 +27,18 @@ export default async function MySavingsPage() {
     );
   }
 
-  const [savings, loansView] = await Promise.all([
+  const [savings, loansView, branchRows] = await Promise.all([
     getSavingsForEmployee(employee.id),
     getMyLoans(actor.clerkUserId),
+    findBranches(),
   ]);
+  const branchOptions = branchRows.map((b) => ({ id: b.id, name: b.name }));
 
   const loansContent = (
     <MyLoans
       loans={loansView.loans}
       availableToBorrow={loansView.availableToBorrow}
+      branches={branchOptions}
     />
   );
 
@@ -57,7 +61,7 @@ export default async function MySavingsPage() {
             {employee.firstName} {employee.lastName} · {employee.employeeCode}
           </p>
         </div>
-        <RequestLoanDialog availableToBorrow={loansView.availableToBorrow} />
+        <RequestLoanDialog availableToBorrow={loansView.availableToBorrow} branches={branchOptions} />
       </div>
 
       <EmployeeProfileTabs
