@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/payroll/empty-state";
 import { RequestAbsenceDialog } from "@/components/schedule/request-absence-dialog";
 import { MyAbsenceRequests } from "@/components/schedule/my-absence-requests";
 import { ScheduleDayHero, ScheduleDayRow } from "@/components/schedule/schedule-day-cards";
+import { expandDateRange } from "@/lib/utils/schedule";
 import type { ScheduleDayItem } from "@/lib/types/schedule";
 
 export default async function MySchedulePage() {
@@ -32,11 +33,16 @@ export default async function MySchedulePage() {
     return d.toISOString().slice(0, 10);
   })();
 
-  // Build merged timeline
+  // Build merged timeline — expand date ranges into per-day entries.
+  // Only active (pending/approved) requests block schedule days.
   const absenceByDate = new Map(
     absenceRequests
-      .filter((r) => r.date >= todayIso)
-      .map((r) => [r.date, r])
+      .filter((r) => r.status === "pending" || r.status === "approved")
+      .flatMap((r) =>
+        expandDateRange(r.startDate, r.endDate ?? r.startDate)
+          .filter((d) => d >= todayIso)
+          .map((d) => [d, r] as [string, typeof r]),
+      ),
   );
   const scheduledDates = new Set(upcoming.map((u) => u.date));
 
@@ -48,8 +54,12 @@ export default async function MySchedulePage() {
         : { type: "shift", date, row, request };
     }),
     ...absenceRequests
-      .filter((r) => r.date >= todayIso && !scheduledDates.has(r.date))
-      .map((r): ScheduleDayItem => ({ type: "absence", date: r.date, request: r })),
+      .filter((r) => r.status === "pending" || r.status === "approved")
+      .flatMap((r) =>
+        expandDateRange(r.startDate, r.endDate ?? r.startDate)
+          .filter((d) => d >= todayIso && !scheduledDates.has(d))
+          .map((d): ScheduleDayItem => ({ type: "absence", date: d, request: r })),
+      ),
   ].sort((a, b) => a.date.localeCompare(b.date));
 
   const heroItem =
@@ -57,7 +67,9 @@ export default async function MySchedulePage() {
     items.find((i) => i.date === todayIso);
   const listItems = items.filter((i) => i.date !== heroItem?.date);
 
-  const declinedRequests = absenceRequests.filter((r) => r.status === "declined");
+  const declinedRequests = absenceRequests.filter(
+    (r) => r.status === "declined" || r.status === "cancelled",
+  );
 
   return (
     <div className="space-y-6">

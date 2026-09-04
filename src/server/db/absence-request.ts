@@ -21,7 +21,14 @@ function buildWhere(
   const where: Prisma.AbsenceRequestWhereInput = {};
   if (filters?.status) where.status = filters.status;
   if (filters?.employeeId) where.profileId = filters.employeeId;
-  if (filters?.date) where.date = filters.date;
+  if (filters?.date) {
+    // Match any request whose range covers this date
+    const d = filters.date;
+    where.OR = [
+      { date: d, endDate: null },
+      { date: { lte: d }, endDate: { gte: d } },
+    ];
+  }
   return where;
 }
 
@@ -43,7 +50,13 @@ export function findAbsenceRequestsForEmployee(profileId: string) {
 
 export function findAbsenceRequestsInRange(from: Date, to: Date) {
   return prisma.absenceRequest.findMany({
-    where: { date: { gte: from, lte: to } },
+    where: {
+      date: { lte: to },
+      OR: [
+        { endDate: { gte: from } },
+        { endDate: null, date: { gte: from } },
+      ],
+    },
     include: withProfile,
     orderBy: { date: "asc" },
   });
@@ -51,7 +64,12 @@ export function findAbsenceRequestsInRange(from: Date, to: Date) {
 
 export function findAbsenceRequestsForDate(date: Date) {
   return prisma.absenceRequest.findMany({
-    where: { date },
+    where: {
+      OR: [
+        { date, endDate: null },
+        { date: { lte: date }, endDate: { gte: date } },
+      ],
+    },
     include: withProfile,
   });
 }
@@ -63,12 +81,28 @@ export function findAbsenceRequestById(id: string) {
   });
 }
 
-export function findAbsenceRequestByEmployeeDate(
+/**
+ * Find any non-declined absence request for a profile whose date range
+ * overlaps with [startDate, endDate]. Pass excludeId to skip one record
+ * (used when re-checking after an edit, to exclude the record being updated).
+ */
+export function findOverlappingAbsenceRequest(
   profileId: string,
-  date: Date,
+  startDate: Date,
+  endDate: Date,
+  excludeId?: string,
 ) {
   return prisma.absenceRequest.findFirst({
-    where: { profileId, date },
+    where: {
+      profileId,
+      status: { in: ["pending", "approved"] },
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+      date: { lte: endDate },
+      OR: [
+        { endDate: { gte: startDate } },
+        { endDate: null, date: { gte: startDate } },
+      ],
+    },
     include: withProfile,
   });
 }

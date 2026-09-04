@@ -1,7 +1,7 @@
 import "server-only";
 import {
   findAbsenceRequestById,
-  findAbsenceRequestByEmployeeDate,
+  findOverlappingAbsenceRequest,
   findAbsenceRequests,
   findAbsenceRequestsForDate,
   findAbsenceRequestsForEmployee,
@@ -29,7 +29,10 @@ export interface AbsenceRequestRow {
   employeeId: string;
   employeeCode: string;
   employeeName: string;
-  date: string;
+  /** Start date (or the only date for single-day requests). YYYY-MM-DD */
+  startDate: string;
+  /** End date of the range. Null means same as startDate (single-day). YYYY-MM-DD */
+  endDate: string | null;
   reason: string | null;
   status: AbsenceRequestStatus;
   decisionNote: string | null;
@@ -43,7 +46,8 @@ function toRow(req: NonNullable<AbsenceRequestWithProfile>): AbsenceRequestRow {
     employeeId: req.profileId,
     employeeCode: req.profile.employeeCode,
     employeeName: `${req.profile.firstName} ${req.profile.lastName}`,
-    date: req.date.toISOString().slice(0, 10),
+    startDate: req.date.toISOString().slice(0, 10),
+    endDate: req.endDate?.toISOString().slice(0, 10) ?? null,
     reason: req.reason,
     status: req.status,
     decisionNote: req.decisionNote,
@@ -77,7 +81,7 @@ export async function getActiveAbsencesForDate(
   date: Date,
 ): Promise<Map<string, AbsenceRequestRow>> {
   const all = await findAbsenceRequestsForDate(date);
-  const active = all.filter((r) => r.status !== "declined");
+  const active = all.filter((r) => r.status === "pending" || r.status === "approved");
   return new Map(active.map((r) => [r.profileId, toRow(r)]));
 }
 
@@ -85,9 +89,10 @@ export async function getActiveAbsencesForDate(
 // Mutations
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Profile submits a request for their own absence on a given date. */
+/** Profile submits a request for their own absence on a given date or range. */
 export async function requestAbsence(
-  dateIso: string,
+  startDateIso: string,
+  endDateIso: string,
   reason: string | null,
   actor: Actor,
 ) {
@@ -98,17 +103,36 @@ export async function requestAbsence(
     );
   }
 
-  const date = new Date(`${dateIso}T00:00:00Z`);
-  const existing = await findAbsenceRequestByEmployeeDate(profile.id, date);
-  if (existing && existing.status !== "declined") {
+  const startDate = new Date(`${startDateIso}T00:00:00Z`);
+  const endDate = new Date(`${endDateIso}T00:00:00Z`);
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  if (startDate <= today) {
     throw new BadRequestError(
-      "You already have an active absence request for this date.",
+      "Absence requests must be for a future date, not today or a past date.",
+    );
+  }
+
+  if (endDate < startDate) {
+    throw new BadRequestError("End date must be on or after the start date.");
+  }
+
+  const existing = await findOverlappingAbsenceRequest(
+    profile.id,
+    startDate,
+    endDate,
+  );
+  if (existing) {
+    throw new BadRequestError(
+      "You already have an active absence request that overlaps with the selected dates.",
     );
   }
 
   const req = await insertAbsenceRequest({
     profile: { connect: { id: profile.id } },
-    date,
+    date: startDate,
+    endDate: endDateIso === startDateIso ? null : endDate,
     reason: reason ?? null,
     status: "pending",
     requestedBy: actor.clerkUserId,
@@ -127,21 +151,33 @@ export async function requestAbsence(
 /** Admin manually creates an absence request for any profile (auto-approved). */
 export async function createAbsenceRequestAdmin(
   profileId: string,
-  dateIso: string,
+  startDateIso: string,
+  endDateIso: string,
   reason: string | null,
   actor: Actor,
 ) {
-  const date = new Date(`${dateIso}T00:00:00Z`);
-  const existing = await findAbsenceRequestByEmployeeDate(profileId, date);
-  if (existing && existing.status !== "declined") {
+  const startDate = new Date(`${startDateIso}T00:00:00Z`);
+  const endDate = new Date(`${endDateIso}T00:00:00Z`);
+
+  if (endDate < startDate) {
+    throw new BadRequestError("End date must be on or after the start date.");
+  }
+
+  const existing = await findOverlappingAbsenceRequest(
+    profileId,
+    startDate,
+    endDate,
+  );
+  if (existing) {
     throw new BadRequestError(
-      "This employee already has an active absence request for this date.",
+      "This employee already has an active absence request that overlaps with the selected dates.",
     );
   }
 
   const req = await insertAbsenceRequest({
     profile: { connect: { id: profileId } },
-    date,
+    date: startDate,
+    endDate: endDateIso === startDateIso ? null : endDate,
     reason: reason ?? null,
     status: "approved",
     requestedBy: actor.clerkUserId,
@@ -159,14 +195,43 @@ export async function createAbsenceRequestAdmin(
   return toRow(req);
 }
 
-export async function approveAbsenceRequest(id: string, actor: Actor) {
+export async function approveAbsenceRequest(
+  id: string,
+  actor: Actor,
+  startDateIso: string,
+  endDateIso: string,
+  note?: string,
+) {
   const before = await findAbsenceRequestById(id);
   if (!before) throw new NotFoundError("Absence request", id);
   if (before.status !== "pending") {
     throw new InvalidStateTransitionError("Only a pending request can be approved.");
   }
+
+  const startDate = new Date(`${startDateIso}T00:00:00Z`);
+  const endDate = new Date(`${endDateIso}T00:00:00Z`);
+
+  if (endDate < startDate) {
+    throw new BadRequestError("End date must be on or after the start date.");
+  }
+
+  const overlap = await findOverlappingAbsenceRequest(
+    before.profileId,
+    startDate,
+    endDate,
+    id,
+  );
+  if (overlap) {
+    throw new BadRequestError(
+      "The approved date range overlaps with another active absence request for this employee.",
+    );
+  }
+
   const after = await updateAbsenceRequest(id, {
     status: "approved",
+    date: startDate,
+    endDate: endDateIso === startDateIso ? null : endDate,
+    decisionNote: note ?? null,
     decidedBy: actor.clerkUserId,
     decidedAt: new Date(),
   });
@@ -232,7 +297,7 @@ export async function cancelAbsenceRequest(id: string, actor: Actor) {
   if (before.status !== "pending") {
     throw new InvalidStateTransitionError("Only a pending request can be cancelled.");
   }
-  const after = await updateAbsenceRequest(id, { status: "declined" });
+  const after = await updateAbsenceRequest(id, { status: "cancelled" });
   await auditLog({
     actor,
     action: "absence_request.cancelled",

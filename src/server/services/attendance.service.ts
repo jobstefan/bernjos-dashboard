@@ -323,12 +323,14 @@ export async function getComparison(
   );
 
   // Build a map of absence requests keyed by date|employeeId for O(1) lookup.
-  const absenceMap = new Map(
-    absenceRequests.map((ar) => [
-      dateKey(ar.date, ar.profileId),
-      ar,
-    ]),
-  );
+  // Range requests are expanded into individual day entries.
+  const absenceMap = new Map<string, (typeof absenceRequests)[0]>();
+  for (const ar of absenceRequests) {
+    const endMs = ar.endDate ? ar.endDate.getTime() : ar.date.getTime();
+    for (let t = ar.date.getTime(); t <= endMs; t += 86_400_000) {
+      absenceMap.set(dateKey(new Date(t), ar.profileId), ar);
+    }
+  }
 
   const posShiftKeys = [...new Map(
     entries
@@ -429,36 +431,40 @@ export async function getComparison(
     });
   }
 
-  // Add rows for absence requests on non-scheduled days (employee has no schedule
-  // entry that day and no attendance record, but submitted a request).
+  // Add rows for absence requests on non-scheduled days. Range requests are
+  // expanded so each day within [date, endDate] gets its own row.
   for (const ar of absenceRequests) {
-    const key = dateKey(ar.date, ar.profileId);
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const endMs = ar.endDate ? ar.endDate.getTime() : ar.date.getTime();
     const empName = `${ar.profile.firstName} ${ar.profile.lastName}`;
-    rows.push({
-      date: ar.date.toISOString().slice(0, 10),
-      employeeId: ar.profileId,
-      employeeCode: ar.profile.employeeCode,
-      employeeName: empName,
-      scheduledStart: null,
-      scheduledEnd: null,
-      actualIn: null,
-      actualOut: null,
-      gapStart: null,
-      gapEnd: null,
-      gap2Start: null,
-      gap2End: null,
-      source: null,
-      status: "requested-absence",
-      lateMinutes: 0,
-      undertimeMinutes: 0,
-      overtimeMinutes: 0,
-      breakMinutes: 0,
-      needsReview: false,
-      branchName: null,
-      absenceRequest: { id: ar.id, status: ar.status, reason: ar.reason ?? null },
-    });
+    for (let t = ar.date.getTime(); t <= endMs; t += 86_400_000) {
+      const dayDate = new Date(t);
+      const key = dateKey(dayDate, ar.profileId);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push({
+        date: dayDate.toISOString().slice(0, 10),
+        employeeId: ar.profileId,
+        employeeCode: ar.profile.employeeCode,
+        employeeName: empName,
+        scheduledStart: null,
+        scheduledEnd: null,
+        actualIn: null,
+        actualOut: null,
+        gapStart: null,
+        gapEnd: null,
+        gap2Start: null,
+        gap2End: null,
+        source: null,
+        status: "requested-absence",
+        lateMinutes: 0,
+        undertimeMinutes: 0,
+        overtimeMinutes: 0,
+        breakMinutes: 0,
+        needsReview: false,
+        branchName: null,
+        absenceRequest: { id: ar.id, status: ar.status, reason: ar.reason ?? null },
+      });
+    }
   }
 
   // Generate day-off rows: for every employee who appears in the range,

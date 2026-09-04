@@ -3,16 +3,24 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CalendarOff } from "lucide-react";
+import { CalendarRange } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cancelAbsenceRequestAction } from "@/app/actions/absence-request.actions";
-import { formatScheduleDate } from "@/lib/utils/schedule";
+import { formatDateRange, rangeDayCount } from "@/lib/utils/schedule";
 import { toneClass } from "@/lib/utils/tone";
 import type { AbsenceRequestRow } from "@/server/services/absence-request.service";
 
 function statusLabel(status: AbsenceRequestRow["status"]) {
-  const tone = status === "approved" ? "success" : status === "declined" ? "danger" : "warning";
-  const label = status === "approved" ? "Approved" : status === "declined" ? "Declined" : "Pending";
+  const tone =
+    status === "approved" ? "success" :
+    status === "declined" ? "danger" :
+    status === "cancelled" ? "neutral" :
+    "warning";
+  const label =
+    status === "approved" ? "Approved" :
+    status === "declined" ? "Declined" :
+    status === "cancelled" ? "Cancelled" :
+    "Pending";
   return (
     <span className={"inline-flex rounded-full border px-2 py-0.5 text-xs font-medium " + toneClass(tone)}>
       {label}
@@ -36,29 +44,41 @@ function AbsenceRow({ req }: { req: AbsenceRequestRow }) {
     });
   }
 
+  const dayCount = rangeDayCount(req.startDate, req.endDate);
+
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-      <div>
-        <div className="flex items-center gap-2 font-medium">
-          {formatScheduleDate(req.date)}
+    <div className="flex flex-wrap items-start justify-between gap-2 px-4 py-3">
+      <div className="space-y-1">
+        {/* Date range + status badge — prominent */}
+        <div className="flex flex-wrap items-center gap-2">
+          <CalendarRange className="size-4 shrink-0 text-muted-foreground" />
+          <span className="font-semibold">
+            {formatDateRange(req.startDate, req.endDate)}
+          </span>
+          {dayCount > 1 ? (
+            <span className="text-xs text-muted-foreground">({dayCount} days)</span>
+          ) : null}
           {statusLabel(req.status)}
         </div>
+
+        {/* Reason — visible, not muted */}
         {req.reason ? (
-          <div className="text-xs text-muted-foreground">{req.reason}</div>
+          <p className="text-sm text-foreground/80 line-clamp-2">{req.reason}</p>
         ) : null}
+
+        {/* Decision note */}
         {req.decisionNote ? (
-          <div className="text-xs text-muted-foreground">
-            Note: {req.decisionNote}
-          </div>
+          <p className="text-xs text-muted-foreground">Note: {req.decisionNote}</p>
         ) : null}
       </div>
+
       {req.status === "pending" ? (
         <Button
           type="button"
           variant="ghost"
           size="sm"
           disabled={pending}
-          className="text-destructive hover:text-destructive"
+          className="text-destructive hover:text-destructive shrink-0"
           onClick={cancel}
         >
           {pending ? "Cancelling…" : "Cancel"}

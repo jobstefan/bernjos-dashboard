@@ -1,4 +1,5 @@
 import type { AttendanceStatus } from "@/lib/attendance/compare";
+import type { AbsenceRequestStatus } from "@/generated/prisma/enums";
 
 /** One employee-day: schedule (target) vs attendance (actual), flattened for a table. */
 export interface AttendanceComparisonRow {
@@ -32,7 +33,7 @@ export interface AttendanceComparisonRow {
   /** Branch the employee was scheduled to work at that day. */
   branchName: string | null;
   /** Absence request for this day, if one exists (pending or approved). */
-  absenceRequest: { id: string; status: "pending" | "approved" | "declined"; reason: string | null } | null;
+  absenceRequest: { id: string; status: AbsenceRequestStatus; reason: string | null } | null;
 }
 
 /** An enrollment id from an export with no matching employee, plus its printed name. */

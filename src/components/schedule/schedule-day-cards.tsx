@@ -10,9 +10,17 @@ import { toneClass } from "@/lib/utils/tone";
 import { formatScheduleDate, formatTime12h } from "@/lib/utils/schedule";
 import type { ScheduleDayItem } from "@/lib/types/schedule";
 
-function AbsenceStatusBadge({ status }: { status: "pending" | "approved" | "declined" }) {
-  const tone = status === "approved" ? "success" : status === "declined" ? "danger" : "warning";
-  const label = status === "approved" ? "Approved" : status === "declined" ? "Declined" : "Pending";
+function AbsenceStatusBadge({ status }: { status: "pending" | "approved" | "declined" | "cancelled" }) {
+  const tone =
+    status === "approved" ? "success" :
+    status === "declined" ? "danger" :
+    status === "cancelled" ? "neutral" :
+    "warning";
+  const label =
+    status === "approved" ? "Approved" :
+    status === "declined" ? "Declined" :
+    status === "cancelled" ? "Cancelled" :
+    "Pending";
   return (
     <span className={"inline-flex rounded-full border px-2 py-0.5 text-xs font-medium " + toneClass(tone)}>
       {label}

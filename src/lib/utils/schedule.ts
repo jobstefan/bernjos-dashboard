@@ -24,6 +24,38 @@ export function formatScheduleDate(dateIso: string): string {
 }
 
 /**
+ * Format a date range for display. Single-day returns just the one date;
+ * a range returns "Fri, Sep 4 – Mon, Sep 7, 2026".
+ */
+export function formatDateRange(startIso: string, endIso: string | null): string {
+  if (!endIso || endIso === startIso) return formatScheduleDate(startIso);
+  return `${formatScheduleDate(startIso)} – ${formatScheduleDate(endIso)}`;
+}
+
+/** Number of calendar days covered by a range, inclusive. */
+export function rangeDayCount(startIso: string, endIso: string | null): number {
+  if (!endIso || endIso === startIso) return 1;
+  const ms =
+    new Date(`${endIso}T00:00:00Z`).getTime() -
+    new Date(`${startIso}T00:00:00Z`).getTime();
+  return Math.round(ms / 86_400_000) + 1;
+}
+
+/**
+ * Expand a `YYYY-MM-DD` date range into an array of every day in between,
+ * inclusive. Used to map range-based absence requests onto individual calendar days.
+ */
+export function expandDateRange(startIso: string, endIso: string): string[] {
+  const start = new Date(`${startIso}T00:00:00Z`);
+  const end = new Date(`${endIso}T00:00:00Z`);
+  const days: string[] = [];
+  for (let t = start.getTime(); t <= end.getTime(); t += 86_400_000) {
+    days.push(new Date(t).toISOString().slice(0, 10));
+  }
+  return days;
+}
+
+/**
  * Fixed palette of accent classes for department color-coding. Kept as literal,
  * complete class strings so Tailwind's compiler picks them up. Each entry pairs a
  * dot background with a subtle row tint.

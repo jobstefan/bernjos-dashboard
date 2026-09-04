@@ -98,6 +98,7 @@ enum AbsenceRequestStatus {
   pending
   approved
   declined
+  cancelled
 }
 
 /// HR/payroll profile for a user who is on the payroll (employee or manager role).
@@ -447,13 +448,16 @@ model ScheduleEntry {
   @@map("schedule_entries")
 }
 
-/// A user's request to be absent (unpaid day off) on a specific date.
-/// Pending or approved requests block the user from being scheduled that day.
-/// Declined requests have no scheduling effect.
+/// A user's request to be absent (unpaid day off) on a date or date range.
+/// Pending or approved requests block the user from being scheduled on all days
+/// within [date, endDate] inclusive. Declined requests have no scheduling effect.
 model AbsenceRequest {
   id           String               @id @default(cuid())
   profileId    String               @map("profile_id")
+  /// Start date of the absence (or the only date for single-day requests).
   date         DateTime             @db.Date
+  /// End date of the absence. Null means single-day (same as `date`).
+  endDate      DateTime?            @map("end_date") @db.Date
   reason       String?
   status       AbsenceRequestStatus @default(pending)
   /// Clerk user id of whoever created the request (user or admin).
@@ -467,7 +471,7 @@ model AbsenceRequest {
 
   profile UserProfile @relation(fields: [profileId], references: [id])
 
-  @@unique([profileId, date])
+  @@index([profileId])
   @@index([date])
   @@index([status])
   @@map("absence_requests")

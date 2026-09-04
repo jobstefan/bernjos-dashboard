@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, AlertCircle } from "lucide-react";
+import { Plus, AlertCircle, CalendarRange } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createAbsenceRequestAdminAction } from "@/app/actions/absence-request.actions";
+import { rangeDayCount } from "@/lib/utils/schedule";
 
 interface EmployeeOption {
   id: string;
@@ -44,23 +45,54 @@ export function AddAbsenceDialog({
   const [pending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
   const [employeeId, setEmployeeId] = React.useState<string>("");
+  const [isRange, setIsRange] = React.useState(false);
+  // Track for end-date min and day-count hint only
+  const [startDate, setStartDate] = React.useState(defaultDate ?? "");
+  const [endDate, setEndDate] = React.useState(defaultDate ?? "");
+  const [formKey, setFormKey] = React.useState(0);
+
+  function reset() {
+    setError(null);
+    setEmployeeId("");
+    setIsRange(false);
+    setStartDate(defaultDate ?? "");
+    setEndDate(defaultDate ?? "");
+    setFormKey((k) => k + 1);
+  }
+
+  function toggleRange() {
+    setIsRange((prev) => {
+      if (prev) setEndDate(startDate);
+      return !prev;
+    });
+  }
+
+  const dayCount =
+    startDate && (isRange ? endDate : startDate)
+      ? rangeDayCount(startDate, isRange ? endDate || startDate : startDate)
+      : null;
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const dateIso = String(form.get("date") ?? "");
+    const sDate = String(form.get("startDate") ?? "").trim();
+    const eDate = isRange
+      ? String(form.get("endDate") ?? "").trim() || sDate
+      : sDate;
     const reason = String(form.get("reason") ?? "").trim() || undefined;
+
     setError(null);
     startTransition(async () => {
       const res = await createAbsenceRequestAdminAction({
         employeeId,
-        dateIso,
+        startDateIso: sDate,
+        endDateIso: eDate,
         reason,
       });
       if (res.success) {
         toast.success("Absence recorded and approved.");
         setOpen(false);
-        setEmployeeId("");
+        reset();
         router.refresh();
       } else {
         setError(res.error);
@@ -74,10 +106,7 @@ export function AddAbsenceDialog({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (!next) {
-          setError(null);
-          setEmployeeId("");
-        }
+        if (!next) reset();
       }}
     >
       <DialogTrigger
@@ -88,12 +117,12 @@ export function AddAbsenceDialog({
         }
       />
       <DialogContent className="sm:max-w-md">
-        <form onSubmit={onSubmit}>
+        <form key={formKey} onSubmit={onSubmit}>
           <DialogHeader>
             <DialogTitle>Record manual absence</DialogTitle>
             <DialogDescription>
               Adds an approved absence for an employee. They will be blocked
-              from the schedule on that day.
+              from the schedule on those days.
             </DialogDescription>
           </DialogHeader>
 
@@ -134,16 +163,57 @@ export function AddAbsenceDialog({
                 </SelectContent>
               </Select>
             </div>
+
             <div className="grid gap-2">
-              <Label htmlFor="manual-absence-date">Date</Label>
+              <Label htmlFor="manual-absence-start-date">
+                {isRange ? "Start date" : "Date"}
+              </Label>
               <Input
-                id="manual-absence-date"
-                name="date"
+                id="manual-absence-start-date"
+                name="startDate"
                 type="date"
-                defaultValue={defaultDate}
                 required
+                defaultValue={defaultDate}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setStartDate(val);
+                  if (isRange && endDate && val > endDate) setEndDate(val);
+                }}
               />
             </div>
+
+            {isRange ? (
+              <div className="grid gap-2">
+                <Label htmlFor="manual-absence-end-date">End date</Label>
+                <Input
+                  id="manual-absence-end-date"
+                  name="endDate"
+                  type="date"
+                  required
+                  min={startDate}
+                  defaultValue={defaultDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+                {dayCount && dayCount > 1 ? (
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <CalendarRange className="size-3.5 shrink-0" />
+                    {dayCount} days
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={toggleRange}
+              className="w-fit"
+            >
+              <CalendarRange className="size-4" />
+              {isRange ? "Single day only" : "Set date range"}
+            </Button>
+
             <div className="grid gap-2">
               <Label htmlFor="manual-absence-reason">Reason (optional)</Label>
               <Textarea
