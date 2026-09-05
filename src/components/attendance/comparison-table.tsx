@@ -35,7 +35,13 @@ const STATUS_META: Record<
 const range = (from: string | null, to: string | null) =>
   from || to ? `${from ?? "—"} – ${to ?? "—"}` : "—";
 
-export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
+export function ComparisonTable({
+  rows,
+  branches,
+}: {
+  rows: AttendanceComparisonRow[];
+  branches: { id: string; name: string }[];
+}) {
   const [editingRow, setEditingRow] =
     React.useState<AttendanceComparisonRow | null>(null);
   const [search, setSearch] = React.useState("");
@@ -219,6 +225,7 @@ export function ComparisonTable({ rows }: { rows: AttendanceComparisonRow[] }) {
         <AttendanceEditDialog
           key={`${editingRow.date}|${editingRow.employeeId}`}
           row={editingRow}
+          branches={branches}
           open={editingRow !== null}
           onOpenChange={(open) => {
             if (!open) setEditingRow(null);

@@ -183,6 +183,7 @@ export async function calculateEmployeeDeductions(
       absentDays: attendance.absentDays,
       lateMinutes: 0,
       undertimeMinutes: 0,
+      breakMinutes: 0,
       lateDeduction: 0,
       overtimeMinutes: 0,
       overtimeEarnings: 0,
@@ -240,6 +241,7 @@ export async function calculateEmployeeDeductions(
     absentDays: attendance.absentDays,
     lateMinutes: attendance.lateMinutes,
     undertimeMinutes: attendance.undertimeMinutes,
+    breakMinutes: attendance.breakMinutes,
     lateDeduction: toNum(lateDeduction),
     overtimeMinutes: attendanceTracked ? attendance.overtimeMinutes : 0,
     overtimeEarnings: toNum(overtimeEarnings),
@@ -381,6 +383,7 @@ export async function calculatePayrollRun(
         (b.absentDays ? `, ${b.absentDays} absent` : "") +
         (b.lateMinutes ? `, ${b.lateMinutes} late-min` : "") +
         (b.undertimeMinutes ? `, ${b.undertimeMinutes} undertime-min` : "") +
+        (b.breakMinutes ? `, ${b.breakMinutes} break-min` : "") +
         (b.overtimeMinutes ? `, ${b.overtimeMinutes} overtime-min` : "")
       : null;
 
@@ -670,6 +673,11 @@ function parseUndertimeMinutes(notes: string | null): number {
   return match ? parseInt(match[1], 10) : 0;
 }
 
+function parseBreakMinutes(notes: string | null): number {
+  const match = notes?.match(/(\d+) break-min/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
 function parseDaysWorked(notes: string | null): number {
   const match = notes?.match(/Attendance: (\d+) day/) ?? null;
   return match ? parseInt(match[1], 10) : 0;
@@ -723,6 +731,7 @@ function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
     overtimeMinutes: parseOvertimeMinutes(item.notes),
     lateMinutes: parseLateMinutes(item.notes),
     undertimeMinutes: parseUndertimeMinutes(item.notes),
+    breakMinutes: parseBreakMinutes(item.notes),
     savingsContribution: toNum(item.savingsContribution),
     totalDeductions: toNum(item.totalDeductions),
     netPay: toNum(item.netPay),

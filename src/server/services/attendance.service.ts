@@ -13,6 +13,7 @@ import {
   findRecordsForRange,
   insertImport,
   manualUpsertAttendanceRecord,
+  replaceRecordBranchSegments,
   updateImportRow,
   upsertEmployeeDevice,
 } from "@/server/db/attendance";
@@ -34,6 +35,7 @@ import {
 import type { Actor } from "@/lib/types/payroll";
 import type {
   AttendanceBranchOption,
+  AttendanceBranchSegment,
   AttendanceComparisonRow,
   AttendanceImportRow,
   PayrollAttendanceSummary,
@@ -236,7 +238,9 @@ export async function deleteImport(id: string, actor: Actor) {
 /**
  * Admin manual edit of one employee-day. Clearing both times removes the record;
  * otherwise the record is upserted as a `manual` override. The branch is carried
- * over from any existing record so the row stays branch-scoped.
+ * over from any existing record unless `branchId` is explicitly passed. When
+ * `branchTransfer` is provided, two AttendanceRecordBranch segments are created so
+ * payroll can split the day proportionally across both branches.
  */
 export async function editAttendanceRecord(
   input: EditAttendanceSchema,
@@ -270,9 +274,13 @@ export async function editAttendanceRecord(
   const g2 = gapMinutes(gap2Start, gap2End);
   const breakMinutes = g1 === null || g2 === null ? null : g1 + g2;
 
+  // Respect explicit branchId override; fall back to existing record's branch.
+  const primaryBranchId =
+    input.branchId !== undefined ? input.branchId : (before?.branchId ?? null);
+
   const record = await manualUpsertAttendanceRecord({
     employeeId: input.employeeId,
-    branchId: before?.branchId ?? null,
+    branchId: primaryBranchId,
     date,
     timeIn: input.timeIn,
     timeOut: input.timeOut,
@@ -283,6 +291,36 @@ export async function editAttendanceRecord(
     breakMinutes,
     editedBy: actor.clerkUserId,
   });
+
+  // Sync branch segments for mid-day transfers.
+  if (input.branchTransfer && input.timeIn && input.timeOut) {
+    const { transferTime, branchId: secondBranchId } = input.branchTransfer;
+
+    // Deduct any gap (break/transit) that falls entirely within a segment window
+    // so that gap time isn't attributed to either branch.
+    const gapPairs = [
+      [gapStart, gapEnd],
+      [gap2Start, gap2End],
+    ] as const;
+    const segMinutes = (from: string, to: string) => {
+      let mins = Math.max(0, toMin(to) - toMin(from));
+      for (const [gs, ge] of gapPairs) {
+        if (gs && ge && toMin(gs) >= toMin(from) && toMin(ge) <= toMin(to)) {
+          mins = Math.max(0, mins - (toMin(ge) - toMin(gs)));
+        }
+      }
+      return mins;
+    };
+
+    await replaceRecordBranchSegments(record.id, [
+      { branchId: primaryBranchId, timeFrom: input.timeIn, timeTo: transferTime, minutes: segMinutes(input.timeIn, transferTime) },
+      { branchId: secondBranchId, timeFrom: transferTime, timeTo: input.timeOut, minutes: segMinutes(transferTime, input.timeOut) },
+    ]);
+  } else {
+    // Clear any stale segments if the transfer was removed.
+    await replaceRecordBranchSegments(record.id, []);
+  }
+
   await auditLog({
     actor,
     action: "attendance.record.edited",
@@ -297,6 +335,18 @@ export async function editAttendanceRecord(
 
 const dateKey = (date: Date, employeeId: string) =>
   `${date.toISOString().slice(0, 10)}|${employeeId}`;
+
+function mapSegments(
+  segs: { branchId: string | null; branch: { name: string } | null; timeFrom: string; timeTo: string; minutes: number }[],
+): AttendanceBranchSegment[] {
+  return segs.map((s) => ({
+    branchId: s.branchId,
+    branchName: s.branch?.name ?? null,
+    timeFrom: s.timeFrom,
+    timeTo: s.timeTo,
+    minutes: s.minutes,
+  }));
+}
 
 function deriveSource(
   rec: { source: string | null; timeIn: string | null; timeOut: string | null; breakMinutes: number | null } | undefined,
@@ -396,6 +446,8 @@ export async function getComparison(
       breakMinutes: cmp.breakMinutes,
       needsReview: cmp.needsReview,
       branchName: entry.branch?.name ?? null,
+      attendanceBranchId: rec?.branchId ?? null,
+      branchSegments: mapSegments(rec?.branchSegments ?? []),
       absenceRequest: ar ? { id: ar.id, status: ar.status, reason: ar.reason ?? null } : null,
     });
   }
@@ -427,6 +479,8 @@ export async function getComparison(
       breakMinutes: rec.breakMinutes ?? 0,
       needsReview: rec.timeIn !== null && rec.breakMinutes === null,
       branchName: null,
+      attendanceBranchId: rec.branchId ?? null,
+      branchSegments: mapSegments(rec.branchSegments ?? []),
       absenceRequest: null,
     });
   }
@@ -462,6 +516,8 @@ export async function getComparison(
         breakMinutes: 0,
         needsReview: false,
         branchName: null,
+        attendanceBranchId: null,
+        branchSegments: [],
         absenceRequest: { id: ar.id, status: ar.status, reason: ar.reason ?? null },
       });
     }
@@ -499,6 +555,8 @@ export async function getComparison(
         breakMinutes: 0,
         needsReview: false,
         branchName: null,
+        attendanceBranchId: null,
+        branchSegments: [],
         absenceRequest: null,
       });
     }
@@ -592,10 +650,20 @@ export async function summarizeForPayroll(
       continue;
     }
     daysWorked++;
-    // Attribute the day to the branch that recorded the punch; fall back to the
-    // scheduled branch, else leave it unassigned (null).
-    const branchId = rec?.branchId ?? entry.branchId ?? null;
-    daysByBranch.set(branchId, (daysByBranch.get(branchId) ?? 0) + 1);
+    // Split the day across branches. When the record has sub-day segments (branch
+    // transfer), attribute each segment proportionally by wall-clock minutes;
+    // otherwise the whole day goes to the single attendance/scheduled branch.
+    const segments = rec?.branchSegments ?? [];
+    if (segments.length > 0) {
+      const totalSegMinutes = segments.reduce((s, seg) => s + seg.minutes, 0);
+      for (const seg of segments) {
+        const fraction = totalSegMinutes > 0 ? seg.minutes / totalSegMinutes : 1 / segments.length;
+        daysByBranch.set(seg.branchId, (daysByBranch.get(seg.branchId) ?? 0) + fraction);
+      }
+    } else {
+      const branchId = rec?.branchId ?? entry.branchId ?? null;
+      daysByBranch.set(branchId, (daysByBranch.get(branchId) ?? 0) + 1);
+    }
     // Only count late minutes that exceed the grace threshold — consistent with
     // what the deduction actually charges.
     const effectiveLate = cmp.lateMinutes > LATE_DEDUCTION_GRACE_MINUTES ? cmp.lateMinutes : 0;
@@ -606,7 +674,7 @@ export async function summarizeForPayroll(
     breakMinutes += cmp.breakMinutes;
     if (standardShiftMinutes > 0) {
       deductionDays +=
-        (effectiveLate + cmp.undertimeMinutes) /
+        (effectiveLate + cmp.undertimeMinutes + cmp.breakMinutes) /
         standardShiftMinutes;
     }
   }

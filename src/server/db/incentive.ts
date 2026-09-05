@@ -20,7 +20,7 @@ export function findIncentives() {
 
 export function findPendingIncentivesForEmployee(profileId: string) {
   return prisma.incentive.findMany({
-    where: { profileId, status: "pending" },
+    where: { profileId, status: "pending", deletedAt: null },
   });
 }
 

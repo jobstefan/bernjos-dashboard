@@ -63,7 +63,9 @@ export interface DeductionBreakdown {
   lateMinutes: number;
   /** Early-out minutes, summed (0 when not tracked). */
   undertimeMinutes: number;
-  /** Peso deduction for late+undertime (pro-rated daily rate; 0 when not tracked). */
+  /** Mid-day gap minutes, summed (0 when not tracked). */
+  breakMinutes: number;
+  /** Peso deduction for late+undertime+break (pro-rated daily rate; 0 when not tracked). */
   lateDeduction: number;
   /** Minutes worked past scheduled end, summed (0 when not tracked). */
   overtimeMinutes: number;
@@ -152,6 +154,7 @@ export interface Payslip {
   overtimeMinutes: number;
   lateMinutes: number;
   undertimeMinutes: number;
+  breakMinutes: number;
   /** User savings withheld into their account — not a deduction. */
   savingsContribution: number;
   totalDeductions: number;

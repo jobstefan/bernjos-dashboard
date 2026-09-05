@@ -6,6 +6,7 @@ import {
   getImports,
   getUploadBranches,
 } from "@/server/services/attendance.service";
+import { findBranches } from "@/server/db/branches";
 import { getEmployees } from "@/server/services/employee.service";
 import { UploadAttendanceButton } from "@/components/attendance/upload-dialog";
 import { ComparisonTable } from "@/components/attendance/comparison-table";
@@ -80,7 +81,7 @@ export default async function AttendancePage({
   const fromIso = from && DATE_RE.test(from) ? from : isoDaysAgo(13);
   const toIso = to && DATE_RE.test(to) ? to : isoDaysAgo(0);
 
-  const [rows, imports, branches, employees] = await Promise.all([
+  const [rows, imports, uploadBranches, employees, allBranches] = await Promise.all([
     getComparison(
       new Date(`${fromIso}T00:00:00.000Z`),
       new Date(`${toIso}T00:00:00.000Z`),
@@ -88,6 +89,7 @@ export default async function AttendancePage({
     getImports(),
     getUploadBranches(),
     getEmployees({ employmentStatus: "active" }),
+    findBranches(),
   ]);
 
   const employeeOptions = employees.map((e) => ({
@@ -107,7 +109,7 @@ export default async function AttendancePage({
             Biometric actuals vs the schedule — {rows.length} record{rows.length === 1 ? "" : "s"} in range.
           </p>
         </div>
-        <UploadAttendanceButton branches={branches} />
+        <UploadAttendanceButton branches={uploadBranches} />
       </div>
 
       <form className="flex flex-wrap items-end gap-3">
@@ -183,7 +185,7 @@ export default async function AttendancePage({
           description="Once a day has a schedule and an uploaded attendance record, the comparison shows here."
         />
       ) : (
-        <ComparisonTable rows={rows} />
+        <ComparisonTable rows={rows} branches={allBranches} />
       )}
 
       <div className="space-y-3">

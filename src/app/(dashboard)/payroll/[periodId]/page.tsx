@@ -60,6 +60,7 @@ export default async function PeriodDetailPage({
       overtimeMinutes: parseInt(item.notes?.match(/(\d+) overtime-min/)?.[1] ?? "0", 10),
       lateMinutes: parseInt(item.notes?.match(/(\d+) late-min/)?.[1] ?? "0", 10),
       undertimeMinutes: parseInt(item.notes?.match(/(\d+) undertime-min/)?.[1] ?? "0", 10),
+      breakMinutes: parseInt(item.notes?.match(/(\d+) break-min/)?.[1] ?? "0", 10),
       advanceDeduction: Number(item.advanceDeduction),
       otherDeductions: Number(item.otherDeductions),
       loanDeduction: Number(item.loanDeduction),

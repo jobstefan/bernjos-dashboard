@@ -413,14 +413,15 @@ model Branch {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  scheduleEntries    ScheduleEntry[]
-  employeeDevices    EmployeeDevice[]
-  attendanceImports  AttendanceImport[]
-  payrollBranchItems PayrollRunItemBranch[]
-  charges            Charge[]
-  loans              Loan[]
-  incentives         Incentive[]
-  cashAdvances       CashAdvance[]
+  scheduleEntries      ScheduleEntry[]
+  employeeDevices      EmployeeDevice[]
+  attendanceImports    AttendanceImport[]
+  attendanceSegments   AttendanceRecordBranch[]
+  payrollBranchItems   PayrollRunItemBranch[]
+  charges              Charge[]
+  loans                Loan[]
+  incentives           Incentive[]
+  cashAdvances         CashAdvance[]
 
   @@map("branches")
 }
@@ -708,10 +709,32 @@ model AttendanceRecord {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  import  AttendanceImport? @relation(fields: [importId], references: [id], onDelete: SetNull)
-  profile UserProfile       @relation(fields: [profileId], references: [id])
+  import         AttendanceImport?        @relation(fields: [importId], references: [id], onDelete: SetNull)
+  profile        UserProfile              @relation(fields: [profileId], references: [id])
+  branchSegments AttendanceRecordBranch[]
 
   @@unique([date, profileId])
   @@index([profileId])
   @@map("attendance_records")
+}
+
+/// Sub-day branch segment — only present when an employee transfers branches
+/// mid-shift. Normal single-branch days have no segments; the parent
+/// AttendanceRecord.branchId is the sole branch for those days.
+model AttendanceRecordBranch {
+  id        String  @id @default(cuid())
+  recordId  String  @map("record_id")
+  branchId  String? @map("branch_id")
+  /// Start of this branch stint (HH:MM 24-hour).
+  timeFrom  String  @map("time_from")
+  /// End of this branch stint (HH:MM 24-hour).
+  timeTo    String  @map("time_to")
+  /// Wall-clock minutes at this branch (timeTo − timeFrom).
+  minutes   Int
+
+  record AttendanceRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  branch Branch?          @relation(fields: [branchId], references: [id])
+
+  @@index([recordId])
+  @@map("attendance_record_branches")
 }

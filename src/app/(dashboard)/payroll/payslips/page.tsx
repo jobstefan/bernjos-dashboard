@@ -47,6 +47,7 @@ export default async function MyPayslipsPage() {
     lateDeduction: p.lateDeduction,
     lateMinutes: p.lateMinutes,
     undertimeMinutes: p.undertimeMinutes,
+    breakMinutes: p.breakMinutes,
     advanceDeduction: p.advanceDeduction,
     otherDeductions: p.otherDeductions,
     loanDeduction: p.loanDeduction,
