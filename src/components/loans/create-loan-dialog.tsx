@@ -23,6 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableCombobox } from "@/components/ui/searchable-combobox";
+import { BranchCombobox } from "@/components/ui/branch-combobox";
 import { adminCreateLoanAction } from "@/app/actions/loan.actions";
 import { formatPeso } from "@/lib/utils/payroll";
 import type { SavingsAccountRow } from "@/lib/types/savings";
@@ -100,35 +102,47 @@ export function AdminCreateLoanButton({
         }}
         branches={branches}
         employeePicker={
-          <div className="grid gap-2">
-            <Label>Employee</Label>
-            <Select
-              value={selectedId}
-              onValueChange={(v) => v && setSelectedId(v)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select employee…">
-                  {(value) => {
-                    const a = eligibleAccounts.find((a) => a.employeeId === value);
-                    return a ? `${a.employeeName} (${a.employeeCode})` : "Select employee…";
-                  }}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {eligibleAccounts.map((a) => (
-                  <SelectItem key={a.employeeId} value={a.employeeId}>
-                    <span className="font-medium">{a.employeeName}</span>
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      {a.employeeCode} · available {formatPeso(availableToBorrowMap[a.employeeId] ?? 0)}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <LoanEmployeePicker
+            accounts={eligibleAccounts}
+            availableToBorrowMap={availableToBorrowMap}
+            value={selectedId}
+            onValueChange={setSelectedId}
+          />
         }
       />
     </>
+  );
+}
+
+// ─── Employee picker for admin loan creation ─────────────────────────────────
+
+function LoanEmployeePicker({
+  accounts,
+  availableToBorrowMap,
+  value,
+  onValueChange,
+}: {
+  accounts: SavingsAccountRow[];
+  availableToBorrowMap: Record<string, number>;
+  value: string;
+  onValueChange: (id: string) => void;
+}) {
+  const options = accounts.map((a) => ({
+    value: a.employeeId,
+    label: a.employeeName,
+    sublabel: `${a.employeeCode} · avail. ${formatPeso(availableToBorrowMap[a.employeeId] ?? 0)}`,
+  }));
+
+  return (
+    <div className="grid gap-2">
+      <Label>Employee</Label>
+      <SearchableCombobox
+        options={options}
+        value={value}
+        onValueChange={onValueChange}
+        placeholder="Search employee…"
+      />
+    </div>
   );
 }
 
@@ -221,26 +235,12 @@ function CreateLoanDialogInner({
             {branches.length > 0 && (
               <div className="grid gap-2">
                 <Label>Branch</Label>
-                <Select
+                <BranchCombobox
+                  branches={branches}
                   value={branchId}
-                  onValueChange={(v) => v && setBranchId(v)}
+                  onValueChange={setBranchId}
                   disabled={!account}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select branch…">
-                      {(value) =>
-                        branches.find((b) => b.id === value)?.name ?? "Select branch…"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
                 {errors.branchId ? (
                   <p className="text-xs text-destructive">{errors.branchId}</p>
                 ) : null}

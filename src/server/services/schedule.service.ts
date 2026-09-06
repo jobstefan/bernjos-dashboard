@@ -10,6 +10,7 @@ import { auditLog } from "@/server/services/audit.service";
 import { UnauthorizedError } from "@/lib/errors/payroll";
 import type { Actor } from "@/lib/types/payroll";
 import type { ScheduleRow } from "@/lib/types/schedule";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 
 /** Normalize any Date to UTC midnight so it matches the Postgres `@db.Date` column. */
 function toDateOnly(date: Date): Date {
@@ -24,7 +25,7 @@ function entryToRow(entry: EntryWithRelations): ScheduleRow {
   return {
     employeeId: entry.profileId,
     employeeCode: entry.profile.employeeCode,
-    employeeName: `${entry.profile.firstName} ${entry.profile.lastName}`,
+    employeeName: formatEmployeeName(entry.profile.firstName, entry.profile.lastName, entry.profile.middleName),
     department: entry.profile.department,
     branchId: entry.branchId,
     branchName: entry.branch?.name ?? null,
@@ -53,7 +54,7 @@ export async function getDaySchedule(date: Date): Promise<ScheduleRow[]> {
     return {
       employeeId: emp.id,
       employeeCode: emp.employeeCode,
-      employeeName: `${emp.firstName} ${emp.lastName}`,
+      employeeName: formatEmployeeName(emp.firstName, emp.lastName, emp.middleName),
       department: emp.department,
       branchId: null,
       branchName: null,
@@ -94,7 +95,7 @@ export async function getMyUpcoming(
       row: {
         employeeId: profile.id,
         employeeCode: profile.employeeCode,
-        employeeName: `${profile.firstName} ${profile.lastName}`,
+        employeeName: formatEmployeeName(profile.firstName, profile.lastName, profile.middleName),
         department: profile.department,
         branchId: null,
         branchName: null,

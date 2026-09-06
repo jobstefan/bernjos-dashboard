@@ -2,6 +2,7 @@ import { HandCoins } from "lucide-react";
 import { getActor } from "@/lib/auth/rbac";
 import { getEmployeeByClerkUser } from "@/server/services/employee.service";
 import { getCashAdvancesForEmployee } from "@/server/services/cash-advance.service";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 import { findBranches } from "@/server/db/branches";
 import { CashAdvancesTable } from "@/components/cash-advances/cash-advances-table";
 import { RequestCashAdvanceDialog } from "@/components/cash-advances/request-cash-advance-dialog";
@@ -36,7 +37,7 @@ export default async function MyCashAdvancesPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">My Advances</h1>
           <p className="text-sm text-muted-foreground">
-            {employee.firstName} {employee.lastName} · {employee.employeeCode}
+            {formatEmployeeName(employee.firstName, employee.lastName, employee.middleName)} · {employee.employeeCode}
           </p>
         </div>
         <RequestCashAdvanceDialog branches={branchOptions} />

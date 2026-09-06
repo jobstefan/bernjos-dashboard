@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Pencil, FileText, PiggyBank, CreditCard, KeyRound } from "lucide-react";
 import { getCurrentRole, canViewPayroll, isAdmin } from "@/lib/auth/rbac";
 import { getEmployee } from "@/server/services/employee.service";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 import { getEmployeePayslipHistory } from "@/server/services/payroll.service";
 import { getCashAdvancesForEmployee } from "@/server/services/cash-advance.service";
 import { getSavingsForEmployee } from "@/server/services/savings.service";
@@ -82,16 +83,14 @@ export default async function EmployeeProfilePage({
     dayOffDays: p.dayOffDays,
   }));
 
-  const fullName = `${employee.firstName} ${employee.middleName ?? ""} ${employee.lastName}`
-    .replace(/\s+/g, " ")
-    .trim();
+  const fullName = formatEmployeeName(employee.firstName, employee.lastName, employee.middleName);
 
   const initials = `${employee.firstName[0] ?? ""}${employee.lastName[0] ?? ""}`.toUpperCase();
   const hasCredentials = canManage && !!employee.username;
 
   return (
     <div className="space-y-6">
-      <SetBreadcrumbTitle title={`${employee.firstName} ${employee.lastName}`} />
+      <SetBreadcrumbTitle title={fullName} />
 
       {/* Hero header */}
       <div className="flex flex-wrap items-start gap-4">
@@ -100,7 +99,7 @@ export default async function EmployeeProfilePage({
         </div>
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight">
-            {employee.firstName} {employee.lastName}
+            {fullName}
           </h1>
           <p className="text-sm text-muted-foreground">
             {employee.position} · {employee.department}

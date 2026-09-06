@@ -4,7 +4,7 @@ import type { Prisma } from "@/generated/prisma/client";
 
 const withRelations = {
   profile: {
-    select: { id: true, employeeCode: true, firstName: true, lastName: true },
+    select: { id: true, employeeCode: true, firstName: true, lastName: true, middleName: true },
   },
   branch: { select: { id: true, name: true } },
   appliedPeriod: { select: { id: true, periodLabel: true } },

@@ -65,6 +65,7 @@ import type {
   PeriodFilters,
 } from "@/lib/types/payroll";
 import type { UpdatePeriodDatesSchema } from "@/lib/validations/payroll";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 
 const { Decimal } = Prisma;
 type Decimal = Prisma.Decimal;
@@ -713,7 +714,7 @@ function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
     employee: {
       id: item.profile.id,
       employeeCode: item.profile.employeeCode,
-      fullName: `${item.profile.firstName} ${item.profile.lastName}`,
+      fullName: formatEmployeeName(item.profile.firstName, item.profile.lastName, item.profile.middleName),
       position: item.profile.position,
       department: item.profile.department,
     },

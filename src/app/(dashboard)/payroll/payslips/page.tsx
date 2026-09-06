@@ -1,6 +1,7 @@
 import { FileText } from "lucide-react";
 import { getActor } from "@/lib/auth/rbac";
 import { getEmployeeByClerkUser } from "@/server/services/employee.service";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 import { getEmployeePayslipHistory } from "@/server/services/payroll.service";
 import { EmptyState } from "@/components/payroll/empty-state";
 import {
@@ -67,7 +68,7 @@ export default async function MyPayslipsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">My Payslips</h1>
         <p className="text-sm text-muted-foreground">
-          {employee.firstName} {employee.lastName} · {employee.employeeCode}
+          {formatEmployeeName(employee.firstName, employee.lastName, employee.middleName)} · {employee.employeeCode}
         </p>
       </div>
 

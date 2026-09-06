@@ -9,6 +9,7 @@ const withRelations = {
       employeeCode: true,
       firstName: true,
       lastName: true,
+      middleName: true,
       employmentStatus: true,
     },
   },

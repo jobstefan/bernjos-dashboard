@@ -6,6 +6,7 @@ import {
   getDepartments,
   getEmployees,
 } from "@/server/services/employee.service";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 import { getWorkforceStats } from "@/server/services/analytics.service";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,7 +32,7 @@ export default async function EmployeesPage() {
   const rows: EmployeeRow[] = employees.map((e) => ({
     id: e.id,
     employeeCode: e.employeeCode,
-    fullName: `${e.firstName} ${e.lastName}`,
+    fullName: formatEmployeeName(e.firstName, e.lastName, e.middleName),
     email: e.user?.email ?? "—",
     position: e.position,
     department: e.department,

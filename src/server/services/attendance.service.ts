@@ -33,6 +33,7 @@ import {
   toErrorMessage,
 } from "@/lib/errors/payroll";
 import type { Actor } from "@/lib/types/payroll";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 import type {
   AttendanceBranchOption,
   AttendanceBranchSegment,
@@ -399,7 +400,7 @@ export async function getComparison(
   const employeeInfoMap = new Map<string, { code: string; name: string }>(
     activeEmployees.map((e) => [
       e.id,
-      { code: e.employeeCode, name: `${e.firstName} ${e.lastName}` },
+      { code: e.employeeCode, name: formatEmployeeName(e.firstName, e.lastName, e.middleName) },
     ]),
   );
 
@@ -420,7 +421,7 @@ export async function getComparison(
       breakMinutes: rec?.breakMinutes ?? null,
     }, { deptShiftHours });
 
-    const empName = `${entry.profile.firstName} ${entry.profile.lastName}`;
+    const empName = formatEmployeeName(entry.profile.firstName, entry.profile.lastName, entry.profile.middleName);
 
     // Scheduled + absence request → mark as requested-absence.
     const isRequestedAbsence = cmp.status === "absent" && ar != null;
@@ -457,7 +458,7 @@ export async function getComparison(
     const key = dateKey(rec.date, rec.profileId);
     if (seen.has(key)) continue;
     seen.add(key);
-    const empName = `${rec.profile.firstName} ${rec.profile.lastName}`;
+    const empName = formatEmployeeName(rec.profile.firstName, rec.profile.lastName, rec.profile.middleName);
     rows.push({
       date: rec.date.toISOString().slice(0, 10),
       employeeId: rec.profileId,
@@ -489,7 +490,7 @@ export async function getComparison(
   // expanded so each day within [date, endDate] gets its own row.
   for (const ar of absenceRequests) {
     const endMs = ar.endDate ? ar.endDate.getTime() : ar.date.getTime();
-    const empName = `${ar.profile.firstName} ${ar.profile.lastName}`;
+    const empName = formatEmployeeName(ar.profile.firstName, ar.profile.lastName, ar.profile.middleName);
     for (let t = ar.date.getTime(); t <= endMs; t += 86_400_000) {
       const dayDate = new Date(t);
       const key = dateKey(dayDate, ar.profileId);

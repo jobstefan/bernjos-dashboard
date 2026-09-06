@@ -17,19 +17,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { EmployeeCombobox } from "@/components/ui/employee-combobox";
 import { createAbsenceRequestAdminAction } from "@/app/actions/absence-request.actions";
 import { rangeDayCount } from "@/lib/utils/schedule";
 
 interface EmployeeOption {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  middleName?: string | null;
   employeeCode: string;
 }
 
@@ -136,32 +132,11 @@ export function AddAbsenceDialog({
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label>Employee</Label>
-              <Select
+              <EmployeeCombobox
+                employees={employees}
                 value={employeeId}
-                onValueChange={(v) => setEmployeeId(v ?? "")}
-                required
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select employee…">
-                    {(value) => {
-                      const emp = employees.find((e) => e.id === value);
-                      return emp
-                        ? `${emp.name} · ${emp.employeeCode}`
-                        : "Select employee…";
-                    }}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.map((emp) => (
-                    <SelectItem key={emp.id} value={emp.id}>
-                      {emp.name}{" "}
-                      <span className="text-muted-foreground">
-                        · {emp.employeeCode}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onValueChange={setEmployeeId}
+              />
             </div>
 
             <div className="grid gap-2">

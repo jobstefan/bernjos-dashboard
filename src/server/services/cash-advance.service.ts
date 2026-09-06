@@ -26,6 +26,7 @@ import type {
   AdminCreateCashAdvanceSchema,
   CreateCashAdvanceSchema,
 } from "@/lib/validations/payroll";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 
 export { findApprovedUnappliedForEmployee };
 
@@ -39,7 +40,7 @@ function toRow(advance: NonNullable<CashAdvanceWithRelations>): CashAdvanceRow {
     id: advance.id,
     employeeId: advance.profileId,
     employeeCode: advance.profile.employeeCode,
-    employeeName: `${advance.profile.firstName} ${advance.profile.lastName}`,
+    employeeName: formatEmployeeName(advance.profile.firstName, advance.profile.lastName, advance.profile.middleName),
     branchId: advance.branchId ?? null,
     branchName: advance.branch?.name ?? null,
     amount: Number(advance.amount),

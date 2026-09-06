@@ -4,6 +4,7 @@ import { ArrowLeft, Users } from "lucide-react";
 import { getCurrentRole, canViewPayroll, isAdmin, isSuperAdmin } from "@/lib/auth/rbac";
 import { findPeriodById } from "@/server/db/payroll";
 import { getPayrollRunItems } from "@/server/services/payroll.service";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 import { getPeriodDeductionMix, getBranchCashForPeriod } from "@/server/services/analytics.service";
 import { StatusBadge } from "@/components/payroll/status-badge";
 import { KpiCard } from "@/components/ui/kpi-card";
@@ -48,7 +49,7 @@ export default async function PeriodDetailPage({
     return {
       id: item.id,
       employeeId: item.profileId,
-      employeeName: `${item.profile.firstName} ${item.profile.lastName}`,
+      employeeName: formatEmployeeName(item.profile.firstName, item.profile.lastName, item.profile.middleName),
       employeeCode: item.profile.employeeCode,
       position: item.profile.position,
       department: item.profile.department,

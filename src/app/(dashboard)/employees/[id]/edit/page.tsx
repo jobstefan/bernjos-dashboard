@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getCurrentRole, isAdmin } from "@/lib/auth/rbac";
 import { getEmployee } from "@/server/services/employee.service";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 import { getDepartmentOptions } from "@/server/services/department.service";
 import {
   EmployeeForm,
@@ -61,7 +62,7 @@ export default async function EditEmployeePage({
 
   return (
     <div className="space-y-6">
-      <SetBreadcrumbTitle title={`${employee.firstName} ${employee.lastName}`} />
+      <SetBreadcrumbTitle title={formatEmployeeName(employee.firstName, employee.lastName, employee.middleName)} />
       <Link
         href={`/employees/${employee.id}`}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -70,7 +71,7 @@ export default async function EditEmployeePage({
       </Link>
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          {employee.firstName} {employee.lastName}
+          {formatEmployeeName(employee.firstName, employee.lastName, employee.middleName)}
         </h1>
         <p className="text-sm text-muted-foreground">
           {employee.employeeCode} · Edit employee record

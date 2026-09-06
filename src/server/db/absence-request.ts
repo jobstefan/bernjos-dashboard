@@ -11,7 +11,7 @@ export interface AbsenceRequestFilters {
 
 const withProfile = {
   profile: {
-    select: { id: true, employeeCode: true, firstName: true, lastName: true },
+    select: { id: true, employeeCode: true, firstName: true, lastName: true, middleName: true },
   },
 } satisfies Prisma.AbsenceRequestInclude;
 

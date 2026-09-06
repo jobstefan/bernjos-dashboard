@@ -44,6 +44,7 @@ export default async function CashAdvancesPage() {
     employeeCode: e.employeeCode,
     firstName: e.firstName,
     lastName: e.lastName,
+    middleName: e.middleName,
   }));
 
   let pulse: Awaited<ReturnType<typeof getCashAdvancePulse>> | null = null;

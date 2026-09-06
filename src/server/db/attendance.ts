@@ -368,7 +368,7 @@ export function deleteAttendanceRecord(employeeId: string, date: Date) {
 
 const recordWithProfile = {
   profile: {
-    select: { id: true, employeeCode: true, firstName: true, lastName: true },
+    select: { id: true, employeeCode: true, firstName: true, lastName: true, middleName: true },
   },
 } satisfies Prisma.AttendanceRecordInclude;
 

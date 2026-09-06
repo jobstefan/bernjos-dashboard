@@ -32,6 +32,7 @@ import type {
   CreateLoanSchema,
   DeclineLoanSchema,
 } from "@/lib/validations/loan";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 
 const { Decimal } = Prisma;
 
@@ -98,7 +99,7 @@ function toLoanRow(loan: LoanWithRelations): LoanRow {
     id: loan.id,
     employeeId: loan.profileId,
     employeeCode: loan.profile.employeeCode,
-    employeeName: `${loan.profile.firstName} ${loan.profile.lastName}`,
+    employeeName: formatEmployeeName(loan.profile.firstName, loan.profile.lastName, loan.profile.middleName),
     branchId: loan.branchId ?? null,
     branchName: loan.branch?.name ?? null,
     amount: Number(loan.amount),

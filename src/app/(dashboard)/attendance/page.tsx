@@ -94,8 +94,10 @@ export default async function AttendancePage({
 
   const employeeOptions = employees.map((e) => ({
     id: e.id,
-    code: e.employeeCode,
-    name: `${e.firstName} ${e.lastName}`,
+    employeeCode: e.employeeCode,
+    firstName: e.firstName,
+    lastName: e.lastName,
+    middleName: e.middleName,
   }));
 
   const stats = rows.length > 0 ? buildAttendanceStats(rows) : null;

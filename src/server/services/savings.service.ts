@@ -21,6 +21,7 @@ import type {
   SavingsAdjustmentSchema,
   UpsertSavingsAccountSchema,
 } from "@/lib/validations/savings";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 
 const { Decimal } = Prisma;
 
@@ -53,7 +54,7 @@ function toAccountRow(account: AccountWithRelations): SavingsAccountRow {
     accountId: account.id,
     employeeId: account.profileId,
     employeeCode: account.profile.employeeCode,
-    employeeName: `${account.profile.firstName} ${account.profile.lastName}`,
+    employeeName: formatEmployeeName(account.profile.firstName, account.profile.lastName, account.profile.middleName),
     contributionAmount: Number(account.contributionAmount),
     frozenByAdmin: account.frozen,
     frozen: account.frozen || inactiveEmployee,
@@ -82,7 +83,7 @@ export async function getSavingsForEmployee(
   return {
     employeeId: account.profileId,
     employeeCode: account.profile.employeeCode,
-    employeeName: `${account.profile.firstName} ${account.profile.lastName}`,
+    employeeName: formatEmployeeName(account.profile.firstName, account.profile.lastName, account.profile.middleName),
     contributionAmount: Number(account.contributionAmount),
     frozen: account.frozen || account.profile.employmentStatus !== "active",
     balance: computeBalance(account),

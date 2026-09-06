@@ -19,6 +19,7 @@ import {
 } from "@/lib/errors/payroll";
 import type { Actor } from "@/lib/types/payroll";
 import type { AbsenceRequestStatus } from "@/generated/prisma/enums";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 
 type AbsenceRequestWithProfile = Awaited<
   ReturnType<typeof findAbsenceRequestById>
@@ -45,7 +46,7 @@ function toRow(req: NonNullable<AbsenceRequestWithProfile>): AbsenceRequestRow {
     id: req.id,
     employeeId: req.profileId,
     employeeCode: req.profile.employeeCode,
-    employeeName: `${req.profile.firstName} ${req.profile.lastName}`,
+    employeeName: formatEmployeeName(req.profile.firstName, req.profile.lastName, req.profile.middleName),
     startDate: req.date.toISOString().slice(0, 10),
     endDate: req.endDate?.toISOString().slice(0, 10) ?? null,
     reason: req.reason,

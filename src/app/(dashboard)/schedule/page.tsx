@@ -42,7 +42,9 @@ export default async function SchedulePage({
 
   const employeeOptions = employees.map((e) => ({
     id: e.id,
-    name: `${e.firstName} ${e.lastName}`,
+    firstName: e.firstName,
+    lastName: e.lastName,
+    middleName: e.middleName,
     employeeCode: e.employeeCode,
   }));
 

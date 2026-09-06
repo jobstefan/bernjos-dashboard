@@ -1,6 +1,7 @@
 import { PiggyBank, Landmark } from "lucide-react";
 import { getActor } from "@/lib/auth/rbac";
 import { getEmployeeByClerkUser } from "@/server/services/employee.service";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 import { getSavingsForEmployee } from "@/server/services/savings.service";
 import { getMyLoans } from "@/server/services/loan.service";
 import { findBranches } from "@/server/db/branches";
@@ -58,7 +59,7 @@ export default async function MySavingsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">My Loans & Savings</h1>
           <p className="text-sm text-muted-foreground">
-            {employee.firstName} {employee.lastName} · {employee.employeeCode}
+            {formatEmployeeName(employee.firstName, employee.lastName, employee.middleName)} · {employee.employeeCode}
           </p>
         </div>
         <RequestLoanDialog availableToBorrow={loansView.availableToBorrow} branches={branchOptions} />

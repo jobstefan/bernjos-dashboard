@@ -29,6 +29,7 @@ export default async function ChargesPage() {
     employeeCode: e.employeeCode,
     firstName: e.firstName,
     lastName: e.lastName,
+    middleName: e.middleName,
   }));
 
   const branchOptions: BranchOption[] = branchRows.map((b) => ({
