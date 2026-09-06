@@ -12,7 +12,7 @@ function buildWhere(filters?: LoanFilters): Prisma.LoanWhereInput {
 
 const withRelations = {
   profile: {
-    select: { id: true, employeeCode: true, firstName: true, lastName: true },
+    select: { id: true, employeeCode: true, firstName: true, lastName: true, middleName: true },
   },
   branch: { select: { name: true } },
   repayments: {

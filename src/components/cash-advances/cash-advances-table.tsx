@@ -103,7 +103,13 @@ export function CashAdvancesTable({
     const q = search.trim().toLowerCase();
     return rows.filter((r) => {
       if (status !== ALL && r.status !== status) return false;
-      if (q && !r.employeeName.toLowerCase().includes(q) && !r.employeeCode.toLowerCase().includes(q)) return false;
+      if (
+        q &&
+        !r.employeeName.toLowerCase().includes(q) &&
+        !r.employeeCode.toLowerCase().includes(q) &&
+        !(r.slipNumber ?? "").toLowerCase().includes(q)
+      )
+        return false;
       return true;
     });
   }, [rows, status, search]);
@@ -126,7 +132,18 @@ export function CashAdvancesTable({
   }
 
   const columns = React.useMemo<ColumnDef<CashAdvanceRow>[]>(() => {
-    const cols: ColumnDef<CashAdvanceRow>[] = [];
+    const cols: ColumnDef<CashAdvanceRow>[] = [
+      {
+        accessorKey: "slipNumber",
+        header: "Slip #",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <span className="font-mono text-sm text-muted-foreground">
+            {row.original.slipNumber ?? "—"}
+          </span>
+        ),
+      },
+    ];
 
     if (mode === "admin") {
       cols.push({
@@ -250,7 +267,17 @@ export function CashAdvancesTable({
         open={selected !== null}
         onOpenChange={(open) => !open && setSelected(null)}
         title="Cash Advance"
-        description={selected ? `${selected.employeeName} · ${selected.employeeCode}` : undefined}
+        description={
+          selected
+            ? [
+                selected.slipNumber,
+                formatPeso(selected.approvedAmount ?? selected.amount),
+                getCashAdvanceStatusLabel(selected.status),
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : undefined
+        }
         footer={
           selected ? (
             <div className="space-y-2">

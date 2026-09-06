@@ -98,6 +98,7 @@ enum AbsenceRequestStatus {
   pending
   approved
   declined
+  cancelled
 }
 
 /// HR/payroll profile for a user who is on the payroll (employee or manager role).
@@ -293,6 +294,7 @@ model AuditLog {
 /// the user's next calculated payroll period (into `PayrollRunItem.otherDeductions`).
 model CashAdvance {
   id              String            @id @default(cuid())
+  slipNumber      String?           @unique @map("slip_number")
   profileId       String            @map("profile_id")
   branchId        String?           @map("branch_id")
   amount          Decimal           @db.Decimal(12, 2)
@@ -404,6 +406,8 @@ model Position {
 model Branch {
   id        String    @id @default(cuid())
   name      String
+  /// Short identifier used in slip numbers (e.g. "BR1", "MNL"). Superadmin-only.
+  code      String?   @unique @db.VarChar(5)
   address   String?
   /// Adapter key identifying this branch's biometric export format (e.g.
   /// "zkteco-v1"). Null = attendance uploads not configured for this branch.
@@ -412,14 +416,15 @@ model Branch {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  scheduleEntries    ScheduleEntry[]
-  employeeDevices    EmployeeDevice[]
-  attendanceImports  AttendanceImport[]
-  payrollBranchItems PayrollRunItemBranch[]
-  charges            Charge[]
-  loans              Loan[]
-  incentives         Incentive[]
-  cashAdvances       CashAdvance[]
+  scheduleEntries      ScheduleEntry[]
+  employeeDevices      EmployeeDevice[]
+  attendanceImports    AttendanceImport[]
+  attendanceSegments   AttendanceRecordBranch[]
+  payrollBranchItems   PayrollRunItemBranch[]
+  charges              Charge[]
+  loans                Loan[]
+  incentives           Incentive[]
+  cashAdvances         CashAdvance[]
 
   @@map("branches")
 }
@@ -447,13 +452,16 @@ model ScheduleEntry {
   @@map("schedule_entries")
 }
 
-/// A user's request to be absent (unpaid day off) on a specific date.
-/// Pending or approved requests block the user from being scheduled that day.
-/// Declined requests have no scheduling effect.
+/// A user's request to be absent (unpaid day off) on a date or date range.
+/// Pending or approved requests block the user from being scheduled on all days
+/// within [date, endDate] inclusive. Declined requests have no scheduling effect.
 model AbsenceRequest {
   id           String               @id @default(cuid())
   profileId    String               @map("profile_id")
+  /// Start date of the absence (or the only date for single-day requests).
   date         DateTime             @db.Date
+  /// End date of the absence. Null means single-day (same as `date`).
+  endDate      DateTime?            @map("end_date") @db.Date
   reason       String?
   status       AbsenceRequestStatus @default(pending)
   /// Clerk user id of whoever created the request (user or admin).
@@ -467,7 +475,7 @@ model AbsenceRequest {
 
   profile UserProfile @relation(fields: [profileId], references: [id])
 
-  @@unique([profileId, date])
+  @@index([profileId])
   @@index([date])
   @@index([status])
   @@map("absence_requests")
@@ -533,6 +541,7 @@ model SavingsTransaction {
 /// Savings balance is never reduced — savings pay out at year-end separately.
 model Loan {
   id           String     @id @default(cuid())
+  slipNumber   String?    @unique @map("slip_number")
   profileId    String     @map("profile_id")
   branchId     String?    @map("branch_id")
   amount       Decimal    @db.Decimal(12, 2)
@@ -704,10 +713,32 @@ model AttendanceRecord {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  import  AttendanceImport? @relation(fields: [importId], references: [id], onDelete: SetNull)
-  profile UserProfile       @relation(fields: [profileId], references: [id])
+  import         AttendanceImport?        @relation(fields: [importId], references: [id], onDelete: SetNull)
+  profile        UserProfile              @relation(fields: [profileId], references: [id])
+  branchSegments AttendanceRecordBranch[]
 
   @@unique([date, profileId])
   @@index([profileId])
   @@map("attendance_records")
+}
+
+/// Sub-day branch segment — only present when an employee transfers branches
+/// mid-shift. Normal single-branch days have no segments; the parent
+/// AttendanceRecord.branchId is the sole branch for those days.
+model AttendanceRecordBranch {
+  id        String  @id @default(cuid())
+  recordId  String  @map("record_id")
+  branchId  String? @map("branch_id")
+  /// Start of this branch stint (HH:MM 24-hour).
+  timeFrom  String  @map("time_from")
+  /// End of this branch stint (HH:MM 24-hour).
+  timeTo    String  @map("time_to")
+  /// Wall-clock minutes at this branch (timeTo − timeFrom).
+  minutes   Int
+
+  record AttendanceRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  branch Branch?          @relation(fields: [branchId], references: [id])
+
+  @@index([recordId])
+  @@map("attendance_record_branches")
 }

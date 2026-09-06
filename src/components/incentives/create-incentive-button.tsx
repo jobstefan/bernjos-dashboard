@@ -16,13 +16,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { EmployeeCombobox } from "@/components/ui/employee-combobox";
+import { BranchCombobox, type BranchOption } from "@/components/ui/branch-combobox";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 import { createIncentiveAction } from "@/app/actions/incentive.actions";
 import { formatPeso } from "@/lib/utils/payroll";
 
@@ -31,12 +27,10 @@ export interface EmployeeOption {
   employeeCode: string;
   firstName: string;
   lastName: string;
+  middleName?: string | null;
 }
 
-export interface BranchOption {
-  id: string;
-  name: string;
-}
+export type { BranchOption };
 
 export function CreateIncentiveButton({
   employees,
@@ -109,7 +103,7 @@ export function CreateIncentiveButton({
               <DialogTitle>Add incentive</DialogTitle>
               <DialogDescription>
                 {selected
-                  ? `${selected.firstName} ${selected.lastName} · ${selected.employeeCode}`
+                  ? `${formatEmployeeName(selected.firstName, selected.lastName, selected.middleName)} · ${selected.employeeCode}`
                   : "Select an employee and enter the incentive amount. It will be added to their next payroll run."}
               </DialogDescription>
             </DialogHeader>
@@ -117,27 +111,11 @@ export function CreateIncentiveButton({
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
                 <Label>Employee</Label>
-                <Select value={profileId} onValueChange={(v) => v && setProfileId(v)}>
-                  <SelectTrigger className="w-full">
-                    {selected ? (
-                      <span>{selected.firstName} {selected.lastName}</span>
-                    ) : (
-                      <span className="text-muted-foreground">Select employee…</span>
-                    )}
-                  </SelectTrigger>
-                  <SelectContent>
-                    {employees.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>
-                        <span className="font-medium">
-                          {e.firstName} {e.lastName}
-                        </span>
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          {e.employeeCode}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <EmployeeCombobox
+                  employees={employees}
+                  value={profileId}
+                  onValueChange={setProfileId}
+                />
                 {errors.profileId ? (
                   <p className="text-xs text-destructive">{errors.profileId}</p>
                 ) : null}
@@ -145,22 +123,12 @@ export function CreateIncentiveButton({
 
               <div className="grid gap-2">
                 <Label>Branch</Label>
-                <Select value={branchId} onValueChange={(v) => v && setBranchId(v)} disabled={!profileId}>
-                  <SelectTrigger className="w-full">
-                    {branchId ? (
-                      <span>{branches.find((b) => b.id === branchId)?.name}</span>
-                    ) : (
-                      <span className="text-muted-foreground">Select branch…</span>
-                    )}
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <BranchCombobox
+                  branches={branches}
+                  value={branchId}
+                  onValueChange={setBranchId}
+                  disabled={!profileId}
+                />
                 {errors.branchId ? (
                   <p className="text-xs text-destructive">{errors.branchId}</p>
                 ) : null}

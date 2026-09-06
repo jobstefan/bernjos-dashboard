@@ -1,4 +1,14 @@
 import type { AttendanceStatus } from "@/lib/attendance/compare";
+import type { AbsenceRequestStatus } from "@/generated/prisma/enums";
+
+/** One branch stint within a mid-day transfer day. */
+export interface AttendanceBranchSegment {
+  branchId: string | null;
+  branchName: string | null;
+  timeFrom: string; // HH:MM
+  timeTo: string;   // HH:MM
+  minutes: number;
+}
 
 /** One employee-day: schedule (target) vs attendance (actual), flattened for a table. */
 export interface AttendanceComparisonRow {
@@ -31,8 +41,12 @@ export interface AttendanceComparisonRow {
   needsReview: boolean;
   /** Branch the employee was scheduled to work at that day. */
   branchName: string | null;
+  /** Branch from the actual attendance record (may differ from scheduled branch). */
+  attendanceBranchId: string | null;
+  /** Sub-day branch segments — only populated on transfer days. */
+  branchSegments: AttendanceBranchSegment[];
   /** Absence request for this day, if one exists (pending or approved). */
-  absenceRequest: { id: string; status: "pending" | "approved" | "declined"; reason: string | null } | null;
+  absenceRequest: { id: string; status: AbsenceRequestStatus; reason: string | null } | null;
 }
 
 /** An enrollment id from an export with no matching employee, plus its printed name. */

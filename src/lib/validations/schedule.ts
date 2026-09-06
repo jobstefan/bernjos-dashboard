@@ -27,6 +27,12 @@ export const saveDayScheduleSchema = z.object({
 
 export const createBranchSchema = z.object({
   name: z.string().trim().min(1, "Branch name is required."),
+  /** Short code used in slip numbers (e.g. "BR1", "MNL"). Superadmin-only. */
+  code: z
+    .string()
+    .trim()
+    .min(1, "Branch code is required.")
+    .max(5, "Branch code must be 5 characters or fewer."),
   address: z.string().trim().max(200).optional().nullable(),
   /** Biometric adapter key (see src/lib/attendance/adapters). Empty = none. */
   attendanceFormat: z.string().trim().optional().nullable(),

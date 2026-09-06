@@ -26,6 +26,9 @@ import type {
   AdminCreateCashAdvanceSchema,
   CreateCashAdvanceSchema,
 } from "@/lib/validations/payroll";
+import { formatEmployeeName } from "@/lib/utils/format-name";
+import { nextCashAdvanceSlipNumber } from "@/server/db/slip-number";
+import { findBranchById } from "@/server/db/branches";
 
 export { findApprovedUnappliedForEmployee };
 
@@ -37,9 +40,10 @@ type CashAdvanceWithRelations = Awaited<
 function toRow(advance: NonNullable<CashAdvanceWithRelations>): CashAdvanceRow {
   return {
     id: advance.id,
+    slipNumber: advance.slipNumber ?? null,
     employeeId: advance.profileId,
     employeeCode: advance.profile.employeeCode,
-    employeeName: `${advance.profile.firstName} ${advance.profile.lastName}`,
+    employeeName: formatEmployeeName(advance.profile.firstName, advance.profile.lastName, advance.profile.middleName),
     branchId: advance.branchId ?? null,
     branchName: advance.branch?.name ?? null,
     amount: Number(advance.amount),
@@ -93,7 +97,10 @@ export async function adminCreateCashAdvance(
   if (!profile) throw new NotFoundError("Employee", input.profileId);
 
   const now = new Date();
+  const branch = await findBranchById(input.branchId);
+  const slipNumber = await nextCashAdvanceSlipNumber(branch?.code ?? null);
   const advance = await insertCashAdvance({
+    slipNumber,
     profile: { connect: { id: profile.id } },
     branch: { connect: { id: input.branchId } },
     amount: input.amount,
@@ -127,7 +134,10 @@ export async function requestCashAdvance(
     );
   }
 
+  const branch = await findBranchById(input.branchId);
+  const slipNumber = await nextCashAdvanceSlipNumber(branch?.code ?? null);
   const advance = await insertCashAdvance({
+    slipNumber,
     profile: { connect: { id: profile.id } },
     branch: { connect: { id: input.branchId } },
     amount: input.amount,

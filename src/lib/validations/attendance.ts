@@ -30,6 +30,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const editAttendanceSchema = z.object({
   employeeId: z.string().min(1, "Choose an employee."),
   date: z.string().regex(DATE_RE, "Enter a valid date."),
+  /** Override the primary branch for this day's record. */
+  branchId: z.string().nullable().optional(),
   timeIn: hhmmOrNull,
   timeOut: hhmmOrNull,
   /** Start of the mid-day gap (first punch-out during the shift). */
@@ -40,6 +42,17 @@ export const editAttendanceSchema = z.object({
   gap2Start: hhmmOrNull,
   /** Second mid-day gap end — optional manual add-in. */
   gap2End: hhmmOrNull,
+  /** Branch transfer mid-shift: splits the day into two branch stints. */
+  branchTransfer: z
+    .object({
+      transferTime: z
+        .string()
+        .trim()
+        .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter a valid transfer time."),
+      branchId: z.string().nullable(),
+    })
+    .nullable()
+    .optional(),
 });
 
 /** Remove one employee-day's attendance record. */

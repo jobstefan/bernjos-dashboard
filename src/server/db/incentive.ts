@@ -4,7 +4,7 @@ import type { Prisma } from "@/generated/prisma/client";
 
 const withRelations = {
   profile: {
-    select: { id: true, employeeCode: true, firstName: true, lastName: true },
+    select: { id: true, employeeCode: true, firstName: true, lastName: true, middleName: true },
   },
   branch: { select: { name: true } },
   period: { select: { id: true, periodLabel: true } },
@@ -20,7 +20,7 @@ export function findIncentives() {
 
 export function findPendingIncentivesForEmployee(profileId: string) {
   return prisma.incentive.findMany({
-    where: { profileId, status: "pending" },
+    where: { profileId, status: "pending", deletedAt: null },
   });
 }
 

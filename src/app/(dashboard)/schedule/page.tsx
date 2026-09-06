@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { canManageSchedule, canViewSchedule, getCurrentRole, isAdmin } from "@/lib/auth/rbac";
+import { canManageSchedule, canViewSchedule, getCurrentRole, canApproveCashAdvance } from "@/lib/auth/rbac";
 import { getDaySchedule } from "@/server/services/schedule.service";
 import { getBranches } from "@/server/services/branch.service";
 import { getAbsenceRequests } from "@/server/services/absence-request.service";
@@ -28,7 +28,7 @@ export default async function SchedulePage({
   const dateObj = new Date(`${dateIso}T00:00:00Z`);
 
   const canManage = canManageSchedule(role);
-  const canDecide = isAdmin(role);
+  const canDecide = canApproveCashAdvance(role);
 
   const [rows, branches, pendingRequests, dateRequests, employees] = await Promise.all([
     getDaySchedule(dateObj),
@@ -42,7 +42,9 @@ export default async function SchedulePage({
 
   const employeeOptions = employees.map((e) => ({
     id: e.id,
-    name: `${e.firstName} ${e.lastName}`,
+    firstName: e.firstName,
+    lastName: e.lastName,
+    middleName: e.middleName,
     employeeCode: e.employeeCode,
   }));
 

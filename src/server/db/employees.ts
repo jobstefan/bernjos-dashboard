@@ -34,7 +34,7 @@ const withUser = {
 export function findActiveEmployeeBasics() {
   return prisma.userProfile.findMany({
     where: { employmentStatus: "active", deletedAt: null, ...EXCLUDE_ELEVATED },
-    select: { id: true, employeeCode: true, firstName: true, lastName: true },
+    select: { id: true, employeeCode: true, firstName: true, lastName: true, middleName: true },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   });
 }

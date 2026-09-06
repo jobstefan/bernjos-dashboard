@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth/rbac";
+import { requireSuperAdmin } from "@/lib/auth/rbac";
 import {
   createBranchSchema,
   updateBranchSchema,
@@ -26,7 +26,7 @@ export async function createBranchAction(
   input: unknown,
 ): Promise<ActionResult<{ id: string }>> {
   try {
-    const actor = await requireAdmin();
+    const actor = await requireSuperAdmin();
     const parsed = createBranchSchema.safeParse(input);
     if (!parsed.success) {
       return {
@@ -47,7 +47,7 @@ export async function updateBranchAction(
   input: unknown,
 ): Promise<ActionResult<{ id: string }>> {
   try {
-    const actor = await requireAdmin();
+    const actor = await requireSuperAdmin();
     const parsed = updateBranchSchema.safeParse(input);
     if (!parsed.success) {
       return {
@@ -67,7 +67,7 @@ export async function updateBranchAction(
 
 export async function deleteBranchAction(id: string): Promise<ActionResult> {
   try {
-    const actor = await requireAdmin();
+    const actor = await requireSuperAdmin();
     await deleteBranch(id, actor);
     revalidate();
     return { success: true, data: undefined };

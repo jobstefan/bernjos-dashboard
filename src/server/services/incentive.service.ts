@@ -11,6 +11,7 @@ import { auditLog } from "@/server/services/audit.service";
 import { BadRequestError, NotFoundError } from "@/lib/errors/payroll";
 import type { Actor, IncentiveRow } from "@/lib/types/payroll";
 import type { CreateIncentiveSchema, CancelIncentiveSchema } from "@/lib/validations/incentive";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 
 type IncentiveWithRelations = Awaited<ReturnType<typeof findIncentiveById>>;
 
@@ -19,7 +20,7 @@ function toRow(incentive: NonNullable<IncentiveWithRelations>): IncentiveRow {
     id: incentive.id,
     employeeId: incentive.profileId,
     employeeCode: incentive.profile.employeeCode,
-    employeeName: `${incentive.profile.firstName} ${incentive.profile.lastName}`,
+    employeeName: formatEmployeeName(incentive.profile.firstName, incentive.profile.lastName, incentive.profile.middleName),
     branchId: incentive.branchId ?? null,
     branchName: incentive.branch?.name ?? null,
     amount: Number(incentive.amount),

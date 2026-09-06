@@ -13,7 +13,7 @@ function buildWhere(filters?: CashAdvanceFilters): Prisma.CashAdvanceWhereInput 
 
 const withRelations = {
   profile: {
-    select: { id: true, employeeCode: true, firstName: true, lastName: true },
+    select: { id: true, employeeCode: true, firstName: true, lastName: true, middleName: true },
   },
   branch: { select: { name: true } },
   appliedPeriod: { select: { id: true, periodLabel: true } },

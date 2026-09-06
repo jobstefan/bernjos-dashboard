@@ -6,13 +6,7 @@ import { toast } from "sonner";
 import { Check, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { EmployeeCombobox } from "@/components/ui/employee-combobox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,8 +26,10 @@ import type { AttendanceImportRow } from "@/lib/types/attendance";
 
 export interface EmployeeOption {
   id: string;
-  code: string;
-  name: string;
+  employeeCode: string;
+  firstName: string;
+  lastName: string;
+  middleName?: string | null;
 }
 
 const STATUS_VARIANT: Record<string, "secondary" | "destructive" | "outline"> = {
@@ -54,7 +50,11 @@ function guessEmployeeId(
   if (!name) return "";
   const norm = (s: string) => s.toLowerCase().replace(/[\s,]+/g, " ").trim();
   const target = norm(name);
-  const hit = employees.find((e) => norm(e.name) === target);
+  const hit = employees.find((e) => {
+    const full = `${e.firstName} ${e.lastName}`;
+    const reversed = `${e.lastName} ${e.firstName}`;
+    return norm(full) === target || norm(reversed) === target;
+  });
   return hit?.id ?? "";
 }
 
@@ -88,8 +88,9 @@ function MapRow({
     });
   }
 
-  const savedName = savedId
-    ? employees.find((e) => e.id === savedId)?.name
+  const savedEmployee = savedId ? employees.find((e) => e.id === savedId) : null;
+  const savedName = savedEmployee
+    ? `${savedEmployee.lastName}, ${savedEmployee.firstName}${savedEmployee.middleName ? ` ${savedEmployee.middleName}` : ""}`
     : null;
 
   return (
@@ -104,22 +105,12 @@ function MapRow({
           </span>
         ) : null}
       </div>
-      <Select value={employeeId} onValueChange={(v) => setEmployeeId(v ?? "")}>
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="Select employee">
-            {(value) =>
-              employees.find((e) => e.id === value)?.name ?? "Select employee"
-            }
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {employees.map((e) => (
-            <SelectItem key={e.id} value={e.id}>
-              {e.name} · {e.code}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <EmployeeCombobox
+        employees={employees}
+        value={employeeId}
+        onValueChange={setEmployeeId}
+        placeholder="Select employee"
+      />
       <Button
         size="sm"
         onClick={onMap}

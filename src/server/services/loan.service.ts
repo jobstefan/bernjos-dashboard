@@ -32,6 +32,9 @@ import type {
   CreateLoanSchema,
   DeclineLoanSchema,
 } from "@/lib/validations/loan";
+import { formatEmployeeName } from "@/lib/utils/format-name";
+import { nextLoanSlipNumber } from "@/server/db/slip-number";
+import { findBranchById } from "@/server/db/branches";
 
 const { Decimal } = Prisma;
 
@@ -96,9 +99,10 @@ function toLoanRow(loan: LoanWithRelations): LoanRow {
 
   return {
     id: loan.id,
+    slipNumber: loan.slipNumber ?? null,
     employeeId: loan.profileId,
     employeeCode: loan.profile.employeeCode,
-    employeeName: `${loan.profile.firstName} ${loan.profile.lastName}`,
+    employeeName: formatEmployeeName(loan.profile.firstName, loan.profile.lastName, loan.profile.middleName),
     branchId: loan.branchId ?? null,
     branchName: loan.branch?.name ?? null,
     amount: Number(loan.amount),
@@ -175,7 +179,10 @@ export async function requestLoan(
     );
   }
 
+  const branch = await findBranchById(input.branchId);
+  const slipNumber = await nextLoanSlipNumber(branch?.code ?? null);
   const loan = await insertLoan({
+    slipNumber,
     profile: { connect: { id: profile.id } },
     branch: { connect: { id: input.branchId } },
     amount: input.amount,
@@ -213,10 +220,13 @@ export async function adminCreateLoan(
   const principal = new Decimal(input.amount);
   const installments = computeInstallments(principal, input.termPeriods);
   const now = new Date();
+  const branch = await findBranchById(input.branchId);
+  const slipNumber = await nextLoanSlipNumber(branch?.code ?? null);
 
   const loan = await prisma.$transaction(async (tx) => {
     const created = await tx.loan.create({
       data: {
+        slipNumber,
         profile: { connect: { id: profile.id } },
         branch: { connect: { id: input.branchId } },
         amount: input.amount,

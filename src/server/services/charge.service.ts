@@ -15,6 +15,7 @@ import {
 } from "@/lib/errors/payroll";
 import type { Actor, ChargeRow } from "@/lib/types/payroll";
 import type { CreateChargeSchema } from "@/lib/validations/payroll";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 
 type ChargeWithRelations = Awaited<ReturnType<typeof findChargeById>>;
 
@@ -23,7 +24,7 @@ function toRow(charge: NonNullable<ChargeWithRelations>): ChargeRow {
     id: charge.id,
     employeeId: charge.profileId,
     employeeCode: charge.profile.employeeCode,
-    employeeName: `${charge.profile.firstName} ${charge.profile.lastName}`,
+    employeeName: formatEmployeeName(charge.profile.firstName, charge.profile.lastName, charge.profile.middleName),
     branchId: charge.branchId,
     branchName: charge.branch.name,
     amount: Number(charge.amount),

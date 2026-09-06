@@ -11,6 +11,7 @@ import { findAdvancesForPeriod } from "@/server/db/cash-advance";
 import { findChargesForPeriod } from "@/server/db/charge";
 import { findIncentivesForPeriod } from "@/server/db/incentive";
 import { prisma } from "@/lib/db";
+import { formatEmployeeName } from "@/lib/utils/format-name";
 
 // ─── Admin / Manager ────────────────────────────────────────────────────────
 
@@ -294,7 +295,7 @@ export async function getPendingApprovals(): Promise<PendingApprovals> {
           id: true,
           amount: true,
           deletionRequestedAt: true,
-          profile: { select: { firstName: true, lastName: true } },
+          profile: { select: { firstName: true, lastName: true, middleName: true } },
         },
       }),
       prisma.incentive.findMany({
@@ -303,7 +304,7 @@ export async function getPendingApprovals(): Promise<PendingApprovals> {
           id: true,
           amount: true,
           deletionRequestedAt: true,
-          profile: { select: { firstName: true, lastName: true } },
+          profile: { select: { firstName: true, lastName: true, middleName: true } },
         },
       }),
       prisma.charge.findMany({
@@ -312,7 +313,7 @@ export async function getPendingApprovals(): Promise<PendingApprovals> {
           id: true,
           amount: true,
           deletionRequestedAt: true,
-          profile: { select: { firstName: true, lastName: true } },
+          profile: { select: { firstName: true, lastName: true, middleName: true } },
         },
       }),
       prisma.loan.findMany({
@@ -321,7 +322,7 @@ export async function getPendingApprovals(): Promise<PendingApprovals> {
           id: true,
           amount: true,
           deletionRequestedAt: true,
-          profile: { select: { firstName: true, lastName: true } },
+          profile: { select: { firstName: true, lastName: true, middleName: true } },
         },
       }),
     ]);
@@ -329,7 +330,7 @@ export async function getPendingApprovals(): Promise<PendingApprovals> {
   const deletionRequests: DeletionRequestItem[] = [
     ...caDelRows.map((r) => ({
       id: r.id,
-      employeeName: `${r.profile.firstName} ${r.profile.lastName}`,
+      employeeName: formatEmployeeName(r.profile.firstName, r.profile.lastName, r.profile.middleName),
       amount: Number(r.amount),
       type: "cash_advance" as const,
       href: "/cash-advances",
@@ -337,7 +338,7 @@ export async function getPendingApprovals(): Promise<PendingApprovals> {
     })),
     ...incentiveDelRows.map((r) => ({
       id: r.id,
-      employeeName: `${r.profile.firstName} ${r.profile.lastName}`,
+      employeeName: formatEmployeeName(r.profile.firstName, r.profile.lastName, r.profile.middleName),
       amount: Number(r.amount),
       type: "incentive" as const,
       href: "/incentives",
@@ -345,7 +346,7 @@ export async function getPendingApprovals(): Promise<PendingApprovals> {
     })),
     ...chargeDelRows.map((r) => ({
       id: r.id,
-      employeeName: `${r.profile.firstName} ${r.profile.lastName}`,
+      employeeName: formatEmployeeName(r.profile.firstName, r.profile.lastName, r.profile.middleName),
       amount: Number(r.amount),
       type: "charge" as const,
       href: "/charges",
@@ -353,7 +354,7 @@ export async function getPendingApprovals(): Promise<PendingApprovals> {
     })),
     ...loanDelRows.map((r) => ({
       id: r.id,
-      employeeName: `${r.profile.firstName} ${r.profile.lastName}`,
+      employeeName: formatEmployeeName(r.profile.firstName, r.profile.lastName, r.profile.middleName),
       amount: Number(r.amount),
       type: "loan" as const,
       href: "/savings",
@@ -364,7 +365,7 @@ export async function getPendingApprovals(): Promise<PendingApprovals> {
   return {
     absences: absenceRows.map((r) => ({
       id: r.id,
-      employeeName: `${r.profile.firstName} ${r.profile.lastName}`,
+      employeeName: formatEmployeeName(r.profile.firstName, r.profile.lastName, r.profile.middleName),
       date: r.date.toISOString().slice(0, 10),
     })),
     advances: advanceRows.map((r) => ({
@@ -374,7 +375,7 @@ export async function getPendingApprovals(): Promise<PendingApprovals> {
     })),
     loans: loanRows.map((r) => ({
       id: r.id,
-      employeeName: `${r.profile.firstName} ${r.profile.lastName}`,
+      employeeName: formatEmployeeName(r.profile.firstName, r.profile.lastName, r.profile.middleName),
       amount: Number(r.amount),
     })),
     deletionRequests,

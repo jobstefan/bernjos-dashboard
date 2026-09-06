@@ -31,6 +31,7 @@ export default async function IncentivesPage() {
     employeeCode: e.employeeCode,
     firstName: e.firstName,
     lastName: e.lastName,
+    middleName: e.middleName,
   }));
 
   return (
