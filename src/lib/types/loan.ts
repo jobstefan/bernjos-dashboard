@@ -13,6 +13,7 @@ export interface LoanRepaymentRow {
 /** A loan flattened for display in tables. */
 export interface LoanRow {
   id: string;
+  slipNumber: string | null;
   employeeId: string;
   employeeCode: string;
   employeeName: string;

@@ -294,6 +294,7 @@ model AuditLog {
 /// the user's next calculated payroll period (into `PayrollRunItem.otherDeductions`).
 model CashAdvance {
   id              String            @id @default(cuid())
+  slipNumber      String?           @unique @map("slip_number")
   profileId       String            @map("profile_id")
   branchId        String?           @map("branch_id")
   amount          Decimal           @db.Decimal(12, 2)
@@ -405,6 +406,8 @@ model Position {
 model Branch {
   id        String    @id @default(cuid())
   name      String
+  /// Short identifier used in slip numbers (e.g. "BR1", "MNL"). Superadmin-only.
+  code      String?   @unique @db.VarChar(5)
   address   String?
   /// Adapter key identifying this branch's biometric export format (e.g.
   /// "zkteco-v1"). Null = attendance uploads not configured for this branch.
@@ -538,6 +541,7 @@ model SavingsTransaction {
 /// Savings balance is never reduced — savings pay out at year-end separately.
 model Loan {
   id           String     @id @default(cuid())
+  slipNumber   String?    @unique @map("slip_number")
   profileId    String     @map("profile_id")
   branchId     String?    @map("branch_id")
   amount       Decimal    @db.Decimal(12, 2)

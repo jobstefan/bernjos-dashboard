@@ -47,6 +47,7 @@ export function BranchDialog({
   const [errors, setErrors] = React.useState<Record<string, string[]>>({});
   const [formError, setFormError] = React.useState<string | null>(null);
   const [name, setName] = React.useState("");
+  const [code, setCode] = React.useState("");
   const [address, setAddress] = React.useState("");
   const [format, setFormat] = React.useState(NONE);
   const isEdit = Boolean(branch);
@@ -55,6 +56,7 @@ export function BranchDialog({
   React.useEffect(() => {
     if (open) {
       setName(branch?.name ?? "");
+      setCode(branch?.code ?? "");
       setAddress(branch?.address ?? "");
       setFormat(branch?.attendanceFormat ?? NONE);
     }
@@ -64,6 +66,7 @@ export function BranchDialog({
     e.preventDefault();
     const input = {
       name,
+      code: code.trim().toUpperCase(),
       address,
       attendanceFormat: format === NONE ? null : format,
     };
@@ -124,6 +127,23 @@ export function BranchDialog({
               />
               {errors.name?.length ? (
                 <p className="text-xs text-destructive">{errors.name[0]}</p>
+              ) : null}
+            </div>
+            <div className="grid gap-2">
+              <Label>Branch code</Label>
+              <Input
+                name="code"
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                placeholder="e.g. BR1, MNL"
+                maxLength={5}
+                className="uppercase"
+              />
+              <p className="text-xs text-muted-foreground">
+                2–5 characters. Used as a prefix on cash advance and loan slip numbers.
+              </p>
+              {errors.code?.length ? (
+                <p className="text-xs text-destructive">{errors.code[0]}</p>
               ) : null}
             </div>
             <div className="grid gap-2">

@@ -224,6 +224,7 @@ export interface ChargeRow {
 /** A cash-advance request flattened for display in a table. */
 export interface CashAdvanceRow {
   id: string;
+  slipNumber: string | null;
   employeeId: string;
   employeeCode: string;
   employeeName: string;

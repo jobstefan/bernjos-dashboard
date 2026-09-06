@@ -276,7 +276,11 @@ export function IncentivesTable({
         open={selected !== null}
         onOpenChange={(open) => !open && setSelected(null)}
         title="Incentive"
-        description={selected ? `${selected.employeeName} · ${selected.employeeCode}` : undefined}
+        description={
+          selected
+            ? `${formatPeso(selected.amount)} · ${selected.status.charAt(0).toUpperCase() + selected.status.slice(1)}`
+            : undefined
+        }
         footer={
           selected ? (
             <DeletionFooter

@@ -8,6 +8,7 @@ export type Branch = BranchModel;
 export interface BranchRow {
   id: string;
   name: string;
+  code: string | null;
   address: string | null;
   attendanceFormat: string | null;
   createdAt: string;

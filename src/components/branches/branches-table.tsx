@@ -51,11 +51,13 @@ export function BranchesTable({
     return rows.filter(
       (r) =>
         r.name.toLowerCase().includes(q) ||
+        (r.code ?? "").toLowerCase().includes(q) ||
         (r.address ?? "").toLowerCase().includes(q),
     );
   }, [rows, search]);
 
   const CSV_COLUMNS = [
+    { header: "Code", accessor: (r: BranchRow) => r.code ?? "" },
     { header: "Branch", accessor: (r: BranchRow) => r.name },
     { header: "Address", accessor: (r: BranchRow) => r.address ?? "" },
     { header: "Added", accessor: (r: BranchRow) => formatDate(r.createdAt) },
@@ -63,6 +65,16 @@ export function BranchesTable({
 
   const columns = React.useMemo<ColumnDef<BranchRow>[]>(() => {
     const cols: ColumnDef<BranchRow>[] = [
+      {
+        accessorKey: "code",
+        header: "Code",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <span className="font-mono text-sm text-muted-foreground">
+            {row.original.code ?? "—"}
+          </span>
+        ),
+      },
       {
         accessorKey: "name",
         header: "Branch",

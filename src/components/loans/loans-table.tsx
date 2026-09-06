@@ -8,6 +8,7 @@ import { DataTable } from "@/components/payroll/data-table";
 import { DataCard } from "@/components/ui/data-card";
 import { DataToolbar } from "@/components/ui/data-toolbar";
 import { DetailDrawer } from "@/components/ui/detail-drawer";
+import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -106,7 +107,8 @@ export function LoansTable({
         if (
           q &&
           !r.employeeName.toLowerCase().includes(q) &&
-          !r.employeeCode.toLowerCase().includes(q)
+          !r.employeeCode.toLowerCase().includes(q) &&
+          !(r.slipNumber ?? "").toLowerCase().includes(q)
         )
           return false;
         return true;
@@ -121,7 +123,18 @@ export function LoansTable({
   }, [rows, search, statusFilter]);
 
   const columns = React.useMemo<ColumnDef<LoanRow>[]>(() => {
-    const cols: ColumnDef<LoanRow>[] = [];
+    const cols: ColumnDef<LoanRow>[] = [
+      {
+        accessorKey: "slipNumber",
+        header: "Slip #",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <span className="font-mono text-sm text-muted-foreground">
+            {row.original.slipNumber ?? "—"}
+          </span>
+        ),
+      },
+    ];
 
     if (mode === "admin") {
       cols.push({
@@ -347,7 +360,13 @@ export function LoansTable({
         title="Loan"
         description={
           toView
-            ? `${toView.employeeName} · ${toView.employeeCode}`
+            ? [
+                toView.slipNumber,
+                formatPeso(toView.amount),
+                toView.status.charAt(0).toUpperCase() + toView.status.slice(1),
+              ]
+                .filter(Boolean)
+                .join(" · ")
             : undefined
         }
         className="sm:max-w-lg"
@@ -378,6 +397,17 @@ export function LoansTable({
       >
         {toView ? (
           <div className="space-y-4">
+            {/* Profile */}
+            <div>
+              <div className="text-base font-semibold">{toView.employeeName}</div>
+              <div className="text-xs text-muted-foreground">{toView.employeeCode}</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                Requested {formatDate(toView.requestedAt)}
+              </div>
+            </div>
+
+            <Separator />
+
             {/* Loan summary */}
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">

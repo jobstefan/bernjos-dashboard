@@ -19,6 +19,7 @@ function toRow(branch: Branch): BranchRow {
   return {
     id: branch.id,
     name: branch.name,
+    code: branch.code ?? null,
     address: branch.address,
     attendanceFormat: branch.attendanceFormat,
     createdAt: branch.createdAt.toISOString(),
@@ -41,6 +42,7 @@ export async function createBranch(
 ): Promise<Branch> {
   const branch = await insertBranch({
     name: input.name,
+    code: input.code.toUpperCase(),
     address: input.address ?? null,
     attendanceFormat: normalizeFormat(input.attendanceFormat),
   });
@@ -64,6 +66,7 @@ export async function updateBranch(
 
   const after = await updateBranchRow(id, {
     ...(input.name !== undefined ? { name: input.name } : {}),
+    ...(input.code !== undefined ? { code: input.code.toUpperCase() } : {}),
     ...(input.address !== undefined ? { address: input.address ?? null } : {}),
     ...(input.attendanceFormat !== undefined
       ? { attendanceFormat: normalizeFormat(input.attendanceFormat) }
