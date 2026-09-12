@@ -92,6 +92,26 @@ export async function cancelIncentive(
   });
 }
 
+export async function cancelIncentiveDeletionRequest(id: string, actor: Actor): Promise<void> {
+  const before = await findIncentiveById(id);
+  if (!before) throw new NotFoundError("Incentive", id);
+  if (!before.deletionRequestedAt) {
+    throw new BadRequestError("No deletion request to cancel.");
+  }
+  const after = await updateIncentive(id, {
+    deletionRequestedAt: null,
+    deletionRequestedBy: null,
+  });
+  await auditLog({
+    actor,
+    action: "incentive.deletion_request_cancelled",
+    entityType: "incentive",
+    entityId: id,
+    before,
+    after,
+  });
+}
+
 export async function requestIncentiveDeletion(id: string, actor: Actor): Promise<void> {
   const before = await findIncentiveById(id);
   if (!before) throw new NotFoundError("Incentive", id);

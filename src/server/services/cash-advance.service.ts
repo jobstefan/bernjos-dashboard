@@ -262,6 +262,26 @@ export async function deleteCashAdvance(id: string, actor: Actor) {
   });
 }
 
+export async function cancelCashAdvanceDeletionRequest(id: string, actor: Actor): Promise<void> {
+  const before = await findCashAdvanceById(id);
+  if (!before) throw new NotFoundError("Cash advance", id);
+  if (!before.deletionRequestedAt) {
+    throw new BadRequestError("No deletion request to cancel.");
+  }
+  const after = await updateCashAdvance(id, {
+    deletionRequestedAt: null,
+    deletionRequestedBy: null,
+  });
+  await auditLog({
+    actor,
+    action: "cash_advance.deletion_request_cancelled",
+    entityType: "cash_advance",
+    entityId: id,
+    before,
+    after,
+  });
+}
+
 export async function requestCashAdvanceDeletion(id: string, actor: Actor): Promise<void> {
   const before = await findCashAdvanceById(id);
   if (!before) throw new NotFoundError("Cash advance", id);

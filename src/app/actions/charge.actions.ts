@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireSuperAdmin } from "@/lib/auth/rbac";
 import { createChargeSchema } from "@/lib/validations/payroll";
-import { createCharge, deleteCharge, requestChargeDeletion } from "@/server/services/charge.service";
+import { cancelChargeDeletionRequest, createCharge, deleteCharge, requestChargeDeletion } from "@/server/services/charge.service";
 import { toActionError } from "@/server/errors";
 import type { ActionResult } from "@/lib/types/action";
 
@@ -36,6 +36,17 @@ export async function deleteChargeAction(id: string): Promise<ActionResult> {
   try {
     const actor = await requireSuperAdmin();
     await deleteCharge(id, actor);
+    revalidate();
+    return { success: true, data: undefined };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+export async function cancelChargeDeletionRequestAction(id: string): Promise<ActionResult<void>> {
+  try {
+    const actor = await requireSuperAdmin();
+    await cancelChargeDeletionRequest(id, actor);
     revalidate();
     return { success: true, data: undefined };
   } catch (error) {

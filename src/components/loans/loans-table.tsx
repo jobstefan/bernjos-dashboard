@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal } from "lucide-react";
+
 import { DataTable } from "@/components/payroll/data-table";
 import { DataCard } from "@/components/ui/data-card";
 import { DataToolbar } from "@/components/ui/data-toolbar";
@@ -11,12 +11,7 @@ import { DetailDrawer } from "@/components/ui/detail-drawer";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
 import {
   ApproveLoanDialog,
   CancelLoanDialog,
@@ -28,7 +23,7 @@ import { DeletionFooter } from "@/components/ui/deletion-footer";
 import { formatPeso } from "@/lib/utils/payroll";
 import { toneClass } from "@/lib/utils/tone";
 import { exportToCsv } from "@/lib/utils/csv";
-import { deleteLoanAction, requestLoanDeletionAction } from "@/app/actions/loan.actions";
+import { cancelLoanDeletionRequestAction, deleteLoanAction, requestLoanDeletionAction } from "@/app/actions/loan.actions";
 import type { LoanRow, LoanStatus } from "@/lib/types/loan";
 import type { Tone } from "@/lib/utils/tone";
 import type { BranchOption } from "@/components/loans/create-loan-dialog";
@@ -223,55 +218,6 @@ export function LoansTable({
           </span>
         ),
       },
-      {
-        id: "actions",
-        header: "",
-        enableSorting: false,
-        cell: ({ row }) => {
-          const loan = row.original;
-          const hasActions =
-            mode === "admin" && (loan.status === "pending" || loan.status === "approved");
-          if (!hasActions) return null;
-          return (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Row actions"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <MoreHorizontal className="size-4" />
-                  </Button>
-                }
-              />
-              <DropdownMenuContent align="end">
-                {loan.status === "pending" ? (
-                  <>
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setToApprove(loan); }}>
-                      Approve
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setToDecline(loan); }}>
-                      Decline
-                    </DropdownMenuItem>
-                  </>
-                ) : null}
-                {loan.status === "approved" ? (
-                  <>
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setToDisburse(loan); }}>
-                      Disburse
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setToCancel(loan); }}>
-                      Cancel
-                    </DropdownMenuItem>
-                  </>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          );
-        },
-      },
     );
 
     return cols;
@@ -373,6 +319,40 @@ export function LoansTable({
         footer={
           toView ? (
             <div className="space-y-2">
+              {mode === "admin" && toView.status === "pending" && (
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1"
+                    onClick={() => { setToView(null); setToApprove(toView); }}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-destructive/30 text-destructive hover:bg-destructive/10"
+                    onClick={() => { setToView(null); setToDecline(toView); }}
+                  >
+                    Decline
+                  </Button>
+                </div>
+              )}
+              {mode === "admin" && toView.status === "approved" && (
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1"
+                    onClick={() => { setToView(null); setToDisburse(toView); }}
+                  >
+                    Disburse
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-destructive/30 text-destructive hover:bg-destructive/10"
+                    onClick={() => { setToView(null); setToCancel(toView); }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
               {mode === "mine" && toView.status === "pending" && (
                 <Button
                   variant="outline"
@@ -389,6 +369,7 @@ export function LoansTable({
                 itemLabel={`${formatPeso(toView.amount)} loan for ${toView.employeeName}`}
                 onRequestDeletion={() => requestLoanDeletionAction(toView.id)}
                 onDelete={() => deleteLoanAction(toView.id)}
+                onCancelDeletionRequest={() => cancelLoanDeletionRequestAction(toView.id)}
                 onClose={() => setToView(null)}
               />
             </div>
@@ -480,6 +461,7 @@ export function LoansTable({
         loan={toApprove}
         open={toApprove !== null}
         onOpenChange={(open) => !open && setToApprove(null)}
+        branches={branches}
       />
       <DeclineLoanDialog
         loan={toDecline}
@@ -490,7 +472,6 @@ export function LoansTable({
         loan={toDisburse}
         open={toDisburse !== null}
         onOpenChange={(open) => !open && setToDisburse(null)}
-        branches={branches}
       />
       <CancelLoanDialog
         loan={toCancel}

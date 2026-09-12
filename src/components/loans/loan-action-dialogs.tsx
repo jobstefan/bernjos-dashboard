@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -65,24 +64,30 @@ export function ApproveLoanDialog({
   loan,
   open,
   onOpenChange,
+  branches = [],
 }: {
   loan: LoanRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  branches?: BranchOption[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
+  const [branchId, setBranchId] = React.useState("");
   const [note, setNote] = React.useState("");
 
   React.useEffect(() => {
-    if (open) setNote("");
-  }, [open]);
+    if (open) {
+      setBranchId(loan?.branchId ?? "");
+      setNote("");
+    }
+  }, [open, loan]);
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!loan) return;
+    if (!loan || !branchId) return;
     startTransition(async () => {
-      const res = await approveLoanAction({ id: loan.id, note });
+      const res = await approveLoanAction({ id: loan.id, branchId, note });
       if (res.success) {
         toast.success("Loan approved.");
         onOpenChange(false);
@@ -106,6 +111,27 @@ export function ApproveLoanDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {branches.length > 0 && (
+              <div className="grid gap-2">
+                <Label>Branch</Label>
+                <Select value={branchId} onValueChange={(v) => v && setBranchId(v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select branch…">
+                      {(value) =>
+                        branches.find((b) => b.id === value)?.name ?? "Select branch…"
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid gap-2">
               <Label>Note (optional)</Label>
               <Textarea
@@ -117,7 +143,7 @@ export function ApproveLoanDialog({
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" disabled={pending || (branches.length > 0 && !branchId)}>
               {pending ? "Approving…" : "Approve"}
             </Button>
           </DialogFooter>
@@ -201,26 +227,19 @@ export function DisburseLoanDialog({
   loan,
   open,
   onOpenChange,
-  branches = [],
 }: {
   loan: LoanRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  branches?: BranchOption[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
-  const [branchId, setBranchId] = React.useState("");
-
-  React.useEffect(() => {
-    if (open) setBranchId("");
-  }, [open]);
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!loan || !branchId) return;
+    if (!loan) return;
     startTransition(async () => {
-      const res = await disburseLoanAction({ id: loan.id, branchId });
+      const res = await disburseLoanAction({ id: loan.id });
       if (res.success) {
         toast.success("Loan disbursed. Repayment schedule created.");
         onOpenChange(false);
@@ -243,34 +262,11 @@ export function DisburseLoanDialog({
                 : ""}
             </DialogDescription>
           </DialogHeader>
-
-          {branches.length > 0 && (
-            <div className="grid gap-2 py-4">
-              <Label>Branch</Label>
-              <Select value={branchId} onValueChange={(v) => v && setBranchId(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select branch…">
-                    {(value) =>
-                      branches.find((b) => b.id === value)?.name ?? "Select branch…"
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {branches.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
           <DialogFooter>
             <Button variant="outline" type="button" onClick={() => onOpenChange(false)} disabled={pending}>
               Cancel
             </Button>
-            <Button type="submit" disabled={pending || (branches.length > 0 && !branchId)}>
+            <Button type="submit" disabled={pending}>
               {pending ? "Disbursing…" : "Disburse"}
             </Button>
           </DialogFooter>

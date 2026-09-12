@@ -12,6 +12,7 @@ import {
   adminCreateCashAdvance,
   approveCashAdvance,
   cancelCashAdvance,
+  cancelCashAdvanceDeletionRequest,
   declineCashAdvance,
   deleteCashAdvance,
   requestCashAdvance,
@@ -134,6 +135,17 @@ export async function deleteCashAdvanceAction(id: string): Promise<ActionResult>
   try {
     const actor = await requireRole("super_admin");
     await deleteCashAdvance(id, actor);
+    revalidate();
+    return { success: true, data: undefined };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+export async function cancelCashAdvanceDeletionRequestAction(id: string): Promise<ActionResult<void>> {
+  try {
+    const actor = await requireRole("super_admin");
+    await cancelCashAdvanceDeletionRequest(id, actor);
     revalidate();
     return { success: true, data: undefined };
   } catch (error) {

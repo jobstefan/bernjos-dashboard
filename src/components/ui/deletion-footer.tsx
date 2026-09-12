@@ -28,6 +28,7 @@ interface DeletionFooterProps {
   itemLabel: string;
   onRequestDeletion: () => Promise<{ success: boolean; error?: string }>;
   onDelete: () => Promise<{ success: boolean; error?: string }>;
+  onCancelDeletionRequest?: () => Promise<{ success: boolean; error?: string }>;
   onClose: () => void;
 }
 
@@ -38,6 +39,7 @@ export function DeletionFooter({
   itemLabel,
   onRequestDeletion,
   onDelete,
+  onCancelDeletionRequest,
   onClose,
 }: DeletionFooterProps) {
   const router = useRouter();
@@ -51,6 +53,18 @@ export function DeletionFooter({
       const res = await onRequestDeletion();
       if (res.success) {
         toast.success("Deletion request submitted.");
+        router.refresh();
+      } else {
+        toast.error(res.error ?? "Something went wrong.");
+      }
+    });
+  };
+
+  const handleCancelRequest = () => {
+    startTransition(async () => {
+      const res = await onCancelDeletionRequest!();
+      if (res.success) {
+        toast.success("Deletion request cancelled.");
         router.refresh();
       } else {
         toast.error(res.error ?? "Something went wrong.");
@@ -81,14 +95,33 @@ export function DeletionFooter({
           </div>
         )}
 
-        {canDelete ? (
+        {canDelete && deletionRequestedAt && onCancelDeletionRequest ? (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={pending}
+              onClick={handleCancelRequest}
+            >
+              {pending ? "Cancelling…" : "Cancel Request"}
+            </Button>
+            <Button
+              variant="destructive"
+              className="flex-1"
+              disabled={pending}
+              onClick={() => setConfirmDeleteOpen(true)}
+            >
+              Confirm Delete
+            </Button>
+          </div>
+        ) : canDelete ? (
           <Button
             variant="destructive"
             className="w-full"
             disabled={pending}
             onClick={() => setConfirmDeleteOpen(true)}
           >
-            {deletionRequestedAt ? "Confirm Delete" : "Delete"}
+            Delete
           </Button>
         ) : canRequestDeletion && !deletionRequestedAt ? (
           <Button

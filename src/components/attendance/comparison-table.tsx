@@ -141,7 +141,7 @@ export function ComparisonTable({
               : "Declined";
             return (
               <span className="text-sm text-muted-foreground">
-                {label}{absenceRequest.reason ? ` — ${absenceRequest.reason}` : ""}
+                {label}
               </span>
             );
           }
@@ -190,8 +190,7 @@ export function ComparisonTable({
           const varianceParts = row.absenceRequest
             ? [
                 row.absenceRequest.status === "approved" ? "Approved" : row.absenceRequest.status === "pending" ? "Pending" : "Declined",
-                row.absenceRequest.reason ?? null,
-              ].filter(Boolean)
+              ]
             : [
                 row.status === "late" ? `${row.lateMinutes}m late` : null,
                 row.undertimeMinutes ? `${row.undertimeMinutes}m under` : null,

@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   cancelIncentiveAction,
+  cancelIncentiveDeletionRequestAction,
   deleteIncentiveAction,
   requestIncentiveDeletionAction,
 } from "@/app/actions/incentive.actions";
@@ -290,6 +291,7 @@ export function IncentivesTable({
               itemLabel={`${formatPeso(selected.amount)} incentive for ${selected.employeeName}`}
               onRequestDeletion={() => requestIncentiveDeletionAction(selected.id)}
               onDelete={() => deleteIncentiveAction(selected.id)}
+              onCancelDeletionRequest={() => cancelIncentiveDeletionRequestAction(selected.id)}
               onClose={() => setSelected(null)}
             />
           ) : undefined

@@ -284,6 +284,7 @@ export async function approveLoan(
   const now = new Date();
   const after = await updateLoan(input.id, {
     status: "approved",
+    branch: { connect: { id: input.branchId } },
     decidedBy: actor.clerkUserId,
     decidedAt: now,
     decisionNote: input.note ?? null,
@@ -300,7 +301,7 @@ export async function approveLoan(
 }
 
 /** Admin disburses an approved loan (approved → active). Creates repayment schedule. */
-export async function disburseLoan(id: string, actor: Actor, branchId: string): Promise<void> {
+export async function disburseLoan(id: string, actor: Actor): Promise<void> {
   const loan = await findLoanById(id);
   if (!loan) throw new NotFoundError("Loan", id);
   if (loan.status !== "approved") {
@@ -326,7 +327,6 @@ export async function disburseLoan(id: string, actor: Actor, branchId: string): 
       where: { id },
       data: {
         status: "active",
-        branch: { connect: { id: branchId } },
         disbursedBy: actor.clerkUserId,
         disbursedAt: now,
       },
@@ -385,6 +385,26 @@ export async function requestLoanDeletion(id: string, actor: Actor): Promise<voi
   await auditLog({
     actor,
     action: "loan.deletion_requested",
+    entityType: "loan",
+    entityId: id,
+    before: loan,
+    after,
+  });
+}
+
+export async function cancelLoanDeletionRequest(id: string, actor: Actor): Promise<void> {
+  const loan = await findLoanById(id);
+  if (!loan) throw new NotFoundError("Loan", id);
+  if (!loan.deletionRequestedAt) {
+    throw new BadRequestError("No deletion request to cancel.");
+  }
+  const after = await updateLoan(id, {
+    deletionRequestedAt: null,
+    deletionRequestedBy: null,
+  });
+  await auditLog({
+    actor,
+    action: "loan.deletion_request_cancelled",
     entityType: "loan",
     entityId: id,
     before: loan,

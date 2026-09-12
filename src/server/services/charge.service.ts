@@ -97,6 +97,26 @@ export async function deleteCharge(id: string, actor: Actor) {
   });
 }
 
+export async function cancelChargeDeletionRequest(id: string, actor: Actor): Promise<void> {
+  const before = await findChargeById(id);
+  if (!before) throw new NotFoundError("Charge", id);
+  if (!before.deletionRequestedAt) {
+    throw new BadRequestError("No deletion request to cancel.");
+  }
+  const after = await updateCharge(id, {
+    deletionRequestedAt: null,
+    deletionRequestedBy: null,
+  });
+  await auditLog({
+    actor,
+    action: "charge.deletion_request_cancelled",
+    entityType: "charge",
+    entityId: id,
+    before,
+    after,
+  });
+}
+
 export async function requestChargeDeletion(id: string, actor: Actor): Promise<void> {
   const before = await findChargeById(id);
   if (!before) throw new NotFoundError("Charge", id);

@@ -5,6 +5,7 @@ import { requireAdmin, requireSuperAdmin } from "@/lib/auth/rbac";
 import { createIncentiveSchema, cancelIncentiveSchema } from "@/lib/validations/incentive";
 import {
   cancelIncentive,
+  cancelIncentiveDeletionRequest,
   createIncentive,
   deleteIncentive,
   requestIncentiveDeletion,
@@ -58,6 +59,17 @@ export async function requestIncentiveDeletionAction(id: string): Promise<Action
   try {
     const actor = await requireAdmin();
     await requestIncentiveDeletion(id, actor);
+    revalidate();
+    return { success: true, data: undefined };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+export async function cancelIncentiveDeletionRequestAction(id: string): Promise<ActionResult<void>> {
+  try {
+    const actor = await requireSuperAdmin();
+    await cancelIncentiveDeletionRequest(id, actor);
     revalidate();
     return { success: true, data: undefined };
   } catch (error) {
