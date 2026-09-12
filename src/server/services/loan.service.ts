@@ -392,6 +392,26 @@ export async function requestLoanDeletion(id: string, actor: Actor): Promise<voi
   });
 }
 
+export async function cancelLoanDeletionRequest(id: string, actor: Actor): Promise<void> {
+  const loan = await findLoanById(id);
+  if (!loan) throw new NotFoundError("Loan", id);
+  if (!loan.deletionRequestedAt) {
+    throw new BadRequestError("No deletion request to cancel.");
+  }
+  const after = await updateLoan(id, {
+    deletionRequestedAt: null,
+    deletionRequestedBy: null,
+  });
+  await auditLog({
+    actor,
+    action: "loan.deletion_request_cancelled",
+    entityType: "loan",
+    entityId: id,
+    before: loan,
+    after,
+  });
+}
+
 export async function deleteLoan(id: string, actor: Actor): Promise<void> {
   const loan = await findLoanById(id);
   if (!loan) throw new NotFoundError("Loan", id);

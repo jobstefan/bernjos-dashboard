@@ -14,6 +14,7 @@ import {
   adminCreateLoan,
   approveLoan,
   cancelLoan,
+  cancelLoanDeletionRequest,
   declineLoan,
   deleteLoan,
   disburseLoan,
@@ -152,6 +153,17 @@ export async function requestLoanDeletionAction(id: string): Promise<ActionResul
   try {
     const actor = await requireAdmin();
     await requestLoanDeletion(id, actor);
+    revalidate();
+    return { success: true, data: undefined };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+export async function cancelLoanDeletionRequestAction(id: string): Promise<ActionResult<void>> {
+  try {
+    const actor = await requireSuperAdmin();
+    await cancelLoanDeletionRequest(id, actor);
     revalidate();
     return { success: true, data: undefined };
   } catch (error) {

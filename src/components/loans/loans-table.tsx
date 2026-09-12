@@ -23,7 +23,7 @@ import { DeletionFooter } from "@/components/ui/deletion-footer";
 import { formatPeso } from "@/lib/utils/payroll";
 import { toneClass } from "@/lib/utils/tone";
 import { exportToCsv } from "@/lib/utils/csv";
-import { deleteLoanAction, requestLoanDeletionAction } from "@/app/actions/loan.actions";
+import { cancelLoanDeletionRequestAction, deleteLoanAction, requestLoanDeletionAction } from "@/app/actions/loan.actions";
 import type { LoanRow, LoanStatus } from "@/lib/types/loan";
 import type { Tone } from "@/lib/utils/tone";
 import type { BranchOption } from "@/components/loans/create-loan-dialog";
@@ -369,6 +369,7 @@ export function LoansTable({
                 itemLabel={`${formatPeso(toView.amount)} loan for ${toView.employeeName}`}
                 onRequestDeletion={() => requestLoanDeletionAction(toView.id)}
                 onDelete={() => deleteLoanAction(toView.id)}
+                onCancelDeletionRequest={() => cancelLoanDeletionRequestAction(toView.id)}
                 onClose={() => setToView(null)}
               />
             </div>

@@ -29,6 +29,7 @@ import {
 import type { BranchOption } from "@/components/cash-advances/admin-create-cash-advance-button";
 import {
   cancelCashAdvanceAction,
+  cancelCashAdvanceDeletionRequestAction,
   deleteCashAdvanceAction,
   requestCashAdvanceDeletionAction,
 } from "@/app/actions/cash-advance.actions";
@@ -314,6 +315,7 @@ export function CashAdvancesTable({
                 itemLabel={`${formatPeso(selected.amount)} cash advance for ${selected.employeeName}`}
                 onRequestDeletion={() => requestCashAdvanceDeletionAction(selected.id)}
                 onDelete={() => deleteCashAdvanceAction(selected.id)}
+                onCancelDeletionRequest={() => cancelCashAdvanceDeletionRequestAction(selected.id)}
                 onClose={() => setSelected(null)}
               />
             </div>

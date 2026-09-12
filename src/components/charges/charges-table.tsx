@@ -10,7 +10,7 @@ import { DetailDrawer } from "@/components/ui/detail-drawer";
 import { DeletionFooter } from "@/components/ui/deletion-footer";
 import { ChargeSlip } from "@/components/charges/charge-slip";
 import { exportToCsv } from "@/lib/utils/csv";
-import { deleteChargeAction, requestChargeDeletionAction } from "@/app/actions/charge.actions";
+import { cancelChargeDeletionRequestAction, deleteChargeAction, requestChargeDeletionAction } from "@/app/actions/charge.actions";
 import { formatDate, formatPeso } from "@/lib/utils/payroll";
 import type { ChargeRow, ChargeStatus } from "@/lib/types/payroll";
 
@@ -226,6 +226,7 @@ export function ChargesTable({
               itemLabel={`${formatPeso(selected.amount)} charge for ${selected.employeeName}`}
               onRequestDeletion={() => requestChargeDeletionAction(selected.id)}
               onDelete={() => deleteChargeAction(selected.id)}
+              onCancelDeletionRequest={() => cancelChargeDeletionRequestAction(selected.id)}
               onClose={() => setSelected(null)}
             />
           ) : undefined
