@@ -284,6 +284,7 @@ export async function approveLoan(
   const now = new Date();
   const after = await updateLoan(input.id, {
     status: "approved",
+    branch: { connect: { id: input.branchId } },
     decidedBy: actor.clerkUserId,
     decidedAt: now,
     decisionNote: input.note ?? null,
@@ -300,7 +301,7 @@ export async function approveLoan(
 }
 
 /** Admin disburses an approved loan (approved → active). Creates repayment schedule. */
-export async function disburseLoan(id: string, actor: Actor, branchId: string): Promise<void> {
+export async function disburseLoan(id: string, actor: Actor): Promise<void> {
   const loan = await findLoanById(id);
   if (!loan) throw new NotFoundError("Loan", id);
   if (loan.status !== "approved") {
@@ -326,7 +327,6 @@ export async function disburseLoan(id: string, actor: Actor, branchId: string): 
       where: { id },
       data: {
         status: "active",
-        branch: { connect: { id: branchId } },
         disbursedBy: actor.clerkUserId,
         disbursedAt: now,
       },

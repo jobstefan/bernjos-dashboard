@@ -43,6 +43,7 @@ export const adminCreateLoanSchema = z.object({
 
 export const approveLoanSchema = z.object({
   id: z.string().min(1),
+  branchId: z.string().min(1, "Select a branch."),
   note: z.string().trim().max(500).optional().nullable(),
 });
 
@@ -53,7 +54,6 @@ export const declineLoanSchema = z.object({
 
 export const disburseLoanSchema = z.object({
   id: z.string().min(1),
-  branchId: z.string().min(1, "Select a branch."),
 });
 
 export const cancelLoanSchema = z.object({

@@ -122,7 +122,7 @@ export async function disburseLoanAction(
     if (!parsed.success) {
       return { success: false, error: "Invalid request." };
     }
-    await disburseLoan(parsed.data.id, actor, parsed.data.branchId);
+    await disburseLoan(parsed.data.id, actor);
     revalidate();
     return { success: true, data: undefined };
   } catch (error) {
