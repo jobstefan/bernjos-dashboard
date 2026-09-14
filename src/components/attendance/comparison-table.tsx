@@ -12,6 +12,8 @@ import { AttendanceEditDialog } from "@/components/attendance/attendance-edit-di
 import type { AttendanceComparisonRow } from "@/lib/types/attendance";
 import type { AttendanceStatus } from "@/lib/attendance/compare";
 
+const ALL = "__all__";
+
 const STATUS_META: Record<
   AttendanceStatus,
   { label: string; variant: "secondary" | "destructive" | "outline"; className?: string }
@@ -45,17 +47,20 @@ export function ComparisonTable({
   const [editingRow, setEditingRow] =
     React.useState<AttendanceComparisonRow | null>(null);
   const [search, setSearch] = React.useState("");
+  const [branch, setBranch] = React.useState(ALL);
 
   const filtered = React.useMemo(() => {
     const q = search.toLowerCase().trim();
-    if (!q) return rows;
-    return rows.filter(
+    let result = rows;
+    if (q) result = result.filter(
       (r) =>
         r.employeeName.toLowerCase().includes(q) ||
         r.employeeCode.toLowerCase().includes(q) ||
         r.date.includes(q),
     );
-  }, [rows, search]);
+    if (branch !== ALL) result = result.filter((r) => r.attendanceBranchId === branch);
+    return result;
+  }, [rows, search, branch]);
 
   const columns = React.useMemo<ColumnDef<AttendanceComparisonRow>[]>(
     () => [
@@ -180,6 +185,12 @@ export function ComparisonTable({
     <>
       <DataToolbar
         search={{ value: search, onChange: setSearch, placeholder: "Search by name, code, or date…" }}
+        filters={[{
+          value: branch,
+          onChange: (v) => setBranch(v ?? ALL),
+          placeholder: "Branch",
+          options: branches.map((b) => [b.id, b.name] as [string, string]),
+        }]}
       />
       <DataTable
         columns={columns}
