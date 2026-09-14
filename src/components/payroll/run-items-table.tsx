@@ -232,7 +232,7 @@ export function RunItemsTable({
     const totalSurplus = Math.round(surpluses.reduce((s, b) => s + b.netCash, 0) * 100) / 100;
     const totalNetPay = Math.round(r.netPay * 100) / 100;
 
-    if (Math.round(totalSurplus * 100) < Math.round(totalNetPay * 100)) return "Shortfall";
+    if (Math.round(totalSurplus * 100) + 1 < Math.round(totalNetPay * 100)) return "Shortfall";
 
     const pool = surpluses.map((s) => ({ branchName: s.branchName, remaining: s.netCash }));
     const sources: { branchName: string; amount: number }[] = [];

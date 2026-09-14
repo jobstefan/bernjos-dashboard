@@ -41,7 +41,7 @@ export function BranchSplitBreakdown({
 
   const totalDeficit = Math.round(deficits.reduce((s, b) => s + Math.abs(b.netCash), 0) * 100) / 100;
   const totalSurplus = Math.round(surpluses.reduce((s, b) => s + b.netCash, 0) * 100) / 100;
-  const covered = totalSurplus >= totalDeficit;
+  const covered = Math.round(totalSurplus * 100) + 1 >= Math.round(totalDeficit * 100);
   const remainder = Math.round((totalSurplus - totalDeficit) * 100) / 100;
 
   // ── Phase 1: Net Pay Sourcing ──────────────────────────────────────────────
@@ -49,8 +49,8 @@ export function BranchSplitBreakdown({
   // Prefer a single branch; pool only when necessary.
   const netPayPool = surpluses.map((s) => ({ branchName: s.branchName, remaining: s.netCash }));
   const netPaySources: { branchName: string; amount: number }[] = [];
-  // Compare in integer cents to avoid floating-point drift (e.g. 2592.32 vs 2592.33)
-  const netPayCovered = Math.round(totalSurplus * 100) >= Math.round(totalNetPay * 100);
+  // +1 cent tolerance absorbs per-branch rounding drift (each branch netCash is individually rounded)
+  const netPayCovered = Math.round(totalSurplus * 100) + 1 >= Math.round(totalNetPay * 100);
 
   if (netPayCovered) {
     let stillNeed = Math.round(totalNetPay * 100) / 100;
