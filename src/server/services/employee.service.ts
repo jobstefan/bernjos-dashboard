@@ -207,15 +207,19 @@ export async function updateEmployee(
   const profile = await updateEmployeeRow(id, data);
 
   // Sync Clerk ban state when employment status crosses the active/terminal boundary.
+  // Best-effort: prod Clerk throws on no-op ban/unban calls; don't let that surface as an error.
   if (input.employmentStatus && input.employmentStatus !== before.employmentStatus) {
-    const clerkId = await clerkIdForProfile(id);
-    if (clerkId) {
-      if (BAN_STATUSES.includes(input.employmentStatus as EmploymentStatus)) {
-        await banClerkUser(clerkId);
-      } else {
-        // active or inactive — ensure login remains possible
-        await unbanClerkUser(clerkId);
+    try {
+      const clerkId = await clerkIdForProfile(id);
+      if (clerkId) {
+        if (BAN_STATUSES.includes(input.employmentStatus as EmploymentStatus)) {
+          await banClerkUser(clerkId);
+        } else {
+          await unbanClerkUser(clerkId);
+        }
       }
+    } catch {
+      console.error("Clerk ban sync failed for profile", id);
     }
   }
 
@@ -260,8 +264,12 @@ export async function deactivateEmployee(id: string, actor: Actor): Promise<void
   if (!before) throw new NotFoundError("Employee", id);
   const after = await softDeleteEmployee(id);
 
-  const clerkId = await clerkIdForProfile(id);
-  if (clerkId) await banClerkUser(clerkId);
+  try {
+    const clerkId = await clerkIdForProfile(id);
+    if (clerkId) await banClerkUser(clerkId);
+  } catch {
+    console.error("Clerk lock failed for profile", id);
+  }
 
   await auditLog({
     actor,
