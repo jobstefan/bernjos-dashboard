@@ -55,19 +55,19 @@ export async function deleteClerkUser(clerkUserId: string): Promise<void> {
 }
 
 /**
- * Ban a Clerk user, immediately revoking all sessions and preventing sign-in.
+ * Lock a Clerk user, preventing sign-in.
  * Called when an employee is terminated, resigned, or deactivated.
  */
 export async function banClerkUser(clerkUserId: string): Promise<void> {
   const client = await clerkClient();
-  await client.users.banUser(clerkUserId);
+  await client.users.lockUser(clerkUserId);
 }
 
 /**
- * Lift a Clerk ban so the user can sign in again.
+ * Unlock a Clerk user so they can sign in again.
  * Called if an employee status is restored to active.
  */
 export async function unbanClerkUser(clerkUserId: string): Promise<void> {
   const client = await clerkClient();
-  await client.users.unbanUser(clerkUserId);
+  await client.users.unlockUser(clerkUserId);
 }

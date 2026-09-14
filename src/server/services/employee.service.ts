@@ -264,8 +264,12 @@ export async function deactivateEmployee(id: string, actor: Actor): Promise<void
   if (!before) throw new NotFoundError("Employee", id);
   const after = await softDeleteEmployee(id);
 
-  const clerkId = await clerkIdForProfile(id);
-  if (clerkId) await banClerkUser(clerkId);
+  try {
+    const clerkId = await clerkIdForProfile(id);
+    if (clerkId) await banClerkUser(clerkId);
+  } catch {
+    console.error("Clerk lock failed for profile", id);
+  }
 
   await auditLog({
     actor,
