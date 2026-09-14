@@ -38,10 +38,25 @@ const TERM_OPTIONS = [
 export function RequestLoanDialog({
   availableToBorrow,
   branches,
+  isActive = true,
+  isFrozen = false,
+  hasActiveLoan = false,
 }: {
   availableToBorrow: number;
   branches: { id: string; name: string }[];
+  isActive?: boolean;
+  isFrozen?: boolean;
+  hasActiveLoan?: boolean;
 }) {
+  if (!isActive || isFrozen) return null;
+
+  if (hasActiveLoan) {
+    return (
+      <Button disabled title="Repay your active loan first.">
+        <Plus className="size-4" /> Request Loan
+      </Button>
+    );
+  }
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();

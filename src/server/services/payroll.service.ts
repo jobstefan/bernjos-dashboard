@@ -393,16 +393,17 @@ export async function calculatePayrollRun(
     const payAfterDeductions = round2(new Decimal(b.grossPay).add(overtimeEarnings).add(incentiveEarnings).sub(itemTotalDeductions));
 
     // Savings is the employee's own money moved into their account — NOT a
-    // deduction. Compute the recurring contribution (clamped so it never drives
-    // net pay negative) for the run item; the ledger transaction is only written
-    // when the run is approved (see `approvePayrollRun`), so a provisional draft
-    // never moves money into savings.
+    // deduction. The contribution is floored at ₱100 so the employee always
+    // saves at least the minimum even if it drives net pay negative. The ledger
+    // transaction is only written when the run is approved (see
+    // `approvePayrollRun`), so a provisional draft never moves money.
     const account = await findSavingsAccountByEmployee(employee.id);
     let savingsContribution = ZERO;
     if (account && !account.frozen) {
       const wanted = round2(new Decimal(account.contributionAmount));
+      const MIN_SAVINGS = new Decimal(100);
       savingsContribution = Decimal.max(
-        ZERO,
+        MIN_SAVINGS,
         Decimal.min(wanted, payAfterDeductions),
       );
     }

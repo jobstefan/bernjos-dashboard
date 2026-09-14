@@ -28,9 +28,12 @@ import { requestCashAdvanceAction } from "@/app/actions/cash-advance.actions";
 
 export function RequestCashAdvanceDialog({
   branches,
+  isActive = true,
 }: {
   branches: { id: string; name: string }[];
+  isActive?: boolean;
 }) {
+  if (!isActive) return null;
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
