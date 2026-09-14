@@ -58,7 +58,9 @@ export function ComparisonTable({
         r.employeeCode.toLowerCase().includes(q) ||
         r.date.includes(q),
     );
-    if (branch !== ALL) result = result.filter((r) => r.attendanceBranchId === branch);
+    if (branch !== ALL) result = result.filter(
+      (r) => r.attendanceBranchId === branch || r.scheduledBranchId === branch
+    );
     return result;
   }, [rows, search, branch]);
 
