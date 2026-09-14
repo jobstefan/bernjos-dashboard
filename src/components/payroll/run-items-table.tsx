@@ -8,7 +8,7 @@ import { DataCard } from "@/components/ui/data-card";
 import { DataToolbar } from "@/components/ui/data-toolbar";
 import { DetailDrawer } from "@/components/ui/detail-drawer";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, GitBranch } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,10 +17,11 @@ import {
   type PayslipView,
 } from "@/components/payroll/payslip-breakdown";
 import { BranchSplitBreakdown } from "@/components/payroll/branch-split-breakdown";
+import { BranchSummaryDrawer } from "@/components/payroll/branch-summary-drawer";
 import { updatePayslipRemarksAction, toggleRunItemStatusAction } from "@/app/actions/payroll.actions";
 import type { BranchCashRow } from "@/server/services/analytics.service";
 import { formatPeso } from "@/lib/utils/payroll";
-import { exportToCsv } from "@/lib/utils/csv";
+import { exportToCsv, type CsvColumn } from "@/lib/utils/csv";
 import { toneClass } from "@/lib/utils/tone";
 import {
   DropdownMenu,
@@ -84,6 +85,7 @@ export function RunItemsTable({
   const router = useRouter();
   const [selected, setSelected] = React.useState<RunItemRow | null>(null);
   const [branchSplitRow, setBranchSplitRow] = React.useState<RunItemRow | null>(null);
+  const [branchSummaryOpen, setBranchSummaryOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [, startStatusTransition] = React.useTransition();
 
@@ -216,25 +218,9 @@ export function RunItemsTable({
 
   const view: PayslipView | null = selected ? { ...selected, periodLabel } : null;
 
-  const CSV_COLUMNS = [
-    { header: "Employee", accessor: (r: RunItemRow) => r.employeeName },
-    { header: "Code", accessor: (r: RunItemRow) => r.employeeCode },
-    { header: "Position", accessor: (r: RunItemRow) => r.position },
-    { header: "Department", accessor: (r: RunItemRow) => r.department },
-    { header: "Daily Rate", accessor: (r: RunItemRow) => r.basicSalary },
-    { header: "Gross Pay", accessor: (r: RunItemRow) => r.grossPay },
-    { header: "SSS", accessor: (r: RunItemRow) => r.sssEmployee },
-    { header: "PhilHealth", accessor: (r: RunItemRow) => r.philhealthEmployee },
-    { header: "Other Deductions", accessor: (r: RunItemRow) => r.otherDeductions },
-    { header: "Loan Deduction", accessor: (r: RunItemRow) => r.loanDeduction },
-    { header: "Charge Deduction", accessor: (r: RunItemRow) => r.chargeDeduction ?? 0 },
-    { header: "Other Earnings", accessor: (r: RunItemRow) => r.otherEarnings },
-    { header: "Incentive", accessor: (r: RunItemRow) => r.incentiveEarnings },
-    { header: "Savings", accessor: (r: RunItemRow) => r.savingsContribution },
-    { header: "Total Deductions", accessor: (r: RunItemRow) => r.totalDeductions },
-    { header: "Net Pay", accessor: (r: RunItemRow) => r.netPay },
-    { header: "Status", accessor: (r: RunItemRow) => r.status },
-    { header: "Remarks", accessor: (r: RunItemRow) => r.remarks ?? "" },
+  const BRANCH_CSV_COLUMNS: CsvColumn<RunItemRow>[] = [
+    { header: "Employee", accessor: (r) => r.employeeName },
+    { header: "Net Pay",  accessor: (r) => r.netPay },
   ];
 
   const remarksFooter = selected && canEditRemarks ? (
@@ -254,8 +240,12 @@ export function RunItemsTable({
     <div className="space-y-4">
       <DataToolbar
         search={{ value: search, onChange: setSearch, placeholder: "Search employee, code, department…" }}
-        onExport={() => exportToCsv(`${periodLabel}-payroll`, CSV_COLUMNS, filtered)}
-      />
+        onExport={() => exportToCsv(`${periodLabel}-payroll`, BRANCH_CSV_COLUMNS, filtered)}
+      >
+        <Button variant="outline" size="sm" onClick={() => setBranchSummaryOpen(true)}>
+          <GitBranch className="size-4" /> Branch Summary
+        </Button>
+      </DataToolbar>
       <DataTable
         columns={columns}
         data={filtered}
@@ -330,6 +320,14 @@ export function RunItemsTable({
           />
         )}
       </DetailDrawer>
+
+      <BranchSummaryDrawer
+        open={branchSummaryOpen}
+        onOpenChange={setBranchSummaryOpen}
+        periodLabel={periodLabel}
+        rows={rows}
+        branchCash={branchCash}
+      />
     </div>
   );
 }
