@@ -62,7 +62,13 @@ export default async function MySavingsPage() {
             {formatEmployeeName(employee.firstName, employee.lastName, employee.middleName)} · {employee.employeeCode}
           </p>
         </div>
-        <RequestLoanDialog availableToBorrow={loansView.availableToBorrow} branches={branchOptions} isActive={employee.employmentStatus === "active"} />
+        <RequestLoanDialog
+          availableToBorrow={loansView.availableToBorrow}
+          branches={branchOptions}
+          isActive={employee.employmentStatus === "active"}
+          isFrozen={savings?.frozen ?? false}
+          hasActiveLoan={loansView.loans.some((l) => l.status === "active" || l.status === "approved")}
+        />
       </div>
 
       <EmployeeProfileTabs

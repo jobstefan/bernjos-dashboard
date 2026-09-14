@@ -178,6 +178,20 @@ export async function requestLoan(
     );
   }
 
+  const savingsAccount = await findSavingsAccountByEmployee(profile.id);
+  if (savingsAccount?.frozen) {
+    throw new BadRequestError(
+      "Your savings account is frozen. Contact an administrator to request a loan.",
+    );
+  }
+
+  const existingLoans = await findLoansForEmployee(profile.id);
+  if (existingLoans.some((l) => l.status === "active" || l.status === "approved")) {
+    throw new BadRequestError(
+      "You already have an active loan. Fully repay it before requesting a new one.",
+    );
+  }
+
   const available = await computeAvailableSavings(profile.id);
   if (input.amount > available) {
     throw new BadRequestError(
@@ -215,6 +229,13 @@ export async function adminCreateLoan(
 ): Promise<{ id: string }> {
   const profile = await findEmployeeById(input.profileId);
   if (!profile) throw new NotFoundError("Employee", input.profileId);
+
+  const savingsAccount = await findSavingsAccountByEmployee(profile.id);
+  if (savingsAccount?.frozen) {
+    throw new BadRequestError(
+      "This employee's savings account is frozen and cannot receive a loan.",
+    );
+  }
 
   const available = await computeAvailableSavings(profile.id);
   if (input.amount > available) {

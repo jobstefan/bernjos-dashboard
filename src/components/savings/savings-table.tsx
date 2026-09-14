@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { DataTable } from "@/components/payroll/data-table";
 import { DataCard } from "@/components/ui/data-card";
@@ -11,13 +10,6 @@ import { DataToolbar } from "@/components/ui/data-toolbar";
 import { DetailDrawer } from "@/components/ui/detail-drawer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { SavingsAccountDialog } from "@/components/savings/savings-account-dialog";
 import { SavingsAdjustmentDialog } from "@/components/savings/savings-adjustment-dialog";
 import { SavingsLedger } from "@/components/savings/savings-ledger";
@@ -114,62 +106,6 @@ export function SavingsTable({
           </span>
         ),
       },
-      {
-        id: "actions",
-        header: "",
-        enableSorting: false,
-        cell: ({ row }) => {
-          const acct = row.original;
-          const inactiveByEmployment = acct.frozen && !acct.frozenByAdmin;
-          return (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button variant="ghost" size="icon-sm" aria-label="Row actions">
-                    <MoreHorizontal className="size-4" />
-                  </Button>
-                }
-              />
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setToView(acct)}>
-                  View history
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={acct.frozen}
-                  onClick={() => setToEdit(acct)}
-                >
-                  Edit contribution
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setToAdjust(acct)}>
-                  Record withdrawal / adjustment
-                </DropdownMenuItem>
-                {!inactiveByEmployment && (
-                  <>
-                    <DropdownMenuSeparator />
-                    {acct.frozenByAdmin ? (
-                      <DropdownMenuItem
-                        disabled={pending}
-                        onClick={() => toggleFrozen(acct, false)}
-                      >
-                        Unfreeze account
-                      </DropdownMenuItem>
-                    ) : (
-                      <DropdownMenuItem
-                        disabled={pending}
-                        className="text-amber-600"
-                        onClick={() => toggleFrozen(acct, true)}
-                      >
-                        Freeze account
-                      </DropdownMenuItem>
-                    )}
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          );
-        },
-      },
     ],
     [],
   );
@@ -202,6 +138,7 @@ export function SavingsTable({
         columns={columns}
         data={filtered}
         initialSorting={[]}
+        onRowClick={(row) => setToView(row)}
         renderCard={(row) => (
           <DataCard
             title={row.employeeName}
@@ -227,6 +164,50 @@ export function SavingsTable({
             : undefined
         }
         className="sm:max-w-lg"
+        footer={
+          toView ? (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  variant="outline"
+                  disabled={toView.frozen}
+                  onClick={() => { setToView(null); setToEdit(toView); }}
+                >
+                  Edit contribution
+                </Button>
+                <Button
+                  className="flex-1"
+                  variant="outline"
+                  onClick={() => { setToView(null); setToAdjust(toView); }}
+                >
+                  Record adjustment
+                </Button>
+              </div>
+              {!(toView.frozen && !toView.frozenByAdmin) && (
+                toView.frozenByAdmin ? (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    disabled={pending}
+                    onClick={() => { toggleFrozen(toView, false); setToView(null); }}
+                  >
+                    Unfreeze account
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full text-amber-600 border-amber-600/30 hover:bg-amber-600/10"
+                    disabled={pending}
+                    onClick={() => { toggleFrozen(toView, true); setToView(null); }}
+                  >
+                    Freeze account
+                  </Button>
+                )
+              )}
+            </div>
+          ) : undefined
+        }
       >
         {toView ? <SavingsLedger transactions={toView.transactions} compact /> : null}
       </DetailDrawer>
