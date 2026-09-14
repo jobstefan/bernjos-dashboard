@@ -33,13 +33,7 @@ export function RequestCashAdvanceDialog({
   branches: { id: string; name: string }[];
   isActive?: boolean;
 }) {
-  if (!isActive) {
-    return (
-      <Button disabled title="Your account is inactive. New requests are not allowed.">
-        <Plus className="size-4" /> Request Advance
-      </Button>
-    );
-  }
+  if (!isActive) return null;
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
