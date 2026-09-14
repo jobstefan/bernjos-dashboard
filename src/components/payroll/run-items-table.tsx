@@ -218,9 +218,49 @@ export function RunItemsTable({
 
   const view: PayslipView | null = selected ? { ...selected, periodLabel } : null;
 
+  function getNetPaySource(r: RunItemRow): string {
+    const branches = r.branchBreakdown.map((b) => {
+      const netCash =
+        branchCash
+          ?.find((bc) => bc.branchName === b.branchName)
+          ?.employees.find((e) => e.profileId === r.employeeId)
+          ?.netCash ?? b.netPay;
+      return { branchName: b.branchName, netCash };
+    });
+
+    const surpluses = branches.filter((b) => b.netCash > 0);
+    const totalSurplus = Math.round(surpluses.reduce((s, b) => s + b.netCash, 0) * 100) / 100;
+    const totalNetPay = Math.round(r.netPay * 100) / 100;
+
+    if (Math.round(totalSurplus * 100) < Math.round(totalNetPay * 100)) return "Shortfall";
+
+    const pool = surpluses.map((s) => ({ branchName: s.branchName, remaining: s.netCash }));
+    const sources: { branchName: string; amount: number }[] = [];
+    let stillNeed = totalNetPay;
+
+    const singleCover = pool
+      .filter((s) => s.remaining >= stillNeed)
+      .sort((a, b) => a.remaining - b.remaining)[0];
+
+    if (singleCover) {
+      sources.push({ branchName: singleCover.branchName, amount: stillNeed });
+    } else {
+      for (const entry of [...pool].sort((a, b) => b.remaining - a.remaining)) {
+        if (stillNeed <= 0) break;
+        const take = Math.round(Math.min(entry.remaining, stillNeed) * 100) / 100;
+        sources.push({ branchName: entry.branchName, amount: take });
+        stillNeed = Math.round((stillNeed - take) * 100) / 100;
+      }
+    }
+
+    if (sources.length === 1) return sources[0].branchName;
+    return sources.map((s) => `${s.branchName} (PHP ${s.amount.toFixed(2)})`).join(" | ");
+  }
+
   const BRANCH_CSV_COLUMNS: CsvColumn<RunItemRow>[] = [
     { header: "Employee", accessor: (r) => r.employeeName },
     { header: "Net Pay",  accessor: (r) => r.netPay },
+    { header: "Pay From", accessor: (r) => getNetPaySource(r) },
   ];
 
   const remarksFooter = selected && canEditRemarks ? (
