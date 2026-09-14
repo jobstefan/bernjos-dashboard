@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { DetailDrawer } from "@/components/ui/detail-drawer";
 import { Separator } from "@/components/ui/separator";
 import { formatPeso } from "@/lib/utils/payroll";
@@ -32,7 +32,7 @@ export function BranchSummaryDrawer({
     }
   }
 
-  // Step 2 — net cash per branch from branchCash (covers included employees via profileId filtering)
+  // Step 2 — net cash per branch (for display in branch table only)
   const netCashMap = new Map<string, number>();
   const includedIds = new Set(includedRows.map((r) => r.employeeId));
   for (const bcRow of branchCash ?? []) {
@@ -44,7 +44,7 @@ export function BranchSummaryDrawer({
     }
   }
 
-  // Step 3 — merged, sorted branch list
+  // Step 3 — merged, sorted branch list for the table
   const branches = [...new Set([...netPayMap.keys(), ...netCashMap.keys()])]
     .sort()
     .map((name) => ({
@@ -55,46 +55,86 @@ export function BranchSummaryDrawer({
 
   const runTotalNetPay = Math.round(includedRows.reduce((s, r) => s + r.netPay, 0) * 100) / 100;
 
-  // Step 4 — cash to disburse (greedy deficit coverage, same as BranchSplitBreakdown Phase 2)
-  const deficits = branches
-    .filter((b) => b.totalNetCash < 0)
-    .sort((a, b) => a.totalNetCash - b.totalNetCash);
-  const surpluses = branches.filter((b) => b.totalNetCash > 0);
+  // Step 4 — aggregate per-employee Phase 1+2 to get cash-to-disburse totals per deficit branch
+  type DisbursementEntry = { sourceBranch: string; amount: number };
+  const disbursementMap = new Map<string, DisbursementEntry[]>(); // deficitBranch → sources[]
 
-  const totalDeficit = Math.round(deficits.reduce((s, b) => s + Math.abs(b.totalNetCash), 0) * 100) / 100;
-  const totalSurplus = Math.round(surpluses.reduce((s, b) => s + b.totalNetCash, 0) * 100) / 100;
-  const covered = totalSurplus >= totalDeficit;
-  const remainder = Math.round((totalSurplus - totalDeficit) * 100) / 100;
+  for (const row of includedRows) {
+    const empBranches = row.branchBreakdown.map((b) => {
+      const netCash =
+        branchCash
+          ?.find((bc) => bc.branchName === b.branchName)
+          ?.employees.find((e) => e.profileId === row.employeeId)
+          ?.netCash ?? b.netPay;
+      return { branchName: b.branchName, netCash };
+    });
 
-  const pool = surpluses.map((s) => ({ branchName: s.branchName, remaining: s.totalNetCash }));
+    const empDeficits = empBranches.filter((b) => b.netCash < 0).sort((a, b) => a.netCash - b.netCash);
+    const empSurpluses = empBranches.filter((b) => b.netCash > 0);
+    if (empDeficits.length === 0) continue;
 
-  const cards = deficits.map((deficit) => {
-    const need = Math.round(Math.abs(deficit.totalNetCash) * 100) / 100;
-    const sources: { branchName: string; amount: number }[] = [];
+    const totalSurplus = Math.round(empSurpluses.reduce((s, b) => s + b.netCash, 0) * 100) / 100;
+    // Skip if surplus can't cover net pay (shortfall employee)
+    if (Math.round(totalSurplus * 100) + 1 < Math.round(row.netPay * 100)) continue;
 
-    const fullCover = pool
-      .filter((s) => s.remaining >= need)
+    // Phase 1: consume net pay from surplus pool
+    const pool = empSurpluses.map((s) => ({ branchName: s.branchName, remaining: s.netCash }));
+    let stillNeed = Math.round(row.netPay * 100) / 100;
+    const singleCoverP1 = pool
+      .filter((s) => s.remaining >= stillNeed)
       .sort((a, b) => a.remaining - b.remaining)[0];
-
-    if (fullCover) {
-      sources.push({ branchName: fullCover.branchName, amount: need });
-      fullCover.remaining = Math.round((fullCover.remaining - need) * 100) / 100;
+    if (singleCoverP1) {
+      singleCoverP1.remaining = Math.round((singleCoverP1.remaining - stillNeed) * 100) / 100;
     } else {
-      let stillNeed = need;
-      const sorted = [...pool].sort((a, b) => b.remaining - a.remaining);
-      for (const entry of sorted) {
+      for (const entry of [...pool].sort((a, b) => b.remaining - a.remaining)) {
         if (stillNeed <= 0) break;
-        const poolEntry = pool.find((p) => p.branchName === entry.branchName)!;
-        if (poolEntry.remaining <= 0) continue;
-        const take = Math.round(Math.min(poolEntry.remaining, stillNeed) * 100) / 100;
-        sources.push({ branchName: poolEntry.branchName, amount: take });
-        poolEntry.remaining = Math.round((poolEntry.remaining - take) * 100) / 100;
+        const take = Math.round(Math.min(entry.remaining, stillNeed) * 100) / 100;
+        entry.remaining = Math.round((entry.remaining - take) * 100) / 100;
         stillNeed = Math.round((stillNeed - take) * 100) / 100;
       }
     }
 
-    return { deficit, need, sources };
-  });
+    // Phase 2: cover deficits from remaining pool, collect disbursements
+    for (const deficit of empDeficits) {
+      const need = Math.round(Math.abs(deficit.netCash) * 100) / 100;
+      const sources: { branchName: string; amount: number }[] = [];
+
+      const singleCoverP2 = pool
+        .filter((s) => s.remaining >= need)
+        .sort((a, b) => a.remaining - b.remaining)[0];
+      if (singleCoverP2) {
+        sources.push({ branchName: singleCoverP2.branchName, amount: need });
+        singleCoverP2.remaining = Math.round((singleCoverP2.remaining - need) * 100) / 100;
+      } else {
+        let sn = need;
+        for (const entry of [...pool].sort((a, b) => b.remaining - a.remaining)) {
+          if (sn <= 0) break;
+          if (entry.remaining <= 0) continue;
+          const take = Math.round(Math.min(entry.remaining, sn) * 100) / 100;
+          sources.push({ branchName: entry.branchName, amount: take });
+          entry.remaining = Math.round((entry.remaining - take) * 100) / 100;
+          sn = Math.round((sn - take) * 100) / 100;
+        }
+      }
+
+      if (sources.length > 0) {
+        const existing = disbursementMap.get(deficit.branchName) ?? [];
+        for (const s of sources) {
+          const match = existing.find((e) => e.sourceBranch === s.branchName);
+          if (match) {
+            match.amount = Math.round((match.amount + s.amount) * 100) / 100;
+          } else {
+            existing.push({ sourceBranch: s.branchName, amount: s.amount });
+          }
+        }
+        disbursementMap.set(deficit.branchName, existing);
+      }
+    }
+  }
+
+  const disbursementTotal = Math.round(
+    [...disbursementMap.values()].flatMap((v) => v).reduce((s, e) => s + e.amount, 0) * 100
+  ) / 100;
 
   return (
     <DetailDrawer
@@ -132,7 +172,7 @@ export function BranchSummaryDrawer({
             </div>
 
             {/* Cash to disburse */}
-            {cards.length > 0 && (
+            {disbursementMap.size > 0 && (
               <>
                 <Separator />
 
@@ -141,49 +181,47 @@ export function BranchSummaryDrawer({
                     Cash to disburse
                   </div>
 
-                  {cards.map(({ deficit, need, sources }) => (
-                    <div
-                      key={deficit.branchName}
-                      className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm"
-                    >
-                      <div className="flex items-center gap-1.5 font-medium text-destructive">
-                        <span>Give</span>
-                        <span className="font-mono font-semibold">{formatPeso(need)}</span>
-                        <span>to</span>
-                        <span className="font-semibold">{deficit.branchName}</span>
-                      </div>
+                  {[...disbursementMap.entries()]
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([deficitBranch, sources]) => {
+                      const total = Math.round(sources.reduce((s, e) => s + e.amount, 0) * 100) / 100;
+                      return (
+                        <div
+                          key={deficitBranch}
+                          className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm"
+                        >
+                          <div className="flex items-center gap-1.5 font-medium text-destructive">
+                            <span>Give</span>
+                            <span className="font-mono font-semibold">{formatPeso(total)}</span>
+                            <span>to</span>
+                            <span className="font-semibold">{deficitBranch}</span>
+                          </div>
 
-                      {sources.length > 0 && (
-                        <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
-                          <ArrowRight className="size-3 shrink-0" />
-                          <span>from</span>
-                          {sources.map((s, i) => (
-                            <span key={s.branchName} className="inline-flex items-center gap-1">
-                              <span className="font-semibold text-foreground">{s.branchName}</span>
-                              {sources.length > 1 && (
-                                <span className="font-mono text-muted-foreground">({formatPeso(s.amount)})</span>
-                              )}
-                              {i < sources.length - 1 && <span>and</span>}
-                            </span>
-                          ))}
+                          {sources.length > 0 && (
+                            <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+                              <ArrowRight className="size-3 shrink-0" />
+                              <span>from</span>
+                              {sources.map((s, i) => (
+                                <span key={s.sourceBranch} className="inline-flex items-center gap-1">
+                                  <span className="font-semibold text-foreground">{s.sourceBranch}</span>
+                                  {sources.length > 1 && (
+                                    <span className="font-mono text-muted-foreground">({formatPeso(s.amount)})</span>
+                                  )}
+                                  {i < sources.length - 1 && <span>and</span>}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  ))}
+                      );
+                    })}
 
-                  <div className={
-                    "flex items-center gap-2 rounded-lg px-3 py-2 text-xs " +
-                    (covered
-                      ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
-                      : "border border-destructive/30 bg-destructive/10 text-destructive")
-                  }>
-                    {covered
-                      ? <CheckCircle2 className="size-3.5 shrink-0" />
-                      : <AlertCircle className="size-3.5 shrink-0" />}
+                  <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700">
+                    <CheckCircle2 className="size-3.5 shrink-0" />
                     <span>
-                      {covered
-                        ? <>Covered — <span className="font-mono font-semibold">{formatPeso(totalSurplus)}</span> combined surplus{remainder > 0 && <>, <span className="font-mono">{formatPeso(remainder)}</span> remaining</>}</>
-                        : <>Shortfall — <span className="font-mono font-semibold">{formatPeso(Math.abs(remainder))}</span> short across all branches</>}
+                      Total —{" "}
+                      <span className="font-mono font-semibold">{formatPeso(disbursementTotal)}</span>{" "}
+                      to disburse across all branches
                     </span>
                   </div>
                 </div>
