@@ -8,7 +8,7 @@ import { DataCard } from "@/components/ui/data-card";
 import { DataToolbar } from "@/components/ui/data-toolbar";
 import { DetailDrawer } from "@/components/ui/detail-drawer";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, GitBranch } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,10 +17,11 @@ import {
   type PayslipView,
 } from "@/components/payroll/payslip-breakdown";
 import { BranchSplitBreakdown } from "@/components/payroll/branch-split-breakdown";
+import { BranchSummaryDrawer } from "@/components/payroll/branch-summary-drawer";
 import { updatePayslipRemarksAction, toggleRunItemStatusAction } from "@/app/actions/payroll.actions";
 import type { BranchCashRow } from "@/server/services/analytics.service";
 import { formatPeso } from "@/lib/utils/payroll";
-import { exportToCsv } from "@/lib/utils/csv";
+import { exportToCsv, type CsvColumn } from "@/lib/utils/csv";
 import { toneClass } from "@/lib/utils/tone";
 import {
   DropdownMenu,
@@ -84,6 +85,7 @@ export function RunItemsTable({
   const router = useRouter();
   const [selected, setSelected] = React.useState<RunItemRow | null>(null);
   const [branchSplitRow, setBranchSplitRow] = React.useState<RunItemRow | null>(null);
+  const [branchSummaryOpen, setBranchSummaryOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [, startStatusTransition] = React.useTransition();
 
@@ -216,25 +218,49 @@ export function RunItemsTable({
 
   const view: PayslipView | null = selected ? { ...selected, periodLabel } : null;
 
-  const CSV_COLUMNS = [
-    { header: "Employee", accessor: (r: RunItemRow) => r.employeeName },
-    { header: "Code", accessor: (r: RunItemRow) => r.employeeCode },
-    { header: "Position", accessor: (r: RunItemRow) => r.position },
-    { header: "Department", accessor: (r: RunItemRow) => r.department },
-    { header: "Daily Rate", accessor: (r: RunItemRow) => r.basicSalary },
-    { header: "Gross Pay", accessor: (r: RunItemRow) => r.grossPay },
-    { header: "SSS", accessor: (r: RunItemRow) => r.sssEmployee },
-    { header: "PhilHealth", accessor: (r: RunItemRow) => r.philhealthEmployee },
-    { header: "Other Deductions", accessor: (r: RunItemRow) => r.otherDeductions },
-    { header: "Loan Deduction", accessor: (r: RunItemRow) => r.loanDeduction },
-    { header: "Charge Deduction", accessor: (r: RunItemRow) => r.chargeDeduction ?? 0 },
-    { header: "Other Earnings", accessor: (r: RunItemRow) => r.otherEarnings },
-    { header: "Incentive", accessor: (r: RunItemRow) => r.incentiveEarnings },
-    { header: "Savings", accessor: (r: RunItemRow) => r.savingsContribution },
-    { header: "Total Deductions", accessor: (r: RunItemRow) => r.totalDeductions },
-    { header: "Net Pay", accessor: (r: RunItemRow) => r.netPay },
-    { header: "Status", accessor: (r: RunItemRow) => r.status },
-    { header: "Remarks", accessor: (r: RunItemRow) => r.remarks ?? "" },
+  function getNetPaySource(r: RunItemRow): string {
+    const branches = r.branchBreakdown.map((b) => {
+      const netCash =
+        branchCash
+          ?.find((bc) => bc.branchName === b.branchName)
+          ?.employees.find((e) => e.profileId === r.employeeId)
+          ?.netCash ?? b.netPay;
+      return { branchName: b.branchName, netCash };
+    });
+
+    const surpluses = branches.filter((b) => b.netCash > 0);
+    const totalSurplus = Math.round(surpluses.reduce((s, b) => s + b.netCash, 0) * 100) / 100;
+    const totalNetPay = Math.round(r.netPay * 100) / 100;
+
+    if (Math.round(totalSurplus * 100) < Math.round(totalNetPay * 100)) return "Shortfall";
+
+    const pool = surpluses.map((s) => ({ branchName: s.branchName, remaining: s.netCash }));
+    const sources: { branchName: string; amount: number }[] = [];
+    let stillNeed = totalNetPay;
+
+    const singleCover = pool
+      .filter((s) => s.remaining >= stillNeed)
+      .sort((a, b) => a.remaining - b.remaining)[0];
+
+    if (singleCover) {
+      sources.push({ branchName: singleCover.branchName, amount: stillNeed });
+    } else {
+      for (const entry of [...pool].sort((a, b) => b.remaining - a.remaining)) {
+        if (stillNeed <= 0) break;
+        const take = Math.round(Math.min(entry.remaining, stillNeed) * 100) / 100;
+        sources.push({ branchName: entry.branchName, amount: take });
+        stillNeed = Math.round((stillNeed - take) * 100) / 100;
+      }
+    }
+
+    if (sources.length === 1) return sources[0].branchName;
+    return sources.map((s) => `${s.branchName} (PHP ${s.amount.toFixed(2)})`).join(" | ");
+  }
+
+  const BRANCH_CSV_COLUMNS: CsvColumn<RunItemRow>[] = [
+    { header: "Employee", accessor: (r) => r.employeeName },
+    { header: "Net Pay",  accessor: (r) => r.netPay },
+    { header: "Pay From", accessor: (r) => getNetPaySource(r) },
   ];
 
   const remarksFooter = selected && canEditRemarks ? (
@@ -254,8 +280,12 @@ export function RunItemsTable({
     <div className="space-y-4">
       <DataToolbar
         search={{ value: search, onChange: setSearch, placeholder: "Search employee, code, department…" }}
-        onExport={() => exportToCsv(`${periodLabel}-payroll`, CSV_COLUMNS, filtered)}
-      />
+        onExport={() => exportToCsv(`${periodLabel}-payroll`, BRANCH_CSV_COLUMNS, filtered)}
+      >
+        <Button variant="outline" size="sm" onClick={() => setBranchSummaryOpen(true)}>
+          <GitBranch className="size-4" /> Branch Summary
+        </Button>
+      </DataToolbar>
       <DataTable
         columns={columns}
         data={filtered}
@@ -330,6 +360,14 @@ export function RunItemsTable({
           />
         )}
       </DetailDrawer>
+
+      <BranchSummaryDrawer
+        open={branchSummaryOpen}
+        onOpenChange={setBranchSummaryOpen}
+        periodLabel={periodLabel}
+        rows={rows}
+        branchCash={branchCash}
+      />
     </div>
   );
 }

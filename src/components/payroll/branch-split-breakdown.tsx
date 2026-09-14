@@ -39,8 +39,8 @@ export function BranchSplitBreakdown({
     .sort((a, b) => a.netCash - b.netCash);
   const surpluses = branches.filter((b) => b.netCash > 0);
 
-  const totalDeficit = deficits.reduce((s, b) => s + Math.abs(b.netCash), 0);
-  const totalSurplus = surpluses.reduce((s, b) => s + b.netCash, 0);
+  const totalDeficit = Math.round(deficits.reduce((s, b) => s + Math.abs(b.netCash), 0) * 100) / 100;
+  const totalSurplus = Math.round(surpluses.reduce((s, b) => s + b.netCash, 0) * 100) / 100;
   const covered = totalSurplus >= totalDeficit;
   const remainder = Math.round((totalSurplus - totalDeficit) * 100) / 100;
 
