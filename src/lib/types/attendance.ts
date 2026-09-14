@@ -41,6 +41,8 @@ export interface AttendanceComparisonRow {
   needsReview: boolean;
   /** Branch the employee was scheduled to work at that day. */
   branchName: string | null;
+  /** Branch ID the employee was scheduled at (null for unscheduled / day-off rows). */
+  scheduledBranchId: string | null;
   /** Branch from the actual attendance record (may differ from scheduled branch). */
   attendanceBranchId: string | null;
   /** Sub-day branch segments — only populated on transfer days. */
