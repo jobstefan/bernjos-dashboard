@@ -104,6 +104,12 @@ export async function requestAbsence(
     );
   }
 
+  if (profile.employmentStatus !== "active") {
+    throw new BadRequestError(
+      "Your account is inactive. You can view your history but cannot submit new requests.",
+    );
+  }
+
   const startDate = new Date(`${startDateIso}T00:00:00Z`);
   const endDate = new Date(`${endDateIso}T00:00:00Z`);
   const today = new Date();

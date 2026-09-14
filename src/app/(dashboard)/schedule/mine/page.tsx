@@ -80,7 +80,7 @@ export default async function MySchedulePage() {
             Your upcoming shifts for the next 30 days.
           </p>
         </div>
-        {employee ? <RequestAbsenceDialog /> : null}
+        {employee?.employmentStatus === "active" ? <RequestAbsenceDialog /> : null}
       </div>
 
       {error ? (
