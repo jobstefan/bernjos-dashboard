@@ -28,9 +28,18 @@ import { requestCashAdvanceAction } from "@/app/actions/cash-advance.actions";
 
 export function RequestCashAdvanceDialog({
   branches,
+  isActive = true,
 }: {
   branches: { id: string; name: string }[];
+  isActive?: boolean;
 }) {
+  if (!isActive) {
+    return (
+      <Button disabled title="Your account is inactive. New requests are not allowed.">
+        <Plus className="size-4" /> Request Advance
+      </Button>
+    );
+  }
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();

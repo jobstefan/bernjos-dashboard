@@ -40,7 +40,7 @@ export default async function MyCashAdvancesPage() {
             {formatEmployeeName(employee.firstName, employee.lastName, employee.middleName)} · {employee.employeeCode}
           </p>
         </div>
-        <RequestCashAdvanceDialog branches={branchOptions} />
+        <RequestCashAdvanceDialog branches={branchOptions} isActive={employee.employmentStatus === "active"} />
       </div>
 
       {rows.length === 0 ? (
@@ -48,7 +48,7 @@ export default async function MyCashAdvancesPage() {
           icon={HandCoins}
           title="No requests yet"
           description="Submit a cash advance request and track its status here."
-          action={<RequestCashAdvanceDialog branches={branchOptions} />}
+          action={<RequestCashAdvanceDialog branches={branchOptions} isActive={employee.employmentStatus === "active"} />}
         />
       ) : (
         <CashAdvancesTable rows={rows} mode="mine" />

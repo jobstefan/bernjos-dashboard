@@ -38,10 +38,19 @@ const TERM_OPTIONS = [
 export function RequestLoanDialog({
   availableToBorrow,
   branches,
+  isActive = true,
 }: {
   availableToBorrow: number;
   branches: { id: string; name: string }[];
+  isActive?: boolean;
 }) {
+  if (!isActive) {
+    return (
+      <Button disabled title="Your account is inactive. New requests are not allowed.">
+        <Plus className="size-4" /> Request Loan
+      </Button>
+    );
+  }
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();

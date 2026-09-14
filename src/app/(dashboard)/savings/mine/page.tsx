@@ -62,7 +62,7 @@ export default async function MySavingsPage() {
             {formatEmployeeName(employee.firstName, employee.lastName, employee.middleName)} · {employee.employeeCode}
           </p>
         </div>
-        <RequestLoanDialog availableToBorrow={loansView.availableToBorrow} branches={branchOptions} />
+        <RequestLoanDialog availableToBorrow={loansView.availableToBorrow} branches={branchOptions} isActive={employee.employmentStatus === "active"} />
       </div>
 
       <EmployeeProfileTabs

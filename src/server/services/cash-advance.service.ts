@@ -134,6 +134,12 @@ export async function requestCashAdvance(
     );
   }
 
+  if (profile.employmentStatus !== "active") {
+    throw new BadRequestError(
+      "Your account is inactive. You can view your history but cannot submit new requests.",
+    );
+  }
+
   const branch = await findBranchById(input.branchId);
   const slipNumber = await nextCashAdvanceSlipNumber(branch?.code ?? null);
   const advance = await insertCashAdvance({

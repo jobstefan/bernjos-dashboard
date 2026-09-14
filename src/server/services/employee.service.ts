@@ -29,7 +29,7 @@ import type {
 } from "@/lib/validations/payroll";
 import type { Prisma } from "@/generated/prisma/client";
 
-const TERMINAL_STATUSES: EmploymentStatus[] = ["resigned", "terminated", "inactive"];
+const BAN_STATUSES: EmploymentStatus[] = ["resigned", "terminated"];
 
 /** Resolve the Clerk user id for a profile (returns null if dev-auth or no account). */
 async function clerkIdForProfile(profileId: string): Promise<string | null> {
@@ -210,9 +210,10 @@ export async function updateEmployee(
   if (input.employmentStatus && input.employmentStatus !== before.employmentStatus) {
     const clerkId = await clerkIdForProfile(id);
     if (clerkId) {
-      if (TERMINAL_STATUSES.includes(input.employmentStatus as EmploymentStatus)) {
+      if (BAN_STATUSES.includes(input.employmentStatus as EmploymentStatus)) {
         await banClerkUser(clerkId);
-      } else if (input.employmentStatus === "active") {
+      } else {
+        // active or inactive — ensure login remains possible
         await unbanClerkUser(clerkId);
       }
     }

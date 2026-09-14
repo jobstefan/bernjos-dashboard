@@ -172,6 +172,12 @@ export async function requestLoan(
   const profile = await findEmployeeByClerkId(actor.clerkUserId);
   if (!profile) throw new NotFoundError("Employee profile", actor.clerkUserId);
 
+  if (profile.employmentStatus !== "active") {
+    throw new BadRequestError(
+      "Your account is inactive. You can view your history but cannot submit new requests.",
+    );
+  }
+
   const available = await computeAvailableSavings(profile.id);
   if (input.amount > available) {
     throw new BadRequestError(
