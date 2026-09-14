@@ -64,21 +64,36 @@ export function AttendanceEditDialog({
   const hasRecord = row.actualIn !== null || row.actualOut !== null;
 
   function validate(): string | null {
-    if (!gap2Start && !gap2End) {
-      // no extra gap to validate
-    } else {
-      if (gap2Start && gap2End && toMin(gap2End) <= toMin(gap2Start)) {
-        return "Extra in must be after Extra out.";
-      }
-      if (gap2Start && timeIn && toMin(gap2Start) < toMin(timeIn)) {
-        return "Extra out cannot be before Time in.";
-      }
-      if (gap2End && timeOut && toMin(gap2End) > toMin(timeOut)) {
-        return "Extra in cannot be after Time out.";
-      }
-      if (gap2Start && gapEnd && toMin(gap2Start) < toMin(gapEnd)) {
-        return "Extra out cannot be before Mid-day in.";
-      }
+    // Main time sequence
+    if (timeIn && timeOut && toMin(timeOut) <= toMin(timeIn))
+      return "Time out must be after Time in.";
+
+    // Mid-day gap — fields must come in pairs
+    if (gapStart && !gapEnd) return "Mid-day in is required when Mid-day out is set.";
+    if (gapEnd && !gapStart) return "Mid-day out is required when Mid-day in is set.";
+
+    if (gapStart && timeIn && toMin(gapStart) <= toMin(timeIn))
+      return "Mid-day out must be after Time in.";
+    if (gapStart && gapEnd && toMin(gapEnd) <= toMin(gapStart))
+      return "Mid-day in must be after Mid-day out.";
+    if (gapEnd && timeOut && toMin(gapEnd) >= toMin(timeOut))
+      return "Mid-day in must be before Time out.";
+
+    // Extra gap — fields must come in pairs
+    if (gap2Start && !gap2End) return "Extra in is required when Extra out is set.";
+    if (gap2End && !gap2Start) return "Extra out is required when Extra in is set.";
+
+    if (gap2Start && gap2End && toMin(gap2End) <= toMin(gap2Start)) {
+      return "Extra in must be after Extra out.";
+    }
+    if (gap2Start && timeIn && toMin(gap2Start) < toMin(timeIn)) {
+      return "Extra out cannot be before Time in.";
+    }
+    if (gap2End && timeOut && toMin(gap2End) > toMin(timeOut)) {
+      return "Extra in cannot be after Time out.";
+    }
+    if (gap2Start && gapEnd && toMin(gap2Start) < toMin(gapEnd)) {
+      return "Extra out cannot be before Mid-day in.";
     }
 
     if (hasTransfer) {

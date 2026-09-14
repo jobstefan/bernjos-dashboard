@@ -29,6 +29,8 @@ interface DataTableProps<TData, TValue> {
   onRowClick?: (row: TData) => void;
   pageSize?: number;
   initialSorting?: SortingState;
+  /** When this value changes, the table resets to page 1. Use to reset on filter changes. */
+  pageResetKey?: string | number;
   /** When provided, renders a card stack on mobile (<md) instead of the full table. */
   renderCard?: (row: TData) => React.ReactNode;
 }
@@ -39,6 +41,7 @@ export function DataTable<TData, TValue>({
   onRowClick,
   pageSize = 25,
   initialSorting = [],
+  pageResetKey,
   renderCard,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>(initialSorting);
@@ -51,8 +54,14 @@ export function DataTable<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    autoResetPageIndex: false,
     initialState: { pagination: { pageSize } },
   });
+
+  React.useEffect(() => {
+    if (pageResetKey !== undefined) table.resetPageIndex();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageResetKey]);
 
   return (
     <div className="space-y-3">

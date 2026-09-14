@@ -196,6 +196,7 @@ export function ComparisonTable({
         columns={columns}
         data={filtered}
         initialSorting={[{ id: "date", desc: true }]}
+        pageResetKey={`${search}|${branch}`}
         renderCard={(row) => {
           const meta = STATUS_META[row.status];
           const varianceParts = row.absenceRequest
