@@ -42,13 +42,20 @@ export function findCashAdvanceById(id: string) {
   });
 }
 
-/** Approved advances for a profile that have not yet been applied to a run. */
+/**
+ * Approved advances for a profile that are eligible to be swept into payroll.
+ *
+ * §5.8 release gate: an advance must be branch-released at the kiosk
+ * (`releasedAt` set) before payroll may deduct it. Approval alone is no longer
+ * enough — an approved-but-unreleased advance simply waits, even across periods.
+ */
 export function findApprovedUnappliedForEmployee(profileId: string) {
   return prisma.cashAdvance.findMany({
     where: {
       profileId,
       status: "approved",
       appliedPeriodId: null,
+      releasedAt: { not: null },
       deletedAt: null,
     },
   });

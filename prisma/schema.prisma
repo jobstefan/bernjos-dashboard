@@ -312,6 +312,14 @@ model CashAdvance {
   /// The payroll period this advance was deducted in, once applied.
   appliedPeriodId String?           @map("applied_period_id")
   appliedAt       DateTime?         @map("applied_at")
+  /// Release tag (§5.8): the branch physically handed the cash to the employee.
+  /// An advance is ONLY eligible for payroll deduction once `releasedAt` is set —
+  /// approval alone is no longer enough. Also drives branch cash-flow reporting.
+  releasedAt      DateTime?         @map("released_at")
+  /// Clerk user id of the operator who tagged the release at the kiosk.
+  releasedBy      String?           @map("released_by")
+  /// Branch whose kiosk released the cash (may differ from the requesting branch).
+  releaseBranchId String?           @map("release_branch_id")
   deletedAt       DateTime?         @map("deleted_at")
   /// Admin-requested deletion flag; superadmin confirms and hard-deletes.
   deletionRequestedAt DateTime?     @map("deletion_requested_at")
@@ -320,7 +328,8 @@ model CashAdvance {
   updatedAt       DateTime          @updatedAt @map("updated_at")
 
   profile       UserProfile    @relation(fields: [profileId], references: [id])
-  branch        Branch?        @relation(fields: [branchId], references: [id])
+  branch        Branch?        @relation("CashAdvanceBranch", fields: [branchId], references: [id])
+  releaseBranch Branch?        @relation("CashAdvanceReleaseBranch", fields: [releaseBranchId], references: [id])
   appliedPeriod PayrollPeriod? @relation(fields: [appliedPeriodId], references: [id])
 
   @@index([profileId])
@@ -412,6 +421,10 @@ model Branch {
   /// Adapter key identifying this branch's biometric export format (e.g.
   /// "zkteco-v1"). Null = attendance uploads not configured for this branch.
   attendanceFormat String? @map("attendance_format")
+  /// Branch closing time (HH:mm, 24-hour). Defines the inventory operating-day
+  /// boundary: entries made after midnight but before this time belong to the
+  /// previous calendar day's session (§5.1). Null = fall back to midnight.
+  closingTime String? @map("closing_time")
   deletedAt DateTime? @map("deleted_at")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -422,9 +435,15 @@ model Branch {
   attendanceSegments   AttendanceRecordBranch[]
   payrollBranchItems   PayrollRunItemBranch[]
   charges              Charge[]
-  loans                Loan[]
+  loans                Loan[]                    @relation("LoanBranch")
   incentives           Incentive[]
-  cashAdvances         CashAdvance[]
+  cashAdvances         CashAdvance[]             @relation("CashAdvanceBranch")
+  productThresholds    BranchProductThreshold[]
+  inventorySessions    InventorySession[]
+  outgoingTransfers    StockTransfer[]           @relation("TransferSource")
+  incomingTransfers    StockTransfer[]           @relation("TransferDest")
+  releasedCashAdvances CashAdvance[]             @relation("CashAdvanceReleaseBranch")
+  releasedLoans        Loan[]                    @relation("LoanReleaseBranch")
 
   @@map("branches")
 }
@@ -554,8 +573,13 @@ model Loan {
   decidedBy    String?    @map("decided_by")
   decidedAt    DateTime?  @map("decided_at")
   decisionNote String?    @map("decision_note")
+  /// Disbursement = the branch-kiosk release moment (§5.8). These existing fields
+  /// ARE the release tag for loans; no parallel "released" field is added. A loan
+  /// stays `approved` (not eligible for payroll) until disbursed via kiosk release.
   disbursedAt  DateTime?  @map("disbursed_at")
   disbursedBy  String?    @map("disbursed_by")
+  /// Branch whose kiosk handed the cash over (may differ from the requesting branch).
+  releaseBranchId String? @map("release_branch_id")
   deletedAt    DateTime?  @map("deleted_at")
   /// Admin-requested deletion flag; superadmin confirms and hard-deletes.
   deletionRequestedAt DateTime? @map("deletion_requested_at")
@@ -563,9 +587,10 @@ model Loan {
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  profile    UserProfile    @relation(fields: [profileId], references: [id])
-  branch     Branch?        @relation(fields: [branchId], references: [id])
-  repayments LoanRepayment[]
+  profile       UserProfile    @relation(fields: [profileId], references: [id])
+  branch        Branch?        @relation("LoanBranch", fields: [branchId], references: [id])
+  releaseBranch Branch?        @relation("LoanReleaseBranch", fields: [releaseBranchId], references: [id])
+  repayments    LoanRepayment[]
 
   @@index([profileId])
   @@index([branchId])
@@ -741,4 +766,234 @@ model AttendanceRecordBranch {
 
   @@index([recordId])
   @@map("attendance_record_branches")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Branch inventory domain (§ refs point to sample-sheets/branch-inventory-module-plan.md)
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum ProductType {
+  /// Sold to customers; has a selling price; derived usage reported as "sold".
+  sale
+  /// Raw material/ingredient consumed to make sale items; no price; usage = "consumed".
+  production
+}
+
+enum InventoryEntryType {
+  opening
+  restock
+  wastage
+  closing
+  bst_in
+  bst_out
+}
+
+enum WastageReason {
+  expired
+  damaged
+  given_away
+  other
+}
+
+enum BstStatus {
+  requested
+  approved
+  prepared
+  received
+  declined
+  cancelled
+}
+
+/// How an admin resolved a prepared-vs-received BST discrepancy (§5.7).
+enum BstDiscrepancy {
+  sender_wastage
+  receiver_wastage
+  variance_note
+}
+
+/// Product category — admin-managed reference data, soft-deletable like
+/// departments/positions. Every product has exactly one category, independent
+/// of its sale/production type (§5.3).
+model ProductCategory {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  products Product[]
+
+  @@map("product_categories")
+}
+
+/// Global product catalog — same products and prices at every branch (§5.3).
+/// Soft-deletable/retirable without breaking historical count data.
+model Product {
+  id         String      @id @default(cuid())
+  name       String
+  /// Unit of count/sale, e.g. "pc", "loaf", "bottle", "bag".
+  unit       String
+  type       ProductType
+  /// Selling price. Required for sale items; NULL for production items (§5.3).
+  price      Decimal?    @db.Decimal(12, 2)
+  categoryId String      @map("category_id")
+  /// Clerk user id of the admin who created it.
+  createdBy  String?     @map("created_by")
+  deletedAt  DateTime?   @map("deleted_at")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  category         ProductCategory          @relation(fields: [categoryId], references: [id])
+  branchThresholds BranchProductThreshold[]
+  entries          InventoryEntry[]
+  transferLines    StockTransferLine[]
+
+  @@index([type])
+  @@index([categoryId])
+  @@map("products")
+}
+
+/// Per-branch reorder/par threshold. The product and its price are global; how
+/// many units each branch keeps in reserve is branch-specific (§5.3/5.5).
+model BranchProductThreshold {
+  id               String   @id @default(cuid())
+  branchId         String   @map("branch_id")
+  productId        String   @map("product_id")
+  reorderThreshold Int      @map("reorder_threshold")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  branch  Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, productId])
+  @@index([branchId])
+  @@map("branch_product_thresholds")
+}
+
+/// One inventory counting session per branch per operating day (§5.1). An absent
+/// row means no activity that day — no explicit "closed" state is needed.
+model InventorySession {
+  id          String    @id @default(cuid())
+  branchId    String    @map("branch_id")
+  /// The operating day this session belongs to (bounded by Branch.closingTime).
+  sessionDate DateTime  @map("session_date") @db.Date
+  /// Clerk user id of whoever first opened the session.
+  openedBy    String    @map("opened_by")
+  openedAt    DateTime  @default(now()) @map("opened_at")
+  closedBy    String?   @map("closed_by")
+  closedAt    DateTime? @map("closed_at")
+  deletedAt   DateTime? @map("deleted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  branch    Branch                     @relation(fields: [branchId], references: [id])
+  operators InventorySessionOperator[]
+  entries   InventoryEntry[]
+
+  @@unique([branchId, sessionDate])
+  @@index([branchId])
+  @@map("inventory_sessions")
+}
+
+/// Audit trail for mid-day operator handoffs (§5.1). Any employee with inventory
+/// access can take over a session; each stint is one row here.
+model InventorySessionOperator {
+  id         String    @id @default(cuid())
+  sessionId  String    @map("session_id")
+  /// Clerk user id of the operator for this stint.
+  operatorId String    @map("operator_id")
+  startedAt  DateTime  @default(now()) @map("started_at")
+  endedAt    DateTime? @map("ended_at")
+
+  session InventorySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("inventory_session_operators")
+}
+
+/// Append-only movement log — every opening/closing count, restock, wastage, and
+/// BST in/out (§5.2). Derived usage per product/session =
+/// opening + Σrestock + Σbst_in − Σwastage − Σbst_out − closing. All components
+/// are stored so the derivation is fully auditable.
+model InventoryEntry {
+  id            String             @id @default(cuid())
+  sessionId     String             @map("session_id")
+  productId     String             @map("product_id")
+  type          InventoryEntryType
+  quantity      Int
+  /// Only set when type = wastage (§5.5). `other` pairs with a free-text `note`.
+  wastageReason WastageReason?     @map("wastage_reason")
+  /// Free text — "other" wastage detail, operator note, or correction rationale.
+  note          String?
+  /// The BST that produced this bst_in / bst_out entry, for traceability (§5.7).
+  bstId         String?            @map("bst_id")
+  /// Set when this entry was superseded by an admin correction during offline
+  /// sync (§6). Points at the winning entry; the superseded row is kept, flagged.
+  supersededBy  String?            @map("superseded_by")
+  /// Clerk user id of whoever entered it.
+  enteredBy     String             @map("entered_by")
+  /// Original entry timestamp (preserved across offline sync).
+  enteredAt     DateTime           @default(now()) @map("entered_at")
+  createdAt     DateTime           @default(now()) @map("created_at")
+
+  session InventorySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  product Product          @relation(fields: [productId], references: [id])
+
+  @@index([sessionId])
+  @@index([productId])
+  @@index([bstId])
+  @@map("inventory_entries")
+}
+
+/// Branch Stock Transfer (§5.7): requested → approved → prepared → received,
+/// (or declined/cancelled at approval). No separate in-transit status.
+model StockTransfer {
+  id             String          @id @default(cuid())
+  sourceBranchId String          @map("source_branch_id")
+  destBranchId   String          @map("dest_branch_id")
+  status         BstStatus       @default(requested)
+  /// Clerk user ids + timestamps for each lifecycle transition (§5.10).
+  requestedBy    String          @map("requested_by")
+  requestedAt    DateTime        @default(now()) @map("requested_at")
+  approvedBy     String?         @map("approved_by")
+  approvedAt     DateTime?       @map("approved_at")
+  preparedBy     String?         @map("prepared_by")
+  preparedAt     DateTime?       @map("prepared_at")
+  receivedBy     String?         @map("received_by")
+  receivedAt     DateTime?       @map("received_at")
+  /// Decline/cancel reason or approval note.
+  decisionNote   String?         @map("decision_note")
+  /// How an admin resolved a prepared-vs-received mismatch; null = no discrepancy
+  /// or not yet resolved.
+  discrepancyResolution BstDiscrepancy? @map("discrepancy_resolution")
+  discrepancyNote       String?         @map("discrepancy_note")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  sourceBranch Branch              @relation("TransferSource", fields: [sourceBranchId], references: [id])
+  destBranch   Branch              @relation("TransferDest", fields: [destBranchId], references: [id])
+  lines        StockTransferLine[]
+
+  @@index([sourceBranchId])
+  @@index([destBranchId])
+  @@index([status])
+  @@map("stock_transfers")
+}
+
+/// One product line on a stock transfer. `preparedQty`/`receivedQty` fill in as
+/// the transfer progresses; a mismatch between them surfaces a discrepancy (§5.7).
+model StockTransferLine {
+  id           String  @id @default(cuid())
+  transferId   String  @map("transfer_id")
+  productId    String  @map("product_id")
+  requestedQty Int     @map("requested_qty")
+  preparedQty  Int?    @map("prepared_qty")
+  receivedQty  Int?    @map("received_qty")
+
+  transfer StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  product  Product       @relation(fields: [productId], references: [id])
+
+  @@index([transferId])
+  @@map("stock_transfer_lines")
 }

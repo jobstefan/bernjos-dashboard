@@ -22,9 +22,13 @@ const adapter = new PrismaPg({
 });
 const prisma = new PrismaClient({ adapter });
 
+// Clerk is optional for dev seeding. When DEV_AUTH is on, or no secret key is
+// set, or the Clerk API is unreachable/invalid, we fall back to deterministic
+// `dev_<role>` clerk ids that match the dev-session login (see
+// src/app/actions/dev-auth.actions.ts) so the full seed still runs.
 const secretKey = process.env.CLERK_SECRET_KEY;
-if (!secretKey) throw new Error("CLERK_SECRET_KEY is required.");
-const clerk = createClerkClient({ secretKey });
+const useClerk = process.env.DEV_AUTH !== "true" && Boolean(secretKey);
+const clerk = useClerk ? createClerkClient({ secretKey: secretKey! }) : null;
 
 const PASSWORD = process.env.SEED_USER_PASSWORD ?? "Bernjos-Dev-2026!";
 
@@ -154,22 +158,32 @@ const USERS: SeedUser[] = [
 ];
 
 async function upsertClerkUser(u: SeedUser): Promise<string> {
-  const existing = await clerk.users.getUserList({ emailAddress: [u.email] });
-  if (existing.data.length > 0) {
-    console.log(`  ↻ ${u.email}`);
-    return existing.data[0].id;
+  if (clerk) {
+    try {
+      const existing = await clerk.users.getUserList({ emailAddress: [u.email] });
+      if (existing.data.length > 0) {
+        console.log(`  ↻ ${u.email}`);
+        return existing.data[0].id;
+      }
+      const created = await clerk.users.createUser({
+        emailAddress: [u.email],
+        username: u.username,
+        password: PASSWORD,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        publicMetadata: { needsOnboarding: true },
+        skipPasswordChecks: true,
+      });
+      console.log(`  ＋ ${u.email}`);
+      return created.id;
+    } catch (e) {
+      console.log(`  ⚠ Clerk unavailable for ${u.email} (${(e as Error).message}). Using dev id.`);
+    }
   }
-  const created = await clerk.users.createUser({
-    emailAddress: [u.email],
-    username: u.username,
-    password: PASSWORD,
-    firstName: u.firstName,
-    lastName: u.lastName,
-    publicMetadata: { needsOnboarding: true },
-    skipPasswordChecks: true,
-  });
-  console.log(`  ＋ ${u.email}`);
-  return created.id;
+  // No-Clerk fallback: deterministic id matching the dev-session login.
+  const devId = `dev_${u.role}`;
+  console.log(`  ﹫ ${u.email} → ${devId} (dev-session login)`);
+  return devId;
 }
 
 async function seedUsers() {
@@ -448,12 +462,178 @@ async function seedSchedule(
   console.log(`  ✓ ${count} schedule entries`);
 }
 
+// ─── 8. Inventory module — all scenarios ──────────────────────────────────────
+
+/** UTC-midnight date `offsetDays` from today (matches @db.Date session storage). */
+function utcMidnight(offsetDays: number): Date {
+  const n = new Date();
+  const d = new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()));
+  d.setUTCDate(d.getUTCDate() + offsetDays);
+  return d;
+}
+
+async function seedInventory(opts: {
+  mainBranchId: string;
+  deliBranchId: string;
+  employeeProfileId: string;
+  employeeClerkId: string;
+  managerProfileId: string;
+  managerClerkId: string;
+  adminClerkId: string;
+}) {
+  console.log("\n[7/7] Inventory module…");
+  const { mainBranchId, deliBranchId, employeeClerkId, managerClerkId, adminClerkId } = opts;
+
+  // Categories (sale + production)
+  const cat = (name: string) => prisma.productCategory.create({ data: { name } });
+  const [bread, pastries, drinks, dryGoods, dairy, packaging] = await Promise.all([
+    cat("Bread"), cat("Pastries"), cat("Drinks"), cat("Dry Goods"), cat("Dairy"), cat("Packaging"),
+  ]);
+
+  // Products — sale items priced, production items unpriced
+  const product = (
+    name: string, unit: string, type: "sale" | "production", categoryId: string, price: number | null,
+  ) => prisma.product.create({ data: { name, unit, type, categoryId, price, createdBy: "seed" } });
+  const [pandesal, ensaymada, water, flour, sugar, butter, boxes] = await Promise.all([
+    product("Pandesal", "pc", "sale", bread.id, 3),
+    product("Ensaymada", "pc", "sale", pastries.id, 25),
+    product("Bottled Water", "bottle", "sale", drinks.id, 20),
+    product("Flour", "kg", "production", dryGoods.id, null),
+    product("Sugar", "kg", "production", dryGoods.id, null),
+    product("Butter", "block", "production", dairy.id, null),
+    product("Boxes", "pc", "production", packaging.id, null),
+  ]);
+
+  // Per-branch reorder thresholds (some deliberately above on-hand → low-stock)
+  await prisma.branchProductThreshold.createMany({
+    data: [
+      { branchId: mainBranchId, productId: pandesal.id, reorderThreshold: 50 },
+      { branchId: mainBranchId, productId: ensaymada.id, reorderThreshold: 20 },
+      { branchId: mainBranchId, productId: water.id, reorderThreshold: 30 },
+      { branchId: mainBranchId, productId: flour.id, reorderThreshold: 10 },
+      { branchId: deliBranchId, productId: pandesal.id, reorderThreshold: 40 },
+      { branchId: deliBranchId, productId: water.id, reorderThreshold: 25 },
+    ],
+  });
+
+  // Yesterday's CLOSED session (main) → derived usage for reports/corrections
+  const ySession = await prisma.inventorySession.create({
+    data: {
+      branchId: mainBranchId, sessionDate: utcMidnight(-1),
+      openedBy: employeeClerkId, closedBy: employeeClerkId, closedAt: new Date(),
+    },
+  });
+  await prisma.inventoryEntry.createMany({
+    data: [
+      { sessionId: ySession.id, productId: pandesal.id, type: "opening", quantity: 100, enteredBy: employeeClerkId },
+      { sessionId: ySession.id, productId: pandesal.id, type: "restock", quantity: 50, enteredBy: employeeClerkId },
+      { sessionId: ySession.id, productId: pandesal.id, type: "wastage", quantity: 5, wastageReason: "expired", enteredBy: employeeClerkId },
+      { sessionId: ySession.id, productId: pandesal.id, type: "closing", quantity: 40, enteredBy: employeeClerkId },
+      { sessionId: ySession.id, productId: ensaymada.id, type: "opening", quantity: 30, enteredBy: employeeClerkId },
+      { sessionId: ySession.id, productId: ensaymada.id, type: "restock", quantity: 10, enteredBy: employeeClerkId },
+      { sessionId: ySession.id, productId: ensaymada.id, type: "closing", quantity: 15, enteredBy: employeeClerkId },
+      { sessionId: ySession.id, productId: flour.id, type: "opening", quantity: 20, enteredBy: employeeClerkId },
+      { sessionId: ySession.id, productId: flour.id, type: "wastage", quantity: 2, wastageReason: "damaged", enteredBy: employeeClerkId },
+      { sessionId: ySession.id, productId: flour.id, type: "closing", quantity: 15, enteredBy: employeeClerkId },
+    ],
+  });
+
+  // Today's OPEN session (main), with a mid-day operator handoff + low stock
+  const tSession = await prisma.inventorySession.create({
+    data: { branchId: mainBranchId, sessionDate: utcMidnight(0), openedBy: employeeClerkId },
+  });
+  const hrs = (h: number) => new Date(Date.now() - h * 3600_000);
+  await prisma.inventorySessionOperator.createMany({
+    data: [
+      { sessionId: tSession.id, operatorId: employeeClerkId, startedAt: hrs(6), endedAt: hrs(3) },
+      { sessionId: tSession.id, operatorId: managerClerkId, startedAt: hrs(3) },
+    ],
+  });
+  await prisma.inventoryEntry.createMany({
+    data: [
+      // Pandesal opens at 40 (< par 50) and Bottled Water at 10 (< par 30) → low-stock flags
+      { sessionId: tSession.id, productId: pandesal.id, type: "opening", quantity: 40, enteredBy: employeeClerkId },
+      { sessionId: tSession.id, productId: pandesal.id, type: "restock", quantity: 20, enteredBy: managerClerkId },
+      { sessionId: tSession.id, productId: water.id, type: "opening", quantity: 10, enteredBy: employeeClerkId },
+      { sessionId: tSession.id, productId: ensaymada.id, type: "opening", quantity: 15, enteredBy: employeeClerkId },
+      { sessionId: tSession.id, productId: ensaymada.id, type: "wastage", quantity: 1, wastageReason: "damaged", enteredBy: managerClerkId },
+    ],
+  });
+
+  // Deli today session — hosts the outgoing (bst_out) transfer entries
+  const dSession = await prisma.inventorySession.create({
+    data: { branchId: deliBranchId, sessionDate: utcMidnight(0), openedBy: managerClerkId },
+  });
+
+  // BST across every state (source = Deli, dest = Main)
+  const line = (productId: string, requestedQty: number, extra: object = {}) => ({ productId, requestedQty, ...extra });
+  await prisma.stockTransfer.create({
+    data: { sourceBranchId: deliBranchId, destBranchId: mainBranchId, status: "requested", requestedBy: employeeClerkId, lines: { create: [line(pandesal.id, 20)] } },
+  });
+  await prisma.stockTransfer.create({
+    data: { sourceBranchId: deliBranchId, destBranchId: mainBranchId, status: "approved", requestedBy: employeeClerkId, approvedBy: adminClerkId, approvedAt: new Date(), lines: { create: [line(water.id, 15)] } },
+  });
+  const prepared = await prisma.stockTransfer.create({
+    data: { sourceBranchId: deliBranchId, destBranchId: mainBranchId, status: "prepared", requestedBy: employeeClerkId, approvedBy: adminClerkId, approvedAt: hrs(5), preparedBy: managerClerkId, preparedAt: new Date(), lines: { create: [line(flour.id, 10, { preparedQty: 10 })] } },
+  });
+  await prisma.inventoryEntry.create({
+    data: { sessionId: dSession.id, productId: flour.id, type: "bst_out", quantity: 10, bstId: prepared.id, enteredBy: managerClerkId },
+  });
+  const received = await prisma.stockTransfer.create({
+    data: { sourceBranchId: deliBranchId, destBranchId: mainBranchId, status: "received", requestedBy: employeeClerkId, approvedBy: adminClerkId, approvedAt: hrs(8), preparedBy: managerClerkId, preparedAt: hrs(5), receivedBy: employeeClerkId, receivedAt: new Date(), lines: { create: [line(sugar.id, 10, { preparedQty: 10, receivedQty: 8 })] } },
+  });
+  await prisma.inventoryEntry.createMany({
+    data: [
+      { sessionId: dSession.id, productId: sugar.id, type: "bst_out", quantity: 10, bstId: received.id, enteredBy: managerClerkId },
+      { sessionId: tSession.id, productId: sugar.id, type: "bst_in", quantity: 8, bstId: received.id, enteredBy: employeeClerkId },
+    ],
+  });
+  await prisma.stockTransfer.create({
+    data: { sourceBranchId: deliBranchId, destBranchId: mainBranchId, status: "declined", requestedBy: employeeClerkId, approvedBy: adminClerkId, approvedAt: new Date(), decisionNote: "Source is out of stock.", lines: { create: [line(boxes.id, 5)] } },
+  });
+
+  // Cash advances (branch-tagged) — approved-unreleased + released-unapplied
+  await prisma.cashAdvance.create({
+    data: { profileId: opts.employeeProfileId, branchId: mainBranchId, amount: 2000, approvedAmount: 2000, reason: "Uniform allowance", status: "approved", requestedBy: employeeClerkId, decidedBy: adminClerkId, decidedAt: new Date(), slipNumber: "CA-INV-000901" },
+  });
+  await prisma.cashAdvance.create({
+    data: { profileId: opts.managerProfileId, branchId: mainBranchId, amount: 1500, approvedAmount: 1500, reason: "Transport", status: "approved", requestedBy: managerClerkId, decidedBy: adminClerkId, decidedAt: hrs(48), releasedAt: new Date(), releasedBy: managerClerkId, releaseBranchId: mainBranchId, slipNumber: "CA-INV-000902" },
+  });
+
+  // Loans — approved (awaiting release) + active (released, with repayments)
+  await prisma.loan.create({
+    data: { profileId: opts.employeeProfileId, branchId: mainBranchId, amount: 3000, termPeriods: 3, reason: "Appliance", status: "approved", requestedBy: employeeClerkId, decidedBy: adminClerkId, decidedAt: new Date(), slipNumber: "LN-INV-000901" },
+  });
+  const activeLoan = await prisma.loan.create({
+    data: { profileId: opts.managerProfileId, branchId: mainBranchId, amount: 2000, termPeriods: 2, reason: "Tuition", status: "active", requestedBy: managerClerkId, decidedBy: adminClerkId, decidedAt: hrs(72), disbursedBy: managerClerkId, disbursedAt: new Date(), releaseBranchId: mainBranchId, slipNumber: "LN-INV-000902" },
+  });
+  await prisma.loanRepayment.createMany({
+    data: [
+      { loanId: activeLoan.id, installmentNo: 1, amount: 1000 },
+      { loanId: activeLoan.id, installmentNo: 2, amount: 1000 },
+    ],
+  });
+
+  console.log("  ✓ 6 categories, 7 products, 6 thresholds, 3 sessions (1 closed + handoff), 5 transfers (incl. discrepancy), release-gate advances + loans");
+}
+
 // ─── 0. Clear existing data ───────────────────────────────────────────────────
 
 async function clearData() {
   console.log("\n[0/7] Clearing existing data…");
   // Delete in FK dependency order: children before parents
   await prisma.$transaction([
+    // Inventory module (children → parents), before branch/product deletes below.
+    prisma.inventoryEntry.deleteMany(),
+    prisma.inventorySessionOperator.deleteMany(),
+    prisma.inventorySession.deleteMany(),
+    prisma.stockTransferLine.deleteMany(),
+    prisma.stockTransfer.deleteMany(),
+    prisma.branchProductThreshold.deleteMany(),
+    prisma.product.deleteMany(),
+    prisma.productCategory.deleteMany(),
+    prisma.loanRepayment.deleteMany(),
+    prisma.loan.deleteMany(),
     prisma.savingsTransaction.deleteMany(),
     prisma.savingsAccount.deleteMany(),
     prisma.cashAdvance.deleteMany(),
@@ -483,7 +663,7 @@ async function main() {
   console.log("Bernjos dev seed — all scenarios…");
 
   await clearData();
-  const { mainBranch } = await seedReferenceData();
+  const { mainBranch, deliBranch } = await seedReferenceData();
   const users = await seedUsers();
 
   const employeeProfileId = users.employee.profileId!;
@@ -504,6 +684,16 @@ async function main() {
   await seedSavingsTransactions(employeeProfileId, paidPeriodId, approvedPeriodId);
 
   await seedSchedule(employeeProfileId, managerProfileId, mainBranch.id);
+
+  await seedInventory({
+    mainBranchId: mainBranch.id,
+    deliBranchId: deliBranch.id,
+    employeeProfileId,
+    employeeClerkId: users.employee.clerkId,
+    managerProfileId,
+    managerClerkId: users.manager.clerkId,
+    adminClerkId: users.admin.clerkId,
+  });
 
   console.log("\nDone. Sign in at /sign-in:");
   for (const u of USERS) {

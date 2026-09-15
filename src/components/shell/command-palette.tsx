@@ -22,6 +22,7 @@ import {
   Plus,
   Sun,
   Moon,
+  Package,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { navForRole, type NavIcon } from "@/components/layout/nav";
@@ -42,6 +43,7 @@ const ICONS: Record<NavIcon, React.ComponentType<{ className?: string }>> = {
   attendance: Fingerprint,
   settings: Settings,
   incentive: Gift,
+  inventory: Package,
 };
 
 /** Role-aware quick actions (navigation shortcuts). */

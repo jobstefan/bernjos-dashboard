@@ -33,7 +33,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("font-sans", geist.variable, bricolage.variable)}
     >
-      <body>
+      <body suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

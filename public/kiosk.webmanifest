@@ -1,0 +1,11 @@
+{
+  "name": "BernJos Kiosk",
+  "short_name": "Kiosk",
+  "description": "Branch inventory kiosk for BernJos",
+  "start_url": "/kiosk",
+  "scope": "/kiosk",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#1c1410",
+  "theme_color": "#c2620f"
+}

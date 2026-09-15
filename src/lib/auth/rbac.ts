@@ -120,6 +120,46 @@ export function canSuperviseLoan(role: Role): boolean {
   return isAdmin(role);
 }
 
+// ── Branch inventory module (§5.9) ──────────────────────────────────────────
+
+/**
+ * Any authenticated employee may operate a branch kiosk — counting, restocking,
+ * logging wastage, requesting BSTs, and tagging cash-advance/loan releases (§5.9).
+ * Access is NOT restricted to a "home branch"; the kiosk's branch comes from the
+ * device/session, not the operator.
+ */
+export function canCountInventory(role: Role): boolean {
+  return (
+    role === "super_admin" || role === "admin" || role === "manager" || role === "employee"
+  );
+}
+
+/**
+ * Managers and admins manage the branch-scoped side of inventory: BST approval,
+ * discrepancy resolution, past-session corrections, and reporting (managers see
+ * their own branch; admins see all — enforced by the caller's branch scope).
+ * Catalog, categories, branch reorder thresholds, and release-tag corrections are
+ * admin-only — gate those with {@link requireAdmin} instead.
+ */
+export function canManageInventory(role: Role): boolean {
+  return role === "manager" || isAdmin(role);
+}
+
+/** Admins see every branch's inventory reports; managers are scoped to their own. */
+export function canViewAllBranches(role: Role): boolean {
+  return isAdmin(role);
+}
+
+/** Assert the actor may operate a kiosk (any signed-in user). */
+export async function requireInventoryOperator(): Promise<Actor> {
+  return requireRole("super_admin", "admin", "manager", "employee");
+}
+
+/** Assert the actor may manage inventory (admin, super-admin, or manager). */
+export async function requireInventoryManager(): Promise<Actor> {
+  return requireRole("admin", "super_admin", "manager");
+}
+
 /**
  * Assert the actor holds one of `roles`. Returns the actor for convenient
  * chaining. Throws {@link UnauthorizedError} otherwise.

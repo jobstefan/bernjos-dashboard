@@ -13,7 +13,8 @@ export type NavIcon =
   | "savings"
   | "attendance"
   | "settings"
-  | "incentive";
+  | "incentive"
+  | "inventory";
 
 export interface NavItem {
   label: string;
@@ -122,6 +123,17 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: "savings",
         roles: ["manager", "employee"],
       },
+    ],
+  },
+  {
+    label: "Inventory",
+    items: [
+      { label: "Products", href: "/inventory/products", icon: "inventory", roles: ADMINS },
+      { label: "Categories", href: "/inventory/categories", icon: "inventory", roles: ADMINS },
+      { label: "Reorder Levels", href: "/inventory/thresholds", icon: "inventory", roles: ADMINS },
+      { label: "Transfers", href: "/inventory/transfers", icon: "inventory", roles: MGRS },
+      { label: "Corrections", href: "/inventory/corrections", icon: "inventory", roles: MGRS },
+      { label: "Cash Release", href: "/inventory/unreleased", icon: "cashAdvance", roles: ADMINS },
     ],
   },
   {
