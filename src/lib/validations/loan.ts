@@ -60,7 +60,18 @@ export const cancelLoanSchema = z.object({
   id: z.string().min(1),
 });
 
+export const pauseLoanSchema = z.object({
+  id: z.string().min(1),
+  reason: z.string().trim().max(500).optional().nullable(),
+});
+
+export const resumeLoanSchema = z.object({
+  id: z.string().min(1),
+});
+
 export type CreateLoanSchema = z.infer<typeof createLoanSchema>;
 export type AdminCreateLoanSchema = z.infer<typeof adminCreateLoanSchema>;
 export type ApproveLoanSchema = z.infer<typeof approveLoanSchema>;
 export type DeclineLoanSchema = z.infer<typeof declineLoanSchema>;
+export type PauseLoanSchema = z.infer<typeof pauseLoanSchema>;
+export type ResumeLoanSchema = z.infer<typeof resumeLoanSchema>;

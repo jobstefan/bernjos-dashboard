@@ -31,6 +31,8 @@ import type {
   ApproveLoanSchema,
   CreateLoanSchema,
   DeclineLoanSchema,
+  PauseLoanSchema,
+  ResumeLoanSchema,
 } from "@/lib/validations/loan";
 import { formatEmployeeName } from "@/lib/utils/format-name";
 import { nextLoanSlipNumber } from "@/server/db/slip-number";
@@ -112,6 +114,11 @@ function toLoanRow(loan: LoanWithRelations): LoanRow {
     status: loan.status as import("@/lib/types/loan").LoanStatus,
     decisionNote: loan.decisionNote,
     disbursedAt: loan.disbursedAt?.toISOString() ?? null,
+    pausedAt: loan.pausedAt?.toISOString() ?? null,
+    pausedBy: loan.pausedBy ?? null,
+    pauseReason: loan.pauseReason ?? null,
+    resumedAt: loan.resumedAt?.toISOString() ?? null,
+    resumedBy: loan.resumedBy ?? null,
     requestedAt: loan.createdAt.toISOString(),
     decidedAt: loan.decidedAt?.toISOString() ?? null,
     totalRepaid,
@@ -448,6 +455,64 @@ export async function deleteLoan(id: string, actor: Actor): Promise<void> {
     action: "loan.deleted",
     entityType: "loan",
     entityId: id,
+    before: loan,
+    after,
+  });
+}
+
+/** Admin pauses an active loan — payroll deductions are skipped until resumed. */
+export async function pauseLoan(input: PauseLoanSchema, actor: Actor): Promise<void> {
+  const loan = await findLoanById(input.id);
+  if (!loan) throw new NotFoundError("Loan", input.id);
+  if (loan.status !== "active") {
+    throw new InvalidStateTransitionError("Only an active loan can be paused.");
+  }
+  if (loan.pausedAt !== null) {
+    throw new InvalidStateTransitionError("This loan is already paused.");
+  }
+
+  const now = new Date();
+  const after = await updateLoan(input.id, {
+    pausedAt: now,
+    pausedBy: actor.clerkUserId,
+    pauseReason: input.reason ?? null,
+  });
+
+  await auditLog({
+    actor,
+    action: "loan.paused",
+    entityType: "loan",
+    entityId: input.id,
+    before: loan,
+    after,
+  });
+}
+
+/** Admin resumes a paused active loan — deductions resume in the next payroll run. */
+export async function resumeLoan(input: ResumeLoanSchema, actor: Actor): Promise<void> {
+  const loan = await findLoanById(input.id);
+  if (!loan) throw new NotFoundError("Loan", input.id);
+  if (loan.status !== "active") {
+    throw new InvalidStateTransitionError("Only an active loan can be resumed.");
+  }
+  if (loan.pausedAt === null) {
+    throw new InvalidStateTransitionError("This loan is not currently paused.");
+  }
+
+  const now = new Date();
+  const after = await updateLoan(input.id, {
+    pausedAt: null,
+    pausedBy: null,
+    pauseReason: null,
+    resumedAt: now,
+    resumedBy: actor.clerkUserId,
+  });
+
+  await auditLog({
+    actor,
+    action: "loan.resumed",
+    entityType: "loan",
+    entityId: input.id,
     before: loan,
     after,
   });

@@ -556,6 +556,11 @@ model Loan {
   decisionNote String?    @map("decision_note")
   disbursedAt  DateTime?  @map("disbursed_at")
   disbursedBy  String?    @map("disbursed_by")
+  pausedAt     DateTime?  @map("paused_at")
+  pausedBy     String?    @map("paused_by")
+  pauseReason  String?    @map("pause_reason")
+  resumedAt    DateTime?  @map("resumed_at")
+  resumedBy    String?    @map("resumed_by")
   deletedAt    DateTime?  @map("deleted_at")
   /// Admin-requested deletion flag; superadmin confirms and hard-deletes.
   deletionRequestedAt DateTime? @map("deletion_requested_at")

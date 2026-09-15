@@ -53,7 +53,7 @@ export function findLoanById(id: string) {
  */
 export async function findPendingRepaymentsForEmployee(profileId: string) {
   const activeLoans = await prisma.loan.findMany({
-    where: { profileId, status: "active", deletedAt: null },
+    where: { profileId, status: "active", deletedAt: null, pausedAt: null },
     select: { id: true },
     orderBy: { createdAt: "asc" },
   });
