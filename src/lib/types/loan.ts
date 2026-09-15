@@ -26,6 +26,11 @@ export interface LoanRow {
   status: LoanStatus;
   decisionNote: string | null;
   disbursedAt: string | null;
+  pausedAt: string | null;
+  pausedBy: string | null;
+  pauseReason: string | null;
+  resumedAt: string | null;
+  resumedBy: string | null;
   requestedAt: string;
   decidedAt: string | null;
   totalRepaid: number;
