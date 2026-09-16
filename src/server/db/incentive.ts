@@ -56,8 +56,16 @@ export function markIncentivesApplied(ids: string[], periodId: string) {
 /** Incentives applied to a period (for branch attribution reporting). */
 export function findIncentivesForPeriod(periodId: string) {
   return prisma.incentive.findMany({
-    where: { periodId, status: "applied" },
+    where: { periodId, status: { in: ["applied", "completed"] } },
     select: { profileId: true, amount: true, branchId: true },
+  });
+}
+
+/** Finalize incentives to completed when the payroll period is approved. */
+export function markIncentivesCompleted(periodId: string) {
+  return prisma.incentive.updateMany({
+    where: { periodId, status: "applied", deletedAt: null },
+    data: { status: "completed" },
   });
 }
 
