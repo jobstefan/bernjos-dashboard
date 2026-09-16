@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Tablet } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,7 +17,6 @@ interface BranchOption {
  * the kiosk's identity for every session on this device (§5.1).
  */
 export function BranchPicker({ branches }: { branches: BranchOption[] }) {
-  const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const [selected, setSelected] = React.useState<string | null>(null);
 
@@ -27,8 +25,9 @@ export function BranchPicker({ branches }: { branches: BranchOption[] }) {
     startTransition(async () => {
       const res = await setKioskBranchAction(id);
       if (res.success) {
-        toast.success("Device assigned to branch.");
-        router.refresh();
+        // Hard navigation so the server re-reads the newly set branch cookie.
+        // router.push/refresh deduplicate same-URL navigations and won't re-render.
+        window.location.href = "/kiosk";
       } else {
         setSelected(null);
         toast.error(res.error);

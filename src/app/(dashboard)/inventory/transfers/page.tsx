@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getCurrentRole, canManageInventory, isAdmin } from "@/lib/auth/rbac";
 import { getAllTransfers } from "@/server/services/stock-transfer.service";
 import { TransfersAdmin } from "@/components/inventory/transfers-admin";
-import { InventoryTabs } from "@/components/inventory/inventory-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +20,6 @@ export default async function TransfersPage() {
         </p>
       </div>
 
-      <InventoryTabs />
 
       <TransfersAdmin transfers={transfers} canResolve={isAdmin(role)} />
     </div>

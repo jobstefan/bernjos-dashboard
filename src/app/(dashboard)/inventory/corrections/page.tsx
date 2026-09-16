@@ -5,7 +5,6 @@ import {
   getSessionForCorrection,
   listClosedSessions,
 } from "@/server/services/inventory-corrections.service";
-import { InventoryTabs } from "@/components/inventory/inventory-tabs";
 import { CorrectionsEditor } from "@/components/inventory/corrections-editor";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +37,6 @@ export default async function CorrectionsPage({
         </p>
       </div>
 
-      <InventoryTabs />
 
       {sessions.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center text-sm text-muted-foreground">

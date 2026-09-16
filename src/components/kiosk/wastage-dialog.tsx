@@ -92,14 +92,14 @@ export function WastageDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Log wastage</DialogTitle>
+          <DialogTitle>Pull out</DialogTitle>
           <DialogDescription>{product ? product.name : ""}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
+          <div className="flex flex-col items-center gap-2">
             <Label>Quantity</Label>
-            <NumberStepper value={quantity} onChange={setQuantity} min={1} />
+            <NumberStepper value={quantity} onChange={setQuantity} min={0} />
           </div>
           <div className="grid gap-2">
             <Label>Reason</Label>
@@ -137,7 +137,7 @@ export function WastageDialog({
             onClick={submit}
             disabled={pending || quantity < 1}
           >
-            {pending ? "Saving…" : "Log wastage"}
+            {pending ? "Saving…" : "Log pull out"}
           </Button>
         </DialogFooter>
       </DialogContent>

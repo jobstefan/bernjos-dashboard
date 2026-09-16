@@ -3,7 +3,6 @@ import { Tag } from "lucide-react";
 import { getCurrentRole, isAdmin } from "@/lib/auth/rbac";
 import { getCategories } from "@/server/services/inventory-catalog.service";
 import { CategoriesManager } from "@/components/inventory/categories-manager";
-import { InventoryTabs } from "@/components/inventory/inventory-tabs";
 import { EmptyState } from "@/components/payroll/empty-state";
 
 export default async function CategoriesPage() {
@@ -21,7 +20,6 @@ export default async function CategoriesPage() {
         </p>
       </div>
 
-      <InventoryTabs />
 
       {rows.length === 0 ? (
         <div className="space-y-4">

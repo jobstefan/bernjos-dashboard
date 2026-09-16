@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { CountingTab } from "@/components/kiosk/counting-tab";
-import { CloseSessionDialog } from "@/components/kiosk/close-session-dialog";
 import { CashReleaseTab } from "@/components/kiosk/cash-release-tab";
 import { TransfersTab } from "@/components/kiosk/transfers-tab";
 import { OfflineController } from "@/components/kiosk/offline-controller";
@@ -42,7 +41,6 @@ export function KioskShell({
   const router = useRouter();
   const [tab, setTab] = React.useState<Tab>("counting");
   const [pending, startTransition] = React.useTransition();
-  const [closing, setClosing] = React.useState(false);
 
   const session = state.session;
   const sessionOpen = session !== null && !session.closed;
@@ -147,17 +145,11 @@ export function KioskShell({
                 <p className="text-sm text-muted-foreground">
                   Tap a product to restock. Log wastage with the trash icon.
                 </p>
-                <Button variant="outline" onClick={() => setClosing(true)} disabled={pending}>
+                <Button variant="outline" onClick={() => router.push("/kiosk/close")} disabled={pending}>
                   <Lock className="size-4" /> Close session
                 </Button>
               </div>
               <CountingTab sessionId={session.id} state={state} />
-              <CloseSessionDialog
-                sessionId={session.id}
-                products={state.products}
-                open={closing}
-                onOpenChange={setClosing}
-              />
             </div>
           ) : (
             <SessionPrompt closed={session?.closed ?? false} pending={pending} onOpen={openSession} />

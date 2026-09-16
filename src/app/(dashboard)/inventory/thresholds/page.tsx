@@ -4,7 +4,6 @@ import { getCurrentRole, isAdmin } from "@/lib/auth/rbac";
 import { getBranches } from "@/server/services/branch.service";
 import { getProducts, getThresholds } from "@/server/services/inventory-catalog.service";
 import { ThresholdsManager } from "@/components/inventory/thresholds-manager";
-import { InventoryTabs } from "@/components/inventory/inventory-tabs";
 import { EmptyState } from "@/components/payroll/empty-state";
 
 export default async function ThresholdsPage() {
@@ -29,7 +28,6 @@ export default async function ThresholdsPage() {
         </p>
       </div>
 
-      <InventoryTabs />
 
       {ready ? (
         <ThresholdsManager

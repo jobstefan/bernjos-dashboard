@@ -5,7 +5,6 @@ import {
   listUnreleased,
 } from "@/server/services/inventory-release.service";
 import { UnreleasedView } from "@/components/inventory/unreleased-view";
-import { InventoryTabs } from "@/components/inventory/inventory-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +24,6 @@ export default async function UnreleasedPage() {
         </p>
       </div>
 
-      <InventoryTabs />
 
       <UnreleasedView unreleased={unreleased} released={released} />
     </div>

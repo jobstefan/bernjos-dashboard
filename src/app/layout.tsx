@@ -13,6 +13,7 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
   variable: "--font-display",
+  preload: false,
 });
 
 export const metadata: Metadata = {

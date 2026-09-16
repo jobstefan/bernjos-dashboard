@@ -4,7 +4,6 @@ import { getCurrentRole, isAdmin } from "@/lib/auth/rbac";
 import { getProducts, getCategories } from "@/server/services/inventory-catalog.service";
 import { ProductsTable } from "@/components/inventory/products-table";
 import { NewProductButton } from "@/components/inventory/product-dialog";
-import { InventoryTabs } from "@/components/inventory/inventory-tabs";
 import { EmptyState } from "@/components/payroll/empty-state";
 
 export default async function ProductsPage() {
@@ -26,7 +25,6 @@ export default async function ProductsPage() {
         {rows.length > 0 && canManage ? <NewProductButton categories={categories} /> : null}
       </div>
 
-      <InventoryTabs />
 
       {rows.length === 0 ? (
         <EmptyState

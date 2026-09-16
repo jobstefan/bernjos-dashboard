@@ -22,7 +22,7 @@ import { QUEUE_EVENT, allQueued, enqueueEntry } from "@/lib/kiosk/offline-queue"
 import { formatPeso } from "@/lib/utils/payroll";
 import type { KioskProduct, KioskState } from "@/lib/types/inventory";
 
-const QUICK_ADDS = [1, 5, 10];
+const QUICK_ADDS = [10, 20, 30];
 
 export function CountingTab({
   sessionId,
@@ -175,7 +175,7 @@ export function CountingTab({
                   disabled={pending}
                   onClick={() => setWasteFor(p)}
                 >
-                  <Trash2 className="size-5" /> Wastage
+                  <Trash2 className="size-5" /> Pull out
                 </Button>
               </div>
             </div>
@@ -201,7 +201,7 @@ export function CountingTab({
             </DialogDescription>
           </DialogHeader>
 
-          {/* One-tap quick amounts */}
+          {/* Preset amounts — tap to set the input, not to submit */}
           <div className="grid grid-cols-3 gap-2 py-2">
             {QUICK_ADDS.map((n) => (
               <Button
@@ -210,11 +210,10 @@ export function CountingTab({
                 className="h-14 text-lg"
                 disabled={pending}
                 onClick={() => {
-                  if (customFor) restock(customFor, n);
-                  setCustomFor(null);
+                  setCustomQty(n);
                 }}
               >
-                +{n}
+                {n}
               </Button>
             ))}
           </div>
@@ -222,7 +221,7 @@ export function CountingTab({
           {/* Custom amount */}
           <div className="flex flex-col items-center gap-3 border-t border-border pt-4">
             <span className="text-sm text-muted-foreground">Custom amount</span>
-            <NumberStepper value={customQty} onChange={setCustomQty} min={1} />
+            <NumberStepper value={customQty} onChange={setCustomQty} min={0} />
           </div>
 
           <DialogFooter>
