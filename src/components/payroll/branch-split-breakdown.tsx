@@ -149,19 +149,37 @@ export function BranchSplitBreakdown({
         })}
       </div>
 
-      {/* Contributions — per-branch share of statutory deductions */}
+      {/* Contributions — prefer single branch; split only if none can cover alone */}
       {totalStatutory > 0 && (() => {
         const totalBranchDays = branches.reduce((s, b) => s + b.daysWorked, 0);
         if (totalBranchDays === 0) return null;
-        let allocated = 0;
-        const contribRows = branches.map((b, i) => {
-          const isLast = i === branches.length - 1;
-          const share = isLast
-            ? Math.round((totalStatutory - allocated) * 100) / 100
-            : Math.round(totalStatutory * (b.daysWorked / totalBranchDays) * 100) / 100;
-          allocated = Math.round((allocated + share) * 100) / 100;
-          return { branchName: b.branchName, amount: share };
-        });
+
+        const branchesWithGross = branches.map((b) => ({
+          branchName: b.branchName,
+          gross: Math.round(b.daysWorked * dailyRate * 100) / 100,
+          daysWorked: b.daysWorked,
+        }));
+
+        // Try smallest single branch whose gross can cover the full contribution
+        const singleCover = branchesWithGross
+          .filter((b) => b.gross >= totalStatutory)
+          .sort((a, b) => a.gross - b.gross)[0];
+
+        let contribRows: { branchName: string; amount: number }[];
+        if (singleCover) {
+          contribRows = [{ branchName: singleCover.branchName, amount: totalStatutory }];
+        } else {
+          // Fall back to proportional split
+          let allocated = 0;
+          contribRows = branches.map((b, i) => {
+            const isLast = i === branches.length - 1;
+            const share = isLast
+              ? Math.round((totalStatutory - allocated) * 100) / 100
+              : Math.round(totalStatutory * (b.daysWorked / totalBranchDays) * 100) / 100;
+            allocated = Math.round((allocated + share) * 100) / 100;
+            return { branchName: b.branchName, amount: share };
+          });
+        }
         return (
           <>
             <Separator />
