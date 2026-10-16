@@ -32,7 +32,7 @@ export function BranchSummaryDrawer({
   for (const row of includedRows) {
     const totalDays = row.branchBreakdown.reduce((s, b) => s + b.daysWorked, 0);
     if (totalDays === 0) continue;
-    const statutory = row.sssEmployee + row.philhealthEmployee + row.lateDeduction + row.savingsContribution;
+    const statutory = row.sssEmployee + row.philhealthEmployee + row.savingsContribution;
     let allocatedContrib = 0;
     row.branchBreakdown.forEach((b, i) => {
       const isLast = i === row.branchBreakdown.length - 1;
