@@ -72,12 +72,15 @@ enum CashAdvanceStatus {
   approved
   declined
   applied
+  completed
   cancelled
 }
 
 enum ChargeStatus {
   pending
   applied
+  completed
+  cancelled
 }
 
 enum LoanStatus {
@@ -91,6 +94,7 @@ enum LoanStatus {
 enum IncentiveStatus {
   pending
   applied
+  completed
   cancelled
 }
 
@@ -342,6 +346,8 @@ model Charge {
   createdBy       String       @map("created_by")
   appliedPeriodId String?      @map("applied_period_id")
   appliedAt       DateTime?    @map("applied_at")
+  cancelledBy     String?      @map("cancelled_by")
+  cancelledAt     DateTime?    @map("cancelled_at")
   deletedAt       DateTime?    @map("deleted_at")
   /// Admin-requested deletion flag; superadmin confirms and hard-deletes.
   deletionRequestedAt DateTime? @map("deletion_requested_at")

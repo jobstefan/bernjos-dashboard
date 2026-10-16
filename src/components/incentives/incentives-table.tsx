@@ -43,17 +43,18 @@ const ALL = "__all__";
 const STATUS_OPTIONS: [IncentiveStatus, string][] = [
   ["pending", "Pending"],
   ["applied", "Applied"],
+  ["completed", "Completed"],
   ["cancelled", "Cancelled"],
 ];
 
+const HIDDEN_BY_DEFAULT = new Set<IncentiveStatus>(["completed", "cancelled"]);
+
 function statusColor(status: IncentiveStatus): string {
   switch (status) {
-    case "pending":
-      return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400";
-    case "applied":
-      return "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-400";
-    case "cancelled":
-      return "border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400";
+    case "pending":   return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300";
+    case "applied":   return "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300";
+    case "completed": return "border-green-200 bg-green-50 text-green-700 dark:border-green-900/50 dark:bg-green-950/40 dark:text-green-300";
+    case "cancelled": return "border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400";
   }
 }
 
@@ -99,6 +100,7 @@ export function IncentivesTable({
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
     return rows.filter((r) => {
+      if (status === ALL && HIDDEN_BY_DEFAULT.has(r.status)) return false;
       if (status !== ALL && r.status !== status) return false;
       if (
         q &&

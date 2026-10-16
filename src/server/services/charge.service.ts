@@ -32,6 +32,7 @@ function toRow(charge: NonNullable<ChargeWithRelations>): ChargeRow {
     status: charge.status,
     appliedPeriodLabel: charge.appliedPeriod?.periodLabel ?? null,
     createdAt: charge.createdAt.toISOString(),
+    cancelledAt: charge.cancelledAt?.toISOString() ?? null,
     deletionRequestedAt: charge.deletionRequestedAt?.toISOString() ?? null,
     deletionRequestedBy: charge.deletionRequestedBy ?? null,
   };
@@ -79,13 +80,32 @@ export async function createCharge(input: CreateChargeSchema, actor: Actor) {
   return charge;
 }
 
-/** Superadmin soft-deletes a charge. Applied charges cannot be deleted. */
+/** Admin cancels a pending charge — it will not be picked up by payroll. */
+export async function cancelCharge(id: string, actor: Actor): Promise<void> {
+  const before = await findChargeById(id);
+  if (!before) throw new NotFoundError("Charge", id);
+  if (before.status !== "pending") {
+    throw new BadRequestError("Only a pending charge can be cancelled.");
+  }
+  const after = await updateCharge(id, {
+    status: "cancelled",
+    cancelledBy: actor.clerkUserId,
+    cancelledAt: new Date(),
+  });
+  await auditLog({
+    actor,
+    action: "charge.cancelled",
+    entityType: "charge",
+    entityId: id,
+    before,
+    after,
+  });
+}
+
+/** Superadmin soft-deletes a charge in any state. */
 export async function deleteCharge(id: string, actor: Actor) {
   const before = await findChargeById(id);
   if (!before) throw new NotFoundError("Charge", id);
-  if (before.status === "applied") {
-    throw new BadRequestError("Applied charges cannot be deleted.");
-  }
   const after = await softDeleteCharge(id);
   await auditLog({
     actor,

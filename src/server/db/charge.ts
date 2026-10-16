@@ -70,8 +70,16 @@ export function markChargesApplied(ids: string[], periodId: string) {
 /** All charges applied to a period (for branch attribution reporting). */
 export function findChargesForPeriod(periodId: string) {
   return prisma.charge.findMany({
-    where: { appliedPeriodId: periodId, status: "applied", deletedAt: null },
+    where: { appliedPeriodId: periodId, status: { in: ["applied", "completed"] }, deletedAt: null },
     select: { profileId: true, amount: true, branchId: true },
+  });
+}
+
+/** Finalize charges to completed when the payroll period is approved. */
+export function markChargesCompleted(periodId: string) {
+  return prisma.charge.updateMany({
+    where: { appliedPeriodId: periodId, status: "applied", deletedAt: null },
+    data: { status: "completed" },
   });
 }
 

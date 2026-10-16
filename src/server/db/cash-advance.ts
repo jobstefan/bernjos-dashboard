@@ -84,8 +84,16 @@ export function markCashAdvancesApplied(ids: string[], periodId: string) {
 /** Advances applied to a period (for branch attribution reporting). */
 export function findAdvancesForPeriod(periodId: string) {
   return prisma.cashAdvance.findMany({
-    where: { appliedPeriodId: periodId, status: "applied", deletedAt: null },
+    where: { appliedPeriodId: periodId, status: { in: ["applied", "completed"] }, deletedAt: null },
     select: { profileId: true, approvedAmount: true, amount: true, branchId: true },
+  });
+}
+
+/** Finalize cash advances to completed when the payroll period is approved. */
+export function markCashAdvancesCompleted(periodId: string) {
+  return prisma.cashAdvance.updateMany({
+    where: { appliedPeriodId: periodId, status: "applied", deletedAt: null },
+    data: { status: "completed" },
   });
 }
 

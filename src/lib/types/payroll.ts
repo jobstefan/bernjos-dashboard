@@ -185,7 +185,7 @@ export interface CashAdvanceFilters {
 }
 
 /** An incentive flattened for display in a table. */
-export type IncentiveStatus = "pending" | "applied" | "cancelled";
+export type IncentiveStatus = "pending" | "applied" | "completed" | "cancelled";
 
 export interface IncentiveRow {
   id: string;
@@ -217,6 +217,7 @@ export interface ChargeRow {
   status: ChargeStatus;
   appliedPeriodLabel: string | null;
   createdAt: string;
+  cancelledAt: string | null;
   deletionRequestedAt: string | null;
   deletionRequestedBy: string | null;
 }

@@ -19,16 +19,19 @@ import { findActiveEmployeesByFrequency, findEmployeeById } from "@/server/db/em
 import {
   findApprovedUnappliedForEmployee,
   markCashAdvancesApplied,
+  markCashAdvancesCompleted,
   resetCashAdvancesForPeriod,
 } from "@/server/db/cash-advance";
 import {
   findPendingChargesForEmployee,
   markChargesApplied,
+  markChargesCompleted,
   resetChargesForPeriod,
 } from "@/server/db/charge";
 import {
   findPendingIncentivesForEmployee,
   markIncentivesApplied,
+  markIncentivesCompleted,
   resetIncentivesForPeriod,
 } from "@/server/db/incentive";
 import {
@@ -544,6 +547,11 @@ export async function approvePayrollRun(periodId: string, actor: Actor): Promise
   for (const loan of completedLoans) {
     await updateLoan(loan.id, { status: "completed" });
   }
+
+  // Finalize charges, incentives, and cash advances applied in this period.
+  await markChargesCompleted(periodId);
+  await markIncentivesCompleted(periodId);
+  await markCashAdvancesCompleted(periodId);
 
   await auditLog({
     actor,
