@@ -185,6 +185,7 @@ export async function calculateEmployeeDeductions(
       grossPay: 0,
       attendanceTracked,
       absentDays: attendance.absentDays,
+      approvedAbsenceDays: attendance.approvedAbsenceDays,
       lateMinutes: 0,
       undertimeMinutes: 0,
       breakMinutes: 0,
@@ -243,6 +244,7 @@ export async function calculateEmployeeDeductions(
     grossPay: toNum(grossPay),
     attendanceTracked,
     absentDays: attendance.absentDays,
+    approvedAbsenceDays: attendance.approvedAbsenceDays,
     lateMinutes: attendance.lateMinutes,
     undertimeMinutes: attendance.undertimeMinutes,
     breakMinutes: attendance.breakMinutes,
@@ -385,6 +387,7 @@ export async function calculatePayrollRun(
     const attendanceNote = b.attendanceTracked
       ? `Attendance: ${b.daysWorked} day(s) worked` +
         (b.absentDays ? `, ${b.absentDays} absent` : "") +
+        (b.approvedAbsenceDays ? `, ${b.approvedAbsenceDays} approved-absent` : "") +
         (b.lateMinutes ? `, ${b.lateMinutes} late-min` : "") +
         (b.undertimeMinutes ? `, ${b.undertimeMinutes} undertime-min` : "") +
         (b.breakMinutes ? `, ${b.breakMinutes} break-min` : "") +
@@ -698,16 +701,24 @@ function parseAbsentDays(notes: string | null): number {
   return match ? parseInt(match[1], 10) : 0;
 }
 
+function parseApprovedAbsentDays(notes: string | null): number {
+  const match = notes?.match(/(\d+) approved-absent/) ?? null;
+  return match ? parseInt(match[1], 10) : 0;
+}
+
 function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
   const daysWorked = parseDaysWorked(item.notes);
   const absentDays = parseAbsentDays(item.notes);
+  const approvedAbsenceDays = parseApprovedAbsentDays(item.notes);
   const scheduledDays = daysWorked + absentDays;
   const calendarDays = scheduledDays > 0
     ? Math.round(
         (item.period.periodEnd.getTime() - item.period.periodStart.getTime()) / 86400000,
       ) + 1
     : 0;
-  const dayOffDays = scheduledDays > 0 ? Math.max(0, calendarDays - scheduledDays) : 0;
+  const dayOffDays = scheduledDays > 0
+    ? Math.max(0, calendarDays - scheduledDays - approvedAbsenceDays)
+    : 0;
 
   return {
     runItemId: item.id,
@@ -754,6 +765,7 @@ function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
     })),
     daysWorked: scheduledDays > 0 ? daysWorked : undefined,
     absentDays: scheduledDays > 0 ? absentDays : undefined,
+    approvedAbsenceDays: scheduledDays > 0 && approvedAbsenceDays > 0 ? approvedAbsenceDays : undefined,
     dayOffDays: scheduledDays > 0 ? dayOffDays : undefined,
   };
 }

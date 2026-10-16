@@ -62,6 +62,26 @@ export function findAbsenceRequestsInRange(from: Date, to: Date) {
   });
 }
 
+export function findApprovedAbsenceRequestsForEmployeeInRange(
+  profileId: string,
+  from: Date,
+  to: Date,
+) {
+  return prisma.absenceRequest.findMany({
+    where: {
+      profileId,
+      status: "approved",
+      date: { lte: to },
+      OR: [
+        { endDate: { gte: from } },
+        { endDate: null, date: { gte: from } },
+      ],
+    },
+    select: { date: true, endDate: true },
+    orderBy: { date: "asc" },
+  });
+}
+
 export function findAbsenceRequestsForDate(date: Date) {
   return prisma.absenceRequest.findMany({
     where: {

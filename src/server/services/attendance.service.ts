@@ -17,7 +17,7 @@ import {
   updateImportRow,
   upsertEmployeeDevice,
 } from "@/server/db/attendance";
-import { findAbsenceRequestsInRange } from "@/server/db/absence-request";
+import { findAbsenceRequestsInRange, findApprovedAbsenceRequestsForEmployeeInRange } from "@/server/db/absence-request";
 import { findBranchById } from "@/server/db/branches";
 import { findActiveEmployeeBasics, findEmployeeByCode } from "@/server/db/employees";
 import { findPositionShiftsByKeys } from "@/server/db/positions";
@@ -620,9 +620,10 @@ export async function summarizeForPayroll(
   to: Date,
   standardShiftMinutes: number,
 ): Promise<PayrollAttendanceSummary> {
-  const [entries, records] = await Promise.all([
+  const [entries, records, approvedAbsences] = await Promise.all([
     findEntriesForEmployee(employeeId, from, to),
     findRecordsForEmployee(employeeId, from, to),
+    findApprovedAbsenceRequestsForEmployeeInRange(employeeId, from, to),
   ]);
   const recByDate = new Map(
     records.map((r) => [r.date.toISOString().slice(0, 10), r]),
@@ -639,9 +640,12 @@ export async function summarizeForPayroll(
   let deductionDays = 0;
   // Days worked keyed by the branch that recorded them, for per-branch gross pay.
   const daysByBranch = new Map<string | null, number>();
+  // Track dates that have a schedule entry so we can exclude them from approved-absence counting.
+  const scheduledDateSet = new Set<string>();
 
   for (const entry of entries) {
     scheduledDays++;
+    scheduledDateSet.add(entry.date.toISOString().slice(0, 10));
     const rec = recByDate.get(entry.date.toISOString().slice(0, 10));
     const cmp = compareDay({
       startTime: entry.startTime,
@@ -684,6 +688,24 @@ export async function summarizeForPayroll(
     }
   }
 
+  // Count approved absence days that fall within the period but have no schedule entry.
+  // These would otherwise be misclassified as plain "day-off" days on the payslip.
+  const fromStr = from.toISOString().slice(0, 10);
+  const toStr = to.toISOString().slice(0, 10);
+  let approvedAbsenceDays = 0;
+  const countedAbsenceDates = new Set<string>();
+  for (const ar of approvedAbsences) {
+    const endMs = ar.endDate ? ar.endDate.getTime() : ar.date.getTime();
+    for (let t = ar.date.getTime(); t <= endMs; t += 86_400_000) {
+      const dateStr = new Date(t).toISOString().slice(0, 10);
+      if (dateStr < fromStr || dateStr > toStr) continue;
+      if (scheduledDateSet.has(dateStr)) continue;
+      if (countedAbsenceDates.has(dateStr)) continue;
+      countedAbsenceDates.add(dateStr);
+      approvedAbsenceDays++;
+    }
+  }
+
   return {
     hasSchedule: scheduledDays > 0,
     scheduledDays,
@@ -699,5 +721,6 @@ export async function summarizeForPayroll(
       branchId,
       daysWorked: days,
     })),
+    ...(approvedAbsenceDays > 0 ? { approvedAbsenceDays } : {}),
   };
 }

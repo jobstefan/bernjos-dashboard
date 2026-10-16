@@ -43,8 +43,10 @@ export default async function PeriodDetailPage({
   const rows: RunItemRow[] = items.map((item) => {
     const dwMatch = item.notes?.match(/Attendance: (\d+) day/)?.[1];
     const abMatch = item.notes?.match(/(\d+) absent/)?.[1];
+    const apabMatch = item.notes?.match(/(\d+) approved-absent/)?.[1];
     const dw = dwMatch ? parseInt(dwMatch, 10) : undefined;
     const ab = abMatch ? parseInt(abMatch, 10) : undefined;
+    const apab = apabMatch ? parseInt(apabMatch, 10) : undefined;
     const scheduled = dw != null ? (dw + (ab ?? 0)) : undefined;
     return {
       id: item.id,
@@ -80,7 +82,8 @@ export default async function PeriodDetailPage({
       })),
       daysWorked: dw,
       absentDays: ab,
-      dayOffDays: scheduled != null ? Math.max(0, calendarDays - scheduled) : undefined,
+      approvedAbsenceDays: apab,
+      dayOffDays: scheduled != null ? Math.max(0, calendarDays - scheduled - (apab ?? 0)) : undefined,
     };
   });
 

@@ -59,6 +59,8 @@ export interface DeductionBreakdown {
   attendanceTracked: boolean;
   /** Scheduled days with no attendance record (0 when not tracked). */
   absentDays: number;
+  /** Approved absence request days with no schedule entry (0 when none). */
+  approvedAbsenceDays?: number;
   /** Deductible late minutes from the first minute, summed (0 when not tracked). */
   lateMinutes: number;
   /** Early-out minutes, summed (0 when not tracked). */
@@ -168,7 +170,9 @@ export interface Payslip {
   daysWorked?: number;
   /** Scheduled days with no attendance record (0 when not tracked). */
   absentDays?: number;
-  /** Calendar days in the period minus scheduled days (0 when not tracked). */
+  /** Approved absence request days with no schedule entry (only set when tracked). */
+  approvedAbsenceDays?: number;
+  /** Calendar days in the period minus scheduled+absence days (0 when not tracked). */
   dayOffDays?: number;
 }
 

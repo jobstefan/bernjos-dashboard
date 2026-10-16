@@ -80,6 +80,7 @@ export default async function EmployeeProfilePage({
     branchBreakdown: p.branchBreakdown,
     daysWorked: p.daysWorked,
     absentDays: p.absentDays,
+    approvedAbsenceDays: p.approvedAbsenceDays,
     dayOffDays: p.dayOffDays,
   }));
 

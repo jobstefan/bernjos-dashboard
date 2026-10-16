@@ -85,7 +85,7 @@ export function markChargesCompleted(periodId: string) {
 
 export function resetChargesForPeriod(periodId: string) {
   return prisma.charge.updateMany({
-    where: { appliedPeriodId: periodId, status: "applied" },
+    where: { appliedPeriodId: periodId, status: "applied", deletedAt: null },
     data: { status: "pending", appliedPeriodId: null, appliedAt: null },
   });
 }
