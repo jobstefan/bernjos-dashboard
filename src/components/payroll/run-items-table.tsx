@@ -354,7 +354,6 @@ export function RunItemsTable({
             totalStatutory={
               branchSplitRow.sssEmployee +
               branchSplitRow.philhealthEmployee +
-              branchSplitRow.lateDeduction +
               branchSplitRow.savingsContribution
             }
             branches={branchSplitRow.branchBreakdown.map((b) => {
