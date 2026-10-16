@@ -61,6 +61,7 @@ export interface RunItemRow {
   }[];
   daysWorked?: number;
   absentDays?: number;
+  approvedAbsenceDays?: number;
   dayOffDays?: number;
   lateMinutes?: number;
   undertimeMinutes?: number;

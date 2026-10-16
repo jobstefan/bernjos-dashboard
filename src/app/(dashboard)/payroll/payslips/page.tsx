@@ -60,6 +60,7 @@ export default async function MyPayslipsPage() {
     branchBreakdown: p.branchBreakdown,
     daysWorked: p.daysWorked,
     absentDays: p.absentDays,
+    approvedAbsenceDays: p.approvedAbsenceDays,
     dayOffDays: p.dayOffDays,
   }));
 
