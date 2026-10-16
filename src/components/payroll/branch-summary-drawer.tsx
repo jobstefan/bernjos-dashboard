@@ -24,38 +24,58 @@ export function BranchSummaryDrawer({
 }: BranchSummaryDrawerProps) {
   const includedRows = rows.filter((r) => r.status === "included");
 
-  // Step 1 — net pay per branch from branch breakdown
+  type BranchEmpRow = { name: string; daysWorked: number; gross: number; contrib: number; netCash: number };
+  type BranchEntry = { totalGross: number; totalContrib: number; totalNetCash: number; employees: BranchEmpRow[] };
+
+  // Build per-branch employee breakdown in one pass
+  const branchMap2 = new Map<string, BranchEntry>();
+  for (const row of includedRows) {
+    const totalDays = row.branchBreakdown.reduce((s, b) => s + b.daysWorked, 0);
+    if (totalDays === 0) continue;
+    const statutory = row.sssEmployee + row.philhealthEmployee + row.lateDeduction + row.savingsContribution;
+    let allocatedContrib = 0;
+    row.branchBreakdown.forEach((b, i) => {
+      const isLast = i === row.branchBreakdown.length - 1;
+      const gross = Math.round(b.daysWorked * row.basicSalary * 100) / 100;
+      const contrib = isLast
+        ? Math.round((statutory - allocatedContrib) * 100) / 100
+        : Math.round(statutory * (b.daysWorked / totalDays) * 100) / 100;
+      allocatedContrib = Math.round((allocatedContrib + contrib) * 100) / 100;
+      const netCash =
+        branchCash
+          ?.find((bc) => bc.branchName === b.branchName)
+          ?.employees.find((e) => e.profileId === row.employeeId)
+          ?.netCash ?? b.netPay;
+      const entry = branchMap2.get(b.branchName) ?? { totalGross: 0, totalContrib: 0, totalNetCash: 0, employees: [] };
+      entry.totalGross = Math.round((entry.totalGross + gross) * 100) / 100;
+      entry.totalContrib = Math.round((entry.totalContrib + contrib) * 100) / 100;
+      entry.totalNetCash = Math.round((entry.totalNetCash + netCash) * 100) / 100;
+      entry.employees.push({ name: row.employeeName, daysWorked: b.daysWorked, gross, contrib, netCash });
+      branchMap2.set(b.branchName, entry);
+    });
+  }
+
+  const branches = [...branchMap2.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, entry]) => ({
+      branchName: name,
+      ...entry,
+      employees: [...entry.employees].sort((a, b) => a.name.localeCompare(b.name)),
+    }));
+
+  const runTotalNetPay = Math.round(includedRows.reduce((s, r) => s + r.netPay, 0) * 100) / 100;
+  const runTotalGross = Math.round(includedRows.reduce((s, r) => s + r.grossPay, 0) * 100) / 100;
+
+  // net pay per branch (for disbursement logic below)
   const netPayMap = new Map<string, number>();
   for (const row of includedRows) {
     for (const b of row.branchBreakdown) {
       netPayMap.set(b.branchName, Math.round(((netPayMap.get(b.branchName) ?? 0) + b.netPay) * 100) / 100);
     }
   }
-
-  // Step 2 — net cash per branch (for display in branch table only)
-  const netCashMap = new Map<string, number>();
   const includedIds = new Set(includedRows.map((r) => r.employeeId));
-  for (const bcRow of branchCash ?? []) {
-    const total = bcRow.employees
-      .filter((e) => includedIds.has(e.profileId))
-      .reduce((s, e) => s + e.netCash, 0);
-    if (total !== 0) {
-      netCashMap.set(bcRow.branchName, Math.round(total * 100) / 100);
-    }
-  }
 
-  // Step 3 — merged, sorted branch list for the table
-  const branches = [...new Set([...netPayMap.keys(), ...netCashMap.keys()])]
-    .sort()
-    .map((name) => ({
-      branchName: name,
-      totalNetPay: netPayMap.get(name) ?? 0,
-      totalNetCash: netCashMap.get(name) ?? 0,
-    }));
-
-  const runTotalNetPay = Math.round(includedRows.reduce((s, r) => s + r.netPay, 0) * 100) / 100;
-
-  // Step 4 — aggregate per-employee Phase 1+2 to get cash-to-disburse totals per deficit branch
+  // Step 5 — aggregate per-employee Phase 1+2 to get cash-to-disburse totals per deficit branch
   type DisbursementEntry = { sourceBranch: string; amount: number };
   const disbursementMap = new Map<string, DisbursementEntry[]>(); // deficitBranch → sources[]
 
@@ -148,25 +168,60 @@ export function BranchSummaryDrawer({
           <p className="text-sm text-muted-foreground">No branch data available for this period.</p>
         ) : (
           <>
-            {/* Branch table */}
-            <div>
-              <div className="mb-1 grid grid-cols-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <span>Branch</span>
-                <span className="text-right">Net Pay</span>
-                <span className="text-right">Net Cash</span>
-              </div>
-              {branches.map((b) => (
-                <div key={b.branchName} className="grid grid-cols-3 items-center py-1.5 text-sm">
-                  <span className="text-foreground">{b.branchName}</span>
-                  <span className="text-right font-mono text-muted-foreground">
-                    {formatPeso(b.totalNetPay)}
-                  </span>
-                  <span className={
-                    "text-right font-mono font-medium " +
-                    (b.totalNetCash < 0 ? "text-destructive" : "text-foreground")
-                  }>
-                    {b.totalNetCash < 0 ? "-" : ""}{formatPeso(Math.abs(b.totalNetCash))}
-                  </span>
+            {/* Branch table with per-employee rows */}
+            <div className="space-y-4">
+              {branches.map((branch) => (
+                <div key={branch.branchName}>
+                  {/* Branch header */}
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {branch.branchName}
+                    </span>
+                  </div>
+                  {/* Column headers */}
+                  <div className="mb-0.5 grid grid-cols-4 text-xs text-muted-foreground/70">
+                    <span>Employee</span>
+                    <span className="text-right">Gross</span>
+                    <span className="text-right">Contribs</span>
+                    <span className="text-right">Net Cash</span>
+                  </div>
+                  {/* Employee rows */}
+                  {branch.employees.map((emp) => (
+                    <div key={emp.name} className="grid grid-cols-4 items-baseline py-1 text-sm border-b border-border/40 last:border-0">
+                      <div>
+                        <span className="text-foreground">{emp.name}</span>
+                        <span className="ml-1.5 text-xs text-muted-foreground">{emp.daysWorked}d</span>
+                      </div>
+                      <span className="text-right font-mono text-foreground">
+                        {formatPeso(emp.gross)}
+                      </span>
+                      <span className="text-right font-mono text-amber-700 dark:text-amber-400">
+                        -{formatPeso(emp.contrib)}
+                      </span>
+                      <span className={
+                        "text-right font-mono font-medium " +
+                        (emp.netCash < 0 ? "text-destructive" : "text-foreground")
+                      }>
+                        {emp.netCash < 0 ? "-" : ""}{formatPeso(Math.abs(emp.netCash))}
+                      </span>
+                    </div>
+                  ))}
+                  {/* Branch total */}
+                  <div className="grid grid-cols-4 items-baseline pt-1.5 text-sm font-semibold">
+                    <span className="text-muted-foreground text-xs uppercase tracking-wide">Total</span>
+                    <span className="text-right font-mono text-foreground">
+                      {formatPeso(branch.totalGross)}
+                    </span>
+                    <span className="text-right font-mono text-amber-700 dark:text-amber-400">
+                      -{formatPeso(branch.totalContrib)}
+                    </span>
+                    <span className={
+                      "text-right font-mono " +
+                      (branch.totalNetCash < 0 ? "text-destructive" : "text-foreground")
+                    }>
+                      {branch.totalNetCash < 0 ? "-" : ""}{formatPeso(Math.abs(branch.totalNetCash))}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -230,11 +285,19 @@ export function BranchSummaryDrawer({
 
             <Separator />
 
-            <div className="rounded-lg bg-muted/50 px-4 py-3 flex items-center justify-between">
-              <span className="text-sm font-semibold text-foreground">Total Net Pay</span>
-              <span className="font-mono text-xl font-bold text-foreground">
-                {formatPeso(runTotalNetPay)}
-              </span>
+            <div className="rounded-lg bg-muted/50 px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-foreground">Total Gross</span>
+                <span className="font-mono text-lg font-bold text-foreground">
+                  {formatPeso(runTotalGross)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Total Net Pay</span>
+                <span className="font-mono text-lg font-semibold text-foreground">
+                  {formatPeso(runTotalNetPay)}
+                </span>
+              </div>
             </div>
           </>
         )}

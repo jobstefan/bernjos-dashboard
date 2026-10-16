@@ -8,6 +8,10 @@ export interface BranchSplitProps {
   employeeName: string;
   position: string;
   periodLabel: string;
+  /** Employee's daily rate (basic salary). Used to compute gross contribution per branch. */
+  dailyRate: number;
+  /** Sum of SSS + PhilHealth + late deduction + savings contribution for this run item. */
+  totalStatutory: number;
   branches: {
     branchName: string;
     daysWorked: number;
@@ -22,6 +26,8 @@ export function BranchSplitBreakdown({
   employeeName,
   position,
   periodLabel,
+  dailyRate,
+  totalStatutory,
   branches,
   totalNetPay,
 }: BranchSplitProps) {
@@ -120,28 +126,63 @@ export function BranchSplitBreakdown({
 
       <Separator />
 
-      {/* Branch table */}
+      {/* Branch table — gross contribution per branch */}
       <div>
         <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Branch
         </div>
-        {branches.map((b) => (
-          <div key={b.branchName} className="flex items-center justify-between py-1.5 text-sm">
-            <div>
-              <span className="text-foreground">{b.branchName}</span>
-              <span className="ml-2 text-xs text-muted-foreground">
-                {b.daysWorked} day{b.daysWorked !== 1 ? "s" : ""}
+        {branches.map((b) => {
+          const gross = Math.round(b.daysWorked * dailyRate * 100) / 100;
+          return (
+            <div key={b.branchName} className="flex items-center justify-between py-1.5 text-sm">
+              <div>
+                <span className="text-foreground">{b.branchName}</span>
+                <span className="ml-2 text-xs text-muted-foreground">
+                  {b.daysWorked} day{b.daysWorked !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <span className="font-mono font-medium text-foreground">
+                {formatPeso(gross)}
               </span>
             </div>
-            <span className={
-              "font-mono font-medium " +
-              (b.netCash < 0 ? "text-destructive" : "text-foreground")
-            }>
-              {b.netCash < 0 ? "-" : ""}{formatPeso(Math.abs(b.netCash))}
-            </span>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
+      {/* Contributions — per-branch share of statutory deductions */}
+      {totalStatutory > 0 && (() => {
+        const totalBranchDays = branches.reduce((s, b) => s + b.daysWorked, 0);
+        if (totalBranchDays === 0) return null;
+        let allocated = 0;
+        const contribRows = branches.map((b, i) => {
+          const isLast = i === branches.length - 1;
+          const share = isLast
+            ? Math.round((totalStatutory - allocated) * 100) / 100
+            : Math.round(totalStatutory * (b.daysWorked / totalBranchDays) * 100) / 100;
+          allocated = Math.round((allocated + share) * 100) / 100;
+          return { branchName: b.branchName, amount: share };
+        });
+        return (
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Contributions <span className="normal-case font-normal">(SSS · PhilHealth · Savings)</span>
+              </div>
+              {contribRows.map((c) => (
+                <div key={c.branchName} className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm">
+                  <div className="flex items-center gap-1.5 font-medium text-amber-700 dark:text-amber-400">
+                    <span>Get</span>
+                    <span className="font-mono font-semibold">{formatPeso(c.amount)}</span>
+                    <span>from</span>
+                    <span className="font-semibold">{c.branchName}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        );
+      })()}
 
       {/* Net Pay sourcing — which branch(es) to pull net pay from */}
       <Separator />
