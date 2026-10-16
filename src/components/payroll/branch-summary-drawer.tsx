@@ -24,10 +24,9 @@ export function BranchSummaryDrawer({
 }: BranchSummaryDrawerProps) {
   const includedRows = rows.filter((r) => r.status === "included");
 
-  type BranchEmpRow = { name: string; daysWorked: number; gross: number; contrib: number; netCash: number };
-  type BranchEntry = { totalGross: number; totalContrib: number; totalNetCash: number; employees: BranchEmpRow[] };
+  type BranchEntry = { totalGross: number; totalContrib: number; totalNetCash: number };
 
-  // Build per-branch employee breakdown in one pass
+  // Build per-branch totals in one pass
   const branchMap2 = new Map<string, BranchEntry>();
   for (const row of includedRows) {
     const totalDays = row.branchBreakdown.reduce((s, b) => s + b.daysWorked, 0);
@@ -46,22 +45,17 @@ export function BranchSummaryDrawer({
           ?.find((bc) => bc.branchName === b.branchName)
           ?.employees.find((e) => e.profileId === row.employeeId)
           ?.netCash ?? b.netPay;
-      const entry = branchMap2.get(b.branchName) ?? { totalGross: 0, totalContrib: 0, totalNetCash: 0, employees: [] };
+      const entry = branchMap2.get(b.branchName) ?? { totalGross: 0, totalContrib: 0, totalNetCash: 0 };
       entry.totalGross = Math.round((entry.totalGross + gross) * 100) / 100;
       entry.totalContrib = Math.round((entry.totalContrib + contrib) * 100) / 100;
       entry.totalNetCash = Math.round((entry.totalNetCash + netCash) * 100) / 100;
-      entry.employees.push({ name: row.employeeName, daysWorked: b.daysWorked, gross, contrib, netCash });
       branchMap2.set(b.branchName, entry);
     });
   }
 
   const branches = [...branchMap2.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([name, entry]) => ({
-      branchName: name,
-      ...entry,
-      employees: [...entry.employees].sort((a, b) => a.name.localeCompare(b.name)),
-    }));
+    .map(([name, entry]) => ({ branchName: name, ...entry }));
 
   const runTotalNetPay = Math.round(includedRows.reduce((s, r) => s + r.netPay, 0) * 100) / 100;
   const runTotalGross = Math.round(includedRows.reduce((s, r) => s + r.grossPay, 0) * 100) / 100;
@@ -168,60 +162,29 @@ export function BranchSummaryDrawer({
           <p className="text-sm text-muted-foreground">No branch data available for this period.</p>
         ) : (
           <>
-            {/* Branch table with per-employee rows */}
-            <div className="space-y-4">
-              {branches.map((branch) => (
-                <div key={branch.branchName}>
-                  {/* Branch header */}
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {branch.branchName}
-                    </span>
-                  </div>
-                  {/* Column headers */}
-                  <div className="mb-0.5 grid grid-cols-4 text-xs text-muted-foreground/70">
-                    <span>Employee</span>
-                    <span className="text-right">Gross</span>
-                    <span className="text-right">Contribs</span>
-                    <span className="text-right">Net Cash</span>
-                  </div>
-                  {/* Employee rows */}
-                  {branch.employees.map((emp) => (
-                    <div key={emp.name} className="grid grid-cols-4 items-baseline py-1 text-sm border-b border-border/40 last:border-0">
-                      <div>
-                        <span className="text-foreground">{emp.name}</span>
-                        <span className="ml-1.5 text-xs text-muted-foreground">{emp.daysWorked}d</span>
-                      </div>
-                      <span className="text-right font-mono text-foreground">
-                        {formatPeso(emp.gross)}
-                      </span>
-                      <span className="text-right font-mono text-amber-700 dark:text-amber-400">
-                        -{formatPeso(emp.contrib)}
-                      </span>
-                      <span className={
-                        "text-right font-mono font-medium " +
-                        (emp.netCash < 0 ? "text-destructive" : "text-foreground")
-                      }>
-                        {emp.netCash < 0 ? "-" : ""}{formatPeso(Math.abs(emp.netCash))}
-                      </span>
-                    </div>
-                  ))}
-                  {/* Branch total */}
-                  <div className="grid grid-cols-4 items-baseline pt-1.5 text-sm font-semibold">
-                    <span className="text-muted-foreground text-xs uppercase tracking-wide">Total</span>
-                    <span className="text-right font-mono text-foreground">
-                      {formatPeso(branch.totalGross)}
-                    </span>
-                    <span className="text-right font-mono text-amber-700 dark:text-amber-400">
-                      -{formatPeso(branch.totalContrib)}
-                    </span>
-                    <span className={
-                      "text-right font-mono " +
-                      (branch.totalNetCash < 0 ? "text-destructive" : "text-foreground")
-                    }>
-                      {branch.totalNetCash < 0 ? "-" : ""}{formatPeso(Math.abs(branch.totalNetCash))}
-                    </span>
-                  </div>
+            {/* Branch table */}
+            <div>
+              <div className="mb-1 grid grid-cols-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <span>Branch</span>
+                <span className="text-right">Gross</span>
+                <span className="text-right">Contribs</span>
+                <span className="text-right">Net Cash</span>
+              </div>
+              {branches.map((b) => (
+                <div key={b.branchName} className="grid grid-cols-4 items-center py-1.5 text-sm">
+                  <span className="text-foreground">{b.branchName}</span>
+                  <span className="text-right font-mono font-medium text-foreground">
+                    {formatPeso(b.totalGross)}
+                  </span>
+                  <span className="text-right font-mono text-amber-700 dark:text-amber-400">
+                    -{formatPeso(b.totalContrib)}
+                  </span>
+                  <span className={
+                    "text-right font-mono font-medium " +
+                    (b.totalNetCash < 0 ? "text-destructive" : "text-foreground")
+                  }>
+                    {b.totalNetCash < 0 ? "-" : ""}{formatPeso(Math.abs(b.totalNetCash))}
+                  </span>
                 </div>
               ))}
             </div>
