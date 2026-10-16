@@ -350,6 +350,13 @@ export function RunItemsTable({
             employeeName={branchSplitRow.employeeName}
             position={branchSplitRow.position}
             periodLabel={periodLabel}
+            dailyRate={branchSplitRow.basicSalary}
+            totalStatutory={
+              branchSplitRow.sssEmployee +
+              branchSplitRow.philhealthEmployee +
+              branchSplitRow.lateDeduction +
+              branchSplitRow.savingsContribution
+            }
             branches={branchSplitRow.branchBreakdown.map((b) => {
               const netCash = branchCash
                 ?.find((r) => r.branchName === b.branchName)
