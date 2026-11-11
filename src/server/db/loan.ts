@@ -73,6 +73,22 @@ export async function findPendingRepaymentsForEmployee(profileId: string) {
   return results.filter((r) => r !== null);
 }
 
+/**
+ * ALL pending, untagged repayments across a profile's active loans — used by
+ * off-cycle (final pay) runs to settle the entire loan at once. Paused loans
+ * are included: a final settlement overrides a pause.
+ */
+export function findAllPendingRepaymentsForEmployee(profileId: string) {
+  return prisma.loanRepayment.findMany({
+    where: {
+      status: "pending",
+      appliedPeriodId: { equals: null },
+      loan: { profileId, status: "active", deletedAt: null },
+    },
+    orderBy: [{ loanId: "asc" }, { installmentNo: "asc" }],
+  });
+}
+
 export function insertLoan(data: Prisma.LoanCreateInput) {
   return prisma.loan.create({ data });
 }

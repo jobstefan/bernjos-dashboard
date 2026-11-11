@@ -85,6 +85,31 @@ export function findActiveEmployeesByFrequency(
   });
 }
 
+/** Find specific profiles by ID — any employment status, used for off-cycle runs. */
+export function findEmployeesByIds(ids: string[]) {
+  return prisma.userProfile.findMany({
+    where: { id: { in: ids }, deletedAt: null, ...EXCLUDE_ELEVATED },
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+  });
+}
+
+/** All non-deleted, non-elevated profiles — used to populate the off-cycle employee picker. */
+export function findSelectableEmployees() {
+  return prisma.userProfile.findMany({
+    where: { deletedAt: null, ...EXCLUDE_ELEVATED },
+    select: {
+      id: true,
+      employeeCode: true,
+      firstName: true,
+      lastName: true,
+      middleName: true,
+      employmentStatus: true,
+      payFrequency: true,
+    },
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+  });
+}
+
 export function insertEmployee(data: Prisma.UserProfileCreateInput) {
   return prisma.userProfile.create({ data });
 }

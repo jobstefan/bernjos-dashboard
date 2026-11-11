@@ -11,6 +11,8 @@ export const employmentStatusEnum = z.enum([
 
 export const payFrequencyEnum = z.enum(["semi_monthly", "monthly"]);
 
+export const payrollRunTypeEnum = z.enum(["regular", "off_cycle"]);
+
 export const payrollStatusEnum = z.enum([
   "draft",
   "calculated",
@@ -67,10 +69,16 @@ export const createPeriodSchema = z
     payDate: dateField,
     frequency: payFrequencyEnum,
     notes: z.string().trim().optional().nullable(),
+    runType: payrollRunTypeEnum.default("regular"),
+    selectedProfileIds: z.array(z.string().min(1)).default([]),
   })
   .refine((v) => v.periodEnd >= v.periodStart, {
     message: "Period end must be on or after the start date.",
     path: ["periodEnd"],
+  })
+  .refine((v) => v.runType !== "off_cycle" || v.selectedProfileIds.length > 0, {
+    message: "Select at least one employee for an off-cycle run.",
+    path: ["selectedProfileIds"],
   });
 
 export const updatePeriodDatesSchema = z
