@@ -54,6 +54,7 @@ export default async function MyPayslipsPage() {
     loanDeduction: p.loanDeduction,
     chargeDeduction: p.chargeDeduction,
     savingsContribution: p.savingsContribution,
+    savingsPayout: p.savingsPayout,
     totalDeductions: p.totalDeductions,
     netPay: p.netPay,
     remarks: p.remarks,

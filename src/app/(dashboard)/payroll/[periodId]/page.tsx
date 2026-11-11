@@ -7,6 +7,7 @@ import { getPayrollRunItems } from "@/server/services/payroll.service";
 import { formatEmployeeName } from "@/lib/utils/format-name";
 import { getPeriodDeductionMix, getBranchCashForPeriod } from "@/server/services/analytics.service";
 import { StatusBadge } from "@/components/payroll/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { PeriodActions } from "@/components/payroll/period-actions";
 import { ChartCard } from "@/components/charts/chart-card";
@@ -71,6 +72,7 @@ export default async function PeriodDetailPage({
       otherEarnings: Number(item.otherEarnings),
       incentiveEarnings: Number(item.incentiveEarnings),
       savingsContribution: Number(item.savingsContribution),
+      savingsPayout: Number(item.savingsPayout),
       totalDeductions: Number(item.totalDeductions),
       netPay: Number(item.netPay),
       status: item.status,
@@ -132,6 +134,9 @@ export default async function PeriodDetailPage({
             <h1 className="text-2xl font-bold tracking-tight">
               {period.periodLabel}
             </h1>
+            {period.runType === "off_cycle" && (
+              <Badge variant="outline">Off-cycle</Badge>
+            )}
             <StatusBadge status={period.status} />
           </div>
           <p className="text-sm text-muted-foreground">

@@ -10,6 +10,7 @@ import type {
   ChargeStatus,
   EmploymentStatus,
   PayFrequency,
+  PayrollRunType,
   PayrollStatus,
   RunItemStatus,
 } from "@/generated/prisma/enums";
@@ -27,6 +28,7 @@ export type {
   ChargeStatus,
   EmploymentStatus,
   PayFrequency,
+  PayrollRunType,
   PayrollStatus,
   RunItemStatus,
 };
@@ -99,6 +101,8 @@ export interface CreatePeriodInput {
   payDate: Date;
   frequency: PayFrequency;
   notes?: string | null;
+  runType?: PayrollRunType;
+  selectedProfileIds?: string[];
 }
 
 export interface PayrollRunResult {
@@ -159,6 +163,8 @@ export interface Payslip {
   breakMinutes: number;
   /** User savings withheld into their account — not a deduction. */
   savingsContribution: number;
+  /** Full savings balance paid out on an off-cycle final-pay run. An earning line. */
+  savingsPayout: number;
   totalDeductions: number;
   netPay: number;
   status: RunItemStatus;

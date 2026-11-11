@@ -23,17 +23,34 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  EmployeeMultiSelect,
+  type EmployeeSelectOption,
+} from "@/components/ui/employee-multi-select";
 import { createPeriodAction } from "@/app/actions/payroll.actions";
 
-export function NewPeriodDialog() {
+interface Props {
+  employees?: EmployeeSelectOption[];
+}
+
+export function NewPeriodDialog({ employees = [] }: Props) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
   const [frequency, setFrequency] = React.useState<"semi_monthly" | "monthly">(
     "semi_monthly",
   );
+  const [runType, setRunType] = React.useState<"regular" | "off_cycle">("regular");
+  const [selectedProfileIds, setSelectedProfileIds] = React.useState<string[]>([]);
   const [errors, setErrors] = React.useState<Record<string, string[]>>({});
   const [formError, setFormError] = React.useState<string | null>(null);
+
+  function resetState() {
+    setErrors({});
+    setFormError(null);
+    setRunType("regular");
+    setSelectedProfileIds([]);
+  }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -45,6 +62,8 @@ export function NewPeriodDialog() {
       payDate: String(form.get("payDate") ?? ""),
       frequency,
       notes: String(form.get("notes") ?? ""),
+      runType,
+      selectedProfileIds,
     };
     setErrors({});
     setFormError(null);
@@ -68,10 +87,7 @@ export function NewPeriodDialog() {
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (!next) {
-          setErrors({});
-          setFormError(null);
-        }
+        if (!next) resetState();
       }}
     >
       <DialogTrigger
@@ -101,6 +117,42 @@ export function NewPeriodDialog() {
             <Field label="Period label" error={errors.periodLabel}>
               <Input name="periodLabel" placeholder="e.g. July 1–15 2025" />
             </Field>
+
+            <div className="grid gap-2">
+              <Label>Run type</Label>
+              <Select
+                value={runType}
+                onValueChange={(v) => setRunType(v as "regular" | "off_cycle")}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="regular">Regular</SelectItem>
+                  <SelectItem value="off_cycle">Off-cycle (final pay, back pay)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {runType === "off_cycle" && (
+              <>
+                <Field label="Employees" error={errors.selectedProfileIds}>
+                  <EmployeeMultiSelect
+                    employees={employees}
+                    value={selectedProfileIds}
+                    onValueChange={setSelectedProfileIds}
+                    placeholder="Search and select employees…"
+                  />
+                </Field>
+                <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                  <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+                  <span>
+                    Separated employees will have their full savings balance paid out and all outstanding loans settled in full.
+                  </span>
+                </div>
+              </>
+            )}
+
             <div className="grid gap-2">
               <Label>Frequency</Label>
               <Select

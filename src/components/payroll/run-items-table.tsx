@@ -50,6 +50,7 @@ export interface RunItemRow {
   otherEarnings: number;
   incentiveEarnings: number;
   savingsContribution: number;
+  savingsPayout?: number;
   totalDeductions: number;
   netPay: number;
   status: "included" | "excluded";
@@ -142,7 +143,7 @@ export function RunItemsTable({
         header: "Earnings",
         enableSorting: false,
         cell: ({ row }) =>
-          money(row.original.otherEarnings + row.original.incentiveEarnings),
+          money(row.original.otherEarnings + row.original.incentiveEarnings + (row.original.savingsPayout ?? 0)),
       },
       {
         id: "govtContrib",

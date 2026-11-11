@@ -23,6 +23,8 @@ export interface PayslipView {
   loanDeduction?: number;
   chargeDeduction?: number;
   savingsContribution: number;
+  /** Full savings balance paid out on an off-cycle final-pay run. 0 on regular runs. */
+  savingsPayout?: number;
   totalDeductions: number;
   netPay: number;
   remarks?: string | null;
@@ -97,6 +99,14 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
         ) : null}
         {(payslip.incentiveEarnings ?? 0) > 0 ? (
           <Line label="Incentive" value={payslip.incentiveEarnings!} />
+        ) : null}
+        {(payslip.savingsPayout ?? 0) > 0 ? (
+          <>
+            <Line label="Savings payout" value={payslip.savingsPayout!} />
+            <p className="pb-1 text-xs text-muted-foreground">
+              Full savings balance released — final settlement.
+            </p>
+          </>
         ) : null}
       </div>
 
