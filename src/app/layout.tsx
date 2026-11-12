@@ -19,6 +19,10 @@ export const metadata: Metadata = {
   title: "BernJos Dashboard",
   description:
     "BernJos Bread & Pastries — payroll, people, time & finance in one place.",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-icon.png",
+  },
 };
 
 export default function RootLayout({
