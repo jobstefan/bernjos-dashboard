@@ -69,6 +69,7 @@ export default async function SchedulePage({
       />
 
       <ScheduleBoard
+        key={dateIso}
         dateIso={dateIso}
         rows={rows}
         branches={branches}
