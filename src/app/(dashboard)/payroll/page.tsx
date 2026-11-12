@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { CalendarClock, TrendingUp, Users, Wallet } from "lucide-react";
 import { getCurrentRole, canViewPayroll, isAdmin } from "@/lib/auth/rbac";
 import { getPayrollPeriods } from "@/server/services/payroll.service";
+import { getSelectableEmployees } from "@/server/services/employee.service";
 import {
   getPayrollTrend,
   getPayrollHeadline,
@@ -24,7 +25,10 @@ export default async function PayrollPeriodsPage() {
   if (!canViewPayroll(role)) redirect("/");
   const admin = isAdmin(role);
 
-  const periods = await getPayrollPeriods();
+  const [periods, selectableEmployees] = await Promise.all([
+    getPayrollPeriods(),
+    admin ? getSelectableEmployees() : Promise.resolve([]),
+  ]);
 
   const rows: PeriodRow[] = periods.map((p) => ({
     id: p.id,
@@ -33,6 +37,7 @@ export default async function PayrollPeriodsPage() {
     periodEnd: p.periodEnd.toISOString(),
     payDate: p.payDate.toISOString(),
     frequency: p.frequency,
+    runType: p.runType,
     status: p.status,
     employeeCount: p._count.runItems,
     totalNet: p.runItems.reduce((sum, item) => sum + Number(item.netPay), 0),
@@ -57,7 +62,7 @@ export default async function PayrollPeriodsPage() {
             Manage payroll periods and run calculations.
           </p>
         </div>
-        {admin ? <NewPeriodDialog /> : null}
+        {admin ? <NewPeriodDialog employees={selectableEmployees} /> : null}
       </div>
 
       {headline && (
@@ -107,7 +112,7 @@ export default async function PayrollPeriodsPage() {
           icon={CalendarClock}
           title="No payroll periods yet"
           description="Create a payroll period to calculate statutory deductions and net pay for your employees."
-          action={admin ? <NewPeriodDialog /> : undefined}
+          action={admin ? <NewPeriodDialog employees={selectableEmployees} /> : undefined}
         />
       ) : (
         <PeriodsTable rows={rows} />

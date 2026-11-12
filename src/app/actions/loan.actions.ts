@@ -9,6 +9,8 @@ import {
   createLoanSchema,
   declineLoanSchema,
   disburseLoanSchema,
+  pauseLoanSchema,
+  resumeLoanSchema,
 } from "@/lib/validations/loan";
 import {
   adminCreateLoan,
@@ -18,8 +20,10 @@ import {
   declineLoan,
   deleteLoan,
   disburseLoan,
+  pauseLoan,
   requestLoan,
   requestLoanDeletion,
+  resumeLoan,
 } from "@/server/services/loan.service";
 import { toActionError } from "@/server/errors";
 import type { ActionResult } from "@/lib/types/action";
@@ -142,6 +146,38 @@ export async function cancelLoanAction(
       return { success: false, error: "Invalid request." };
     }
     await cancelLoan(parsed.data.id, actor);
+    revalidate();
+    return { success: true, data: undefined };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+/** Admin pauses an active loan — payroll deductions skipped until resumed. */
+export async function pauseLoanAction(input: unknown): Promise<ActionResult<void>> {
+  try {
+    const actor = await requireAdmin();
+    const parsed = pauseLoanSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: "Invalid request." };
+    }
+    await pauseLoan(parsed.data, actor);
+    revalidate();
+    return { success: true, data: undefined };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+/** Admin resumes a paused loan — deductions resume in the next payroll run. */
+export async function resumeLoanAction(input: unknown): Promise<ActionResult<void>> {
+  try {
+    const actor = await requireAdmin();
+    const parsed = resumeLoanSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: "Invalid request." };
+    }
+    await resumeLoan(parsed.data, actor);
     revalidate();
     return { success: true, data: undefined };
   } catch (error) {

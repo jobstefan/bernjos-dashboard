@@ -6,8 +6,9 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/payroll/data-table";
 import { DataCard } from "@/components/ui/data-card";
 import { StatusBadge } from "@/components/payroll/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { formatDate, formatPeso } from "@/lib/utils/payroll";
-import type { PayrollStatus } from "@/lib/types/payroll";
+import type { PayrollRunType, PayrollStatus } from "@/lib/types/payroll";
 
 export interface PeriodRow {
   id: string;
@@ -16,6 +17,7 @@ export interface PeriodRow {
   periodEnd: string;
   payDate: string;
   frequency: "semi_monthly" | "monthly";
+  runType: PayrollRunType;
   status: PayrollStatus;
   employeeCount: number;
   totalNet: number;
@@ -30,7 +32,12 @@ export function PeriodsTable({ rows }: { rows: PeriodRow[] }) {
         accessorKey: "periodLabel",
         header: "Period",
         cell: ({ row }) => (
-          <div className="font-medium">{row.original.periodLabel}</div>
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{row.original.periodLabel}</span>
+            {row.original.runType === "off_cycle" && (
+              <Badge variant="outline">Off-cycle</Badge>
+            )}
+          </div>
         ),
       },
       {
@@ -94,7 +101,14 @@ export function PeriodsTable({ rows }: { rows: PeriodRow[] }) {
             { label: "Employees", value: <span className="font-mono">{row.employeeCount}</span> },
             { label: "Total Net", value: <span className="font-mono">{formatPeso(row.totalNet)}</span> },
           ]}
-          actions={<StatusBadge status={row.status} />}
+          actions={
+            <div className="flex items-center gap-2">
+              {row.runType === "off_cycle" && (
+                <Badge variant="outline">Off-cycle</Badge>
+              )}
+              <StatusBadge status={row.status} />
+            </div>
+          }
           onClick={() => router.push(`/payroll/${row.id}`)}
         />
       )}

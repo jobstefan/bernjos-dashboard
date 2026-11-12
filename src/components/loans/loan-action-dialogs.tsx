@@ -34,6 +34,8 @@ import {
   cancelLoanAction,
   declineLoanAction,
   disburseLoanAction,
+  pauseLoanAction,
+  resumeLoanAction,
 } from "@/app/actions/loan.actions";
 import { formatPeso } from "@/lib/utils/payroll";
 import type { LoanRow } from "@/lib/types/loan";
@@ -268,6 +270,132 @@ export function DisburseLoanDialog({
             </Button>
             <Button type="submit" disabled={pending}>
               {pending ? "Disbursing…" : "Disburse"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Pause ───────────────────────────────────────────────────────────────────
+
+export function PauseLoanDialog({
+  loan,
+  open,
+  onOpenChange,
+}: {
+  loan: LoanRow | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = React.useTransition();
+  const [reason, setReason] = React.useState("");
+
+  React.useEffect(() => {
+    if (open) setReason("");
+  }, [open]);
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!loan) return;
+    startTransition(async () => {
+      const res = await pauseLoanAction({ id: loan.id, reason: reason.trim() || null });
+      if (res.success) {
+        toast.success("Loan paused. Deductions will be skipped until resumed.");
+        onOpenChange(false);
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <form onSubmit={onSubmit}>
+          <DialogHeader>
+            <DialogTitle>Pause loan deductions?</DialogTitle>
+            <DialogDescription>
+              {loan
+                ? `Payroll deductions for ${loan.employeeName}'s ${formatPeso(loan.amount)} loan will be skipped until you resume it. The outstanding balance remains.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Reason (optional)</Label>
+              <Textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="e.g. employee request, maternity leave…"
+                maxLength={500}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={() => onOpenChange(false)} disabled={pending}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Pausing…" : "Pause deductions"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Resume ──────────────────────────────────────────────────────────────────
+
+export function ResumeLoanDialog({
+  loan,
+  open,
+  onOpenChange,
+}: {
+  loan: LoanRow | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = React.useTransition();
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!loan) return;
+    startTransition(async () => {
+      const res = await resumeLoanAction({ id: loan.id });
+      if (res.success) {
+        toast.success("Loan resumed. Deductions will resume in the next payroll run.");
+        onOpenChange(false);
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <form onSubmit={onSubmit}>
+          <DialogHeader>
+            <DialogTitle>Resume loan deductions?</DialogTitle>
+            <DialogDescription>
+              {loan
+                ? `Payroll deductions for ${loan.employeeName}'s ${formatPeso(loan.outstandingBalance)} outstanding balance will resume with the next payroll run.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={() => onOpenChange(false)} disabled={pending}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Resuming…" : "Resume deductions"}
             </Button>
           </DialogFooter>
         </form>

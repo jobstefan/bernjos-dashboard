@@ -23,6 +23,8 @@ export interface PayslipView {
   loanDeduction?: number;
   chargeDeduction?: number;
   savingsContribution: number;
+  /** Full savings balance paid out on an off-cycle final-pay run. 0 on regular runs. */
+  savingsPayout?: number;
   totalDeductions: number;
   netPay: number;
   remarks?: string | null;
@@ -34,7 +36,9 @@ export interface PayslipView {
   }[];
   /** Scheduled days the employee did not attend (only set when attendance-tracked). */
   absentDays?: number;
-  /** Calendar days in the period with no scheduled shift. */
+  /** Approved absence request days with no schedule entry (only set when tracked). */
+  approvedAbsenceDays?: number;
+  /** Calendar days in the period with no scheduled shift or approved absence. */
   dayOffDays?: number;
 }
 
@@ -96,9 +100,17 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
         {(payslip.incentiveEarnings ?? 0) > 0 ? (
           <Line label="Incentive" value={payslip.incentiveEarnings!} />
         ) : null}
+        {(payslip.savingsPayout ?? 0) > 0 ? (
+          <>
+            <Line label="Savings payout" value={payslip.savingsPayout!} />
+            <p className="pb-1 text-xs text-muted-foreground">
+              Full savings balance released — final settlement.
+            </p>
+          </>
+        ) : null}
       </div>
 
-      {((payslip.absentDays ?? 0) > 0 || (payslip.dayOffDays ?? 0) > 0) ? (
+      {((payslip.absentDays ?? 0) > 0 || (payslip.approvedAbsenceDays ?? 0) > 0 || (payslip.dayOffDays ?? 0) > 0) ? (
         <>
           <Separator />
           <div>
@@ -109,6 +121,12 @@ export function PayslipBreakdown({ payslip }: { payslip: PayslipView }) {
               <div className="flex items-center justify-between py-1.5 text-sm">
                 <span className="text-muted-foreground">Absent</span>
                 <span className="text-foreground">{payslip.absentDays} day{payslip.absentDays === 1 ? "" : "s"}</span>
+              </div>
+            ) : null}
+            {(payslip.approvedAbsenceDays ?? 0) > 0 ? (
+              <div className="flex items-center justify-between py-1.5 text-sm">
+                <span className="text-muted-foreground">Approved absence</span>
+                <span className="text-foreground">{payslip.approvedAbsenceDays} day{payslip.approvedAbsenceDays === 1 ? "" : "s"}</span>
               </div>
             ) : null}
             {(payslip.dayOffDays ?? 0) > 0 ? (

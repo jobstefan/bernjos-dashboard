@@ -49,27 +49,23 @@ export function getPayrollStatusColor(status: PayrollStatus): string {
 
 export function getCashAdvanceStatusLabel(status: CashAdvanceStatus): string {
   switch (status) {
-    case "pending":
-      return "Pending";
-    case "approved":
-      return "Approved";
-    case "declined":
-      return "Declined";
-    case "applied":
-      return "Applied";
-    case "cancelled":
-      return "Cancelled";
-    default:
-      return status;
+    case "pending":   return "Pending";
+    case "approved":  return "Approved";
+    case "declined":  return "Declined";
+    case "applied":   return "Applied";
+    case "completed": return "Completed";
+    case "cancelled": return "Cancelled";
+    default:          return status;
   }
 }
 
 export function getCashAdvanceStatusColor(status: CashAdvanceStatus): string {
   switch (status) {
     case "pending":   return toneClass("warning");
-    case "approved":  return toneClass("success");
+    case "approved":  return toneClass("warning");
     case "declined":  return toneClass("danger");
-    case "applied":   return toneClass("success");
+    case "applied":   return toneClass("info");
+    case "completed": return toneClass("success");
     case "cancelled": return toneClass("neutral");
     default:          return toneClass("neutral");
   }

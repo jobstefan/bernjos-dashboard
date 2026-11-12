@@ -10,6 +10,7 @@ import type {
   ChargeStatus,
   EmploymentStatus,
   PayFrequency,
+  PayrollRunType,
   PayrollStatus,
   RunItemStatus,
 } from "@/generated/prisma/enums";
@@ -27,6 +28,7 @@ export type {
   ChargeStatus,
   EmploymentStatus,
   PayFrequency,
+  PayrollRunType,
   PayrollStatus,
   RunItemStatus,
 };
@@ -59,6 +61,8 @@ export interface DeductionBreakdown {
   attendanceTracked: boolean;
   /** Scheduled days with no attendance record (0 when not tracked). */
   absentDays: number;
+  /** Approved absence request days with no schedule entry (0 when none). */
+  approvedAbsenceDays?: number;
   /** Deductible late minutes from the first minute, summed (0 when not tracked). */
   lateMinutes: number;
   /** Early-out minutes, summed (0 when not tracked). */
@@ -97,6 +101,8 @@ export interface CreatePeriodInput {
   payDate: Date;
   frequency: PayFrequency;
   notes?: string | null;
+  runType?: PayrollRunType;
+  selectedProfileIds?: string[];
 }
 
 export interface PayrollRunResult {
@@ -157,6 +163,8 @@ export interface Payslip {
   breakMinutes: number;
   /** User savings withheld into their account — not a deduction. */
   savingsContribution: number;
+  /** Full savings balance paid out on an off-cycle final-pay run. An earning line. */
+  savingsPayout: number;
   totalDeductions: number;
   netPay: number;
   status: RunItemStatus;
@@ -168,7 +176,9 @@ export interface Payslip {
   daysWorked?: number;
   /** Scheduled days with no attendance record (0 when not tracked). */
   absentDays?: number;
-  /** Calendar days in the period minus scheduled days (0 when not tracked). */
+  /** Approved absence request days with no schedule entry (only set when tracked). */
+  approvedAbsenceDays?: number;
+  /** Calendar days in the period minus scheduled+absence days (0 when not tracked). */
   dayOffDays?: number;
 }
 
@@ -185,7 +195,7 @@ export interface CashAdvanceFilters {
 }
 
 /** An incentive flattened for display in a table. */
-export type IncentiveStatus = "pending" | "applied" | "cancelled";
+export type IncentiveStatus = "pending" | "applied" | "completed" | "cancelled";
 
 export interface IncentiveRow {
   id: string;
@@ -217,6 +227,7 @@ export interface ChargeRow {
   status: ChargeStatus;
   appliedPeriodLabel: string | null;
   createdAt: string;
+  cancelledAt: string | null;
   deletionRequestedAt: string | null;
   deletionRequestedBy: string | null;
 }

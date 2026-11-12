@@ -50,6 +50,7 @@ export interface RunItemRow {
   otherEarnings: number;
   incentiveEarnings: number;
   savingsContribution: number;
+  savingsPayout?: number;
   totalDeductions: number;
   netPay: number;
   status: "included" | "excluded";
@@ -61,6 +62,7 @@ export interface RunItemRow {
   }[];
   daysWorked?: number;
   absentDays?: number;
+  approvedAbsenceDays?: number;
   dayOffDays?: number;
   lateMinutes?: number;
   undertimeMinutes?: number;
@@ -141,7 +143,7 @@ export function RunItemsTable({
         header: "Earnings",
         enableSorting: false,
         cell: ({ row }) =>
-          money(row.original.otherEarnings + row.original.incentiveEarnings),
+          money(row.original.otherEarnings + row.original.incentiveEarnings + (row.original.savingsPayout ?? 0)),
       },
       {
         id: "govtContrib",
@@ -349,6 +351,12 @@ export function RunItemsTable({
             employeeName={branchSplitRow.employeeName}
             position={branchSplitRow.position}
             periodLabel={periodLabel}
+            dailyRate={branchSplitRow.basicSalary}
+            totalStatutory={
+              branchSplitRow.sssEmployee +
+              branchSplitRow.philhealthEmployee +
+              branchSplitRow.savingsContribution
+            }
             branches={branchSplitRow.branchBreakdown.map((b) => {
               const netCash = branchCash
                 ?.find((r) => r.branchName === b.branchName)

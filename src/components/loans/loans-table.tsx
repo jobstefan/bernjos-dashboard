@@ -17,6 +17,8 @@ import {
   CancelLoanDialog,
   DeclineLoanDialog,
   DisburseLoanDialog,
+  PauseLoanDialog,
+  ResumeLoanDialog,
 } from "@/components/loans/loan-action-dialogs";
 import { LoanRepaymentLedger } from "@/components/loans/loan-repayment-ledger";
 import { DeletionFooter } from "@/components/ui/deletion-footer";
@@ -53,6 +55,19 @@ function LoanStatusBadge({ status }: { status: LoanStatus }) {
   );
 }
 
+function LoanPausedBadge() {
+  return (
+    <span
+      className={
+        "inline-flex rounded-full border px-2 py-0.5 text-xs font-medium " +
+        toneClass("warning")
+      }
+    >
+      Paused
+    </span>
+  );
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-PH", {
     year: "numeric",
@@ -79,6 +94,8 @@ export function LoansTable({
   const [toDecline, setToDecline] = React.useState<LoanRow | null>(null);
   const [toDisburse, setToDisburse] = React.useState<LoanRow | null>(null);
   const [toCancel, setToCancel] = React.useState<LoanRow | null>(null);
+  const [toPause, setToPause] = React.useState<LoanRow | null>(null);
+  const [toResume, setToResume] = React.useState<LoanRow | null>(null);
   const [toView, setToView] = React.useState<LoanRow | null>(null);
   const [search, setSearch] = React.useState("");
 
@@ -207,7 +224,10 @@ export function LoansTable({
       {
         accessorKey: "status",
         header: "Status",
-        cell: ({ row }) => <LoanStatusBadge status={row.original.status} />,
+        cell: ({ row }) =>
+          row.original.status === "active" && row.original.pausedAt !== null
+            ? <LoanPausedBadge />
+            : <LoanStatusBadge status={row.original.status} />,
       },
       {
         accessorKey: "requestedAt",
@@ -282,7 +302,9 @@ export function LoansTable({
               { label: "Term", value: `${row.termPeriods} period${row.termPeriods > 1 ? "s" : ""}` },
               {
                 label: "Status",
-                value: <LoanStatusBadge status={row.status} />,
+                value: row.status === "active" && row.pausedAt !== null
+                  ? <LoanPausedBadge />
+                  : <LoanStatusBadge status={row.status} />,
               },
               row.status === "active"
                 ? {
@@ -309,7 +331,9 @@ export function LoansTable({
             ? [
                 toView.slipNumber,
                 formatPeso(toView.amount),
-                toView.status.charAt(0).toUpperCase() + toView.status.slice(1),
+                toView.status === "active" && toView.pausedAt !== null
+                  ? "Paused"
+                  : toView.status.charAt(0).toUpperCase() + toView.status.slice(1),
               ]
                 .filter(Boolean)
                 .join(" · ")
@@ -351,6 +375,26 @@ export function LoansTable({
                   >
                     Cancel
                   </Button>
+                </div>
+              )}
+              {mode === "admin" && toView.status === "active" && (
+                <div className="flex gap-2">
+                  {toView.pausedAt !== null ? (
+                    <Button
+                      className="flex-1"
+                      onClick={() => { setToView(null); setToResume(toView); }}
+                    >
+                      Resume deductions
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => { setToView(null); setToPause(toView); }}
+                    >
+                      Pause deductions
+                    </Button>
+                  )}
                 </div>
               )}
               {mode === "mine" && toView.status === "pending" && (
@@ -419,12 +463,34 @@ export function LoansTable({
               )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Status</span>
-                <LoanStatusBadge status={toView.status} />
+                {toView.status === "active" && toView.pausedAt !== null
+                  ? <LoanPausedBadge />
+                  : <LoanStatusBadge status={toView.status} />}
               </div>
               {toView.disbursedAt && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Disbursed</span>
                   <span>{formatDate(toView.disbursedAt)}</span>
+                </div>
+              )}
+              {toView.pausedAt && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Paused on</span>
+                    <span>{formatDate(toView.pausedAt)}</span>
+                  </div>
+                  {toView.pauseReason && (
+                    <div className="flex justify-between gap-4">
+                      <span className="shrink-0 text-muted-foreground">Pause reason</span>
+                      <span className="text-right">{toView.pauseReason}</span>
+                    </div>
+                  )}
+                </>
+              )}
+              {toView.resumedAt && !toView.pausedAt && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Last resumed</span>
+                  <span>{formatDate(toView.resumedAt)}</span>
                 </div>
               )}
             </div>
@@ -478,6 +544,16 @@ export function LoansTable({
         open={toCancel !== null}
         onOpenChange={(open) => !open && setToCancel(null)}
         onSuccess={() => setToView(null)}
+      />
+      <PauseLoanDialog
+        loan={toPause}
+        open={toPause !== null}
+        onOpenChange={(open) => !open && setToPause(null)}
+      />
+      <ResumeLoanDialog
+        loan={toResume}
+        open={toResume !== null}
+        onOpenChange={(open) => !open && setToResume(null)}
       />
     </div>
   );

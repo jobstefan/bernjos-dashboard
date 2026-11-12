@@ -107,4 +107,6 @@ export interface PayrollAttendanceSummary {
    * whose branch couldn't be resolved. Empty when the employee isn't attendance-tracked.
    */
   byBranch: { branchId: string | null; daysWorked: number }[];
+  /** Approved absence request days within the period that had no schedule entry. */
+  approvedAbsenceDays?: number;
 }

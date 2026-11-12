@@ -15,24 +15,28 @@ import {
   updatePeriod,
   updateRunItem,
 } from "@/server/db/payroll";
-import { findActiveEmployeesByFrequency, findEmployeeById } from "@/server/db/employees";
+import { findActiveEmployeesByFrequency, findEmployeeById, findEmployeesByIds } from "@/server/db/employees";
 import {
   findApprovedUnappliedForEmployee,
   markCashAdvancesApplied,
+  markCashAdvancesCompleted,
   resetCashAdvancesForPeriod,
 } from "@/server/db/cash-advance";
 import {
   findPendingChargesForEmployee,
   markChargesApplied,
+  markChargesCompleted,
   resetChargesForPeriod,
 } from "@/server/db/charge";
 import {
   findPendingIncentivesForEmployee,
   markIncentivesApplied,
+  markIncentivesCompleted,
   resetIncentivesForPeriod,
 } from "@/server/db/incentive";
 import {
   finalizeRepaymentsForPeriod,
+  findAllPendingRepaymentsForEmployee,
   findFullyRepaidLoansInPeriod,
   findPendingRepaymentsForEmployee,
   markRepaymentsTagged,
@@ -49,6 +53,7 @@ import { auditLog } from "@/server/services/audit.service";
 import { summarizeForPayroll } from "@/server/services/attendance.service";
 import { findPositionByNamesAndDept } from "@/server/db/positions";
 import {
+  BadRequestError,
   DuplicatePeriodError,
   InvalidStateTransitionError,
   MissingStatutoryDataError,
@@ -182,6 +187,7 @@ export async function calculateEmployeeDeductions(
       grossPay: 0,
       attendanceTracked,
       absentDays: attendance.absentDays,
+      approvedAbsenceDays: attendance.approvedAbsenceDays,
       lateMinutes: 0,
       undertimeMinutes: 0,
       breakMinutes: 0,
@@ -240,6 +246,7 @@ export async function calculateEmployeeDeductions(
     grossPay: toNum(grossPay),
     attendanceTracked,
     absentDays: attendance.absentDays,
+    approvedAbsenceDays: attendance.approvedAbsenceDays,
     lateMinutes: attendance.lateMinutes,
     undertimeMinutes: attendance.undertimeMinutes,
     breakMinutes: attendance.breakMinutes,
@@ -268,17 +275,21 @@ export async function createPayrollPeriod(
   data: CreatePeriodInput,
   actor: Actor,
 ) {
-  const overlap = await findOverlappingPeriod(
-    data.periodStart,
-    data.periodEnd,
-    data.frequency,
-  );
-  if (overlap) {
-    throw new DuplicatePeriodError(
-      `A ${data.frequency.replace("_", "-")} period already overlaps ${
-        overlap.periodLabel
-      }.`,
+  const runType = data.runType ?? "regular";
+
+  if (runType === "regular") {
+    const overlap = await findOverlappingPeriod(
+      data.periodStart,
+      data.periodEnd,
+      data.frequency,
     );
+    if (overlap) {
+      throw new DuplicatePeriodError(
+        `A ${data.frequency.replace("_", "-")} period already overlaps ${
+          overlap.periodLabel
+        }.`,
+      );
+    }
   }
 
   const period = await insertPeriod({
@@ -287,6 +298,8 @@ export async function createPayrollPeriod(
     periodEnd: data.periodEnd,
     payDate: data.payDate,
     frequency: data.frequency,
+    runType,
+    selectedProfileIds: runType === "off_cycle" ? (data.selectedProfileIds ?? []) : [],
     notes: data.notes ?? null,
     createdBy: actor.clerkUserId,
   });
@@ -321,7 +334,9 @@ export async function calculatePayrollRun(
   await resetChargesForPeriod(periodId);
   await resetIncentivesForPeriod(periodId);
 
-  const employees = await findActiveEmployeesByFrequency(period.frequency);
+  const employees = period.runType === "off_cycle"
+    ? await findEmployeesByIds(period.selectedProfileIds)
+    : await findActiveEmployeesByFrequency(period.frequency);
 
   const rows: (Prisma.PayrollRunItemCreateManyInput & {
     branches: Prisma.PayrollRunItemBranchCreateManyRunItemInput[];
@@ -352,7 +367,12 @@ export async function calculatePayrollRun(
     const otherDeductions = round2(lateDeduction.add(advanceDeduction));
 
     // Fold pending loan repayment installments into a dedicated loan deduction line.
-    const pendingRepayments = await findPendingRepaymentsForEmployee(employee.id);
+    // Off-cycle runs for separated employees settle the entire outstanding loan
+    // balance at once; regular runs take one installment per loan as usual.
+    const paysOutSavings = period.runType === "off_cycle" && employee.employmentStatus !== "active";
+    const pendingRepayments = paysOutSavings
+      ? await findAllPendingRepaymentsForEmployee(employee.id)
+      : await findPendingRepaymentsForEmployee(employee.id);
     let loanDeduction = ZERO;
     for (const rep of pendingRepayments) {
       loanDeduction = loanDeduction.add(rep.amount);
@@ -382,6 +402,7 @@ export async function calculatePayrollRun(
     const attendanceNote = b.attendanceTracked
       ? `Attendance: ${b.daysWorked} day(s) worked` +
         (b.absentDays ? `, ${b.absentDays} absent` : "") +
+        (b.approvedAbsenceDays ? `, ${b.approvedAbsenceDays} approved-absent` : "") +
         (b.lateMinutes ? `, ${b.lateMinutes} late-min` : "") +
         (b.undertimeMinutes ? `, ${b.undertimeMinutes} undertime-min` : "") +
         (b.breakMinutes ? `, ${b.breakMinutes} break-min` : "") +
@@ -393,13 +414,13 @@ export async function calculatePayrollRun(
     const payAfterDeductions = round2(new Decimal(b.grossPay).add(overtimeEarnings).add(incentiveEarnings).sub(itemTotalDeductions));
 
     // Savings is the employee's own money moved into their account — NOT a
-    // deduction. The contribution is floored at ₱100 so the employee always
-    // saves at least the minimum even if it drives net pay negative. The ledger
-    // transaction is only written when the run is approved (see
-    // `approvePayrollRun`), so a provisional draft never moves money.
-    const account = await findSavingsAccountByEmployee(employee.id);
+    // deduction. Skipped for off-cycle runs (no ongoing contribution assumed).
+    // The ledger transaction is only written when the run is approved.
+    const account = (period.runType !== "off_cycle" || paysOutSavings)
+      ? await findSavingsAccountByEmployee(employee.id)
+      : null;
     let savingsContribution = ZERO;
-    if (account && !account.frozen) {
+    if (account && !account.frozen && period.runType !== "off_cycle") {
       const wanted = round2(new Decimal(account.contributionAmount));
       const MIN_SAVINGS = new Decimal(100);
       savingsContribution = Decimal.max(
@@ -408,7 +429,18 @@ export async function calculatePayrollRun(
       );
     }
 
-    const itemNetPay = round2(payAfterDeductions.sub(savingsContribution));
+    // For separated employees in an off-cycle run, pay out the full savings balance.
+    // This is an earning line — it increases net pay. The withdrawal transaction is
+    // written at approval, not here.
+    let savingsPayout = ZERO;
+    if (paysOutSavings && account) {
+      const balance = round2(
+        account.transactions.reduce((sum, t) => sum.add(t.amount), ZERO),
+      );
+      if (balance.gt(ZERO)) savingsPayout = balance;
+    }
+
+    const itemNetPay = round2(payAfterDeductions.sub(savingsContribution).add(savingsPayout));
 
     // Split net pay across branches proportionally to days worked there, so the admin
     // knows how much cash to pull from each branch's till. The last branch absorbs any
@@ -440,6 +472,7 @@ export async function calculatePayrollRun(
       otherEarnings: overtimeEarnings,
       incentiveEarnings,
       savingsContribution,
+      savingsPayout,
       totalDeductions: itemTotalDeductions,
       netPay: itemNetPay,
       status: "included",
@@ -520,22 +553,51 @@ export async function approvePayrollRun(periodId: string, actor: Actor): Promise
   });
 
   // Move each employee's savings contribution into their account now that the
-  // run is final. Doing this at approval (not draft) means a provisional draft
-  // never inflates the balance, and a withdrawal taken before approval can't
-  // cancel out the contribution.
+  // run is final. Off-cycle runs carry savingsContribution = 0, so this loop
+  // is a no-op for them — the runType guard is a belt-and-suspenders check.
   const items = await findRunItems(periodId);
-  for (const item of items) {
-    if (!new Decimal(item.savingsContribution).gt(0)) continue;
-    const account = await findSavingsAccountByEmployee(item.profileId);
-    if (!account) continue;
-    await insertSavingsTransaction({
-      accountId: account.id,
-      type: "contribution",
-      amount: item.savingsContribution,
-      note: `Payroll contribution — ${period.periodLabel}`,
-      appliedPeriodId: periodId,
-      createdBy: actor.clerkUserId,
-    });
+  if (period.runType !== "off_cycle") {
+    for (const item of items) {
+      if (!new Decimal(item.savingsContribution).gt(0)) continue;
+      const account = await findSavingsAccountByEmployee(item.profileId);
+      if (!account) continue;
+      await insertSavingsTransaction({
+        accountId: account.id,
+        type: "contribution",
+        amount: item.savingsContribution,
+        note: `Payroll contribution — ${period.periodLabel}`,
+        appliedPeriodId: periodId,
+        createdBy: actor.clerkUserId,
+      });
+    }
+  }
+
+  // For off-cycle runs: write savings withdrawal transactions for separated employees
+  // who had a savingsPayout calculated. Guard: re-verify balance hasn't changed since
+  // calc (e.g. an admin withdrawal between calc and approval) so ledger and payslip
+  // can't diverge.
+  if (period.runType === "off_cycle") {
+    for (const item of items) {
+      if (!new Decimal(item.savingsPayout).gt(0)) continue;
+      const account = await findSavingsAccountByEmployee(item.profileId);
+      if (!account) continue;
+      const currentBalance = round2(
+        account.transactions.reduce((sum, t) => sum.add(t.amount), ZERO),
+      );
+      if (currentBalance.lt(new Decimal(item.savingsPayout))) {
+        throw new BadRequestError(
+          `Savings balance for employee changed since the run was calculated — recalculate the run before approving.`,
+        );
+      }
+      await insertSavingsTransaction({
+        accountId: account.id,
+        type: "withdrawal",
+        amount: -toNum(new Decimal(item.savingsPayout)),
+        note: `Final savings payout — ${period.periodLabel}`,
+        appliedPeriodId: periodId,
+        createdBy: actor.clerkUserId,
+      });
+    }
   }
 
   // Finalize loan repayments for this period and auto-complete fully-repaid loans.
@@ -544,6 +606,11 @@ export async function approvePayrollRun(periodId: string, actor: Actor): Promise
   for (const loan of completedLoans) {
     await updateLoan(loan.id, { status: "completed" });
   }
+
+  // Finalize charges, incentives, and cash advances applied in this period.
+  await markChargesCompleted(periodId);
+  await markIncentivesCompleted(periodId);
+  await markCashAdvancesCompleted(periodId);
 
   await auditLog({
     actor,
@@ -590,16 +657,18 @@ export async function updatePayrollPeriodDates(
       "Date edits are only allowed on draft periods.",
     );
   }
-  const overlap = await findOverlappingPeriod(
-    data.periodStart,
-    data.periodEnd,
-    period.frequency,
-    periodId,
-  );
-  if (overlap) {
-    throw new DuplicatePeriodError(
-      `A ${period.frequency.replace("_", "-")} period already overlaps ${overlap.periodLabel}.`,
+  if (period.runType !== "off_cycle") {
+    const overlap = await findOverlappingPeriod(
+      data.periodStart,
+      data.periodEnd,
+      period.frequency,
+      periodId,
     );
+    if (overlap) {
+      throw new DuplicatePeriodError(
+        `A ${period.frequency.replace("_", "-")} period already overlaps ${overlap.periodLabel}.`,
+      );
+    }
   }
   const after = await updatePeriod(periodId, {
     periodLabel: data.periodLabel,
@@ -690,16 +759,24 @@ function parseAbsentDays(notes: string | null): number {
   return match ? parseInt(match[1], 10) : 0;
 }
 
+function parseApprovedAbsentDays(notes: string | null): number {
+  const match = notes?.match(/(\d+) approved-absent/) ?? null;
+  return match ? parseInt(match[1], 10) : 0;
+}
+
 function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
   const daysWorked = parseDaysWorked(item.notes);
   const absentDays = parseAbsentDays(item.notes);
+  const approvedAbsenceDays = parseApprovedAbsentDays(item.notes);
   const scheduledDays = daysWorked + absentDays;
   const calendarDays = scheduledDays > 0
     ? Math.round(
         (item.period.periodEnd.getTime() - item.period.periodStart.getTime()) / 86400000,
       ) + 1
     : 0;
-  const dayOffDays = scheduledDays > 0 ? Math.max(0, calendarDays - scheduledDays) : 0;
+  const dayOffDays = scheduledDays > 0
+    ? Math.max(0, calendarDays - scheduledDays - approvedAbsenceDays)
+    : 0;
 
   return {
     runItemId: item.id,
@@ -735,6 +812,7 @@ function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
     undertimeMinutes: parseUndertimeMinutes(item.notes),
     breakMinutes: parseBreakMinutes(item.notes),
     savingsContribution: toNum(item.savingsContribution),
+    savingsPayout: toNum(item.savingsPayout),
     totalDeductions: toNum(item.totalDeductions),
     netPay: toNum(item.netPay),
     status: item.status,
@@ -746,6 +824,7 @@ function toPayslip(item: NonNullable<RunItemWithRelations>): Payslip {
     })),
     daysWorked: scheduledDays > 0 ? daysWorked : undefined,
     absentDays: scheduledDays > 0 ? absentDays : undefined,
+    approvedAbsenceDays: scheduledDays > 0 && approvedAbsenceDays > 0 ? approvedAbsenceDays : undefined,
     dayOffDays: scheduledDays > 0 ? dayOffDays : undefined,
   };
 }

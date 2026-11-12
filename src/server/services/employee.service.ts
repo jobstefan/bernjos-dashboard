@@ -4,6 +4,7 @@ import {
   findEmployeeByClerkId,
   findEmployeeById,
   findEmployees,
+  findSelectableEmployees,
   insertEmployee,
   softDeleteEmployee,
   updateEmployeeRow,
@@ -48,6 +49,11 @@ async function clerkIdForProfile(profileId: string): Promise<string | null> {
 
 export function getEmployees(filters?: ProfileFilters) {
   return findEmployees(filters);
+}
+
+/** All non-deleted, non-elevated profiles — for the off-cycle employee picker. */
+export function getSelectableEmployees() {
+  return findSelectableEmployees();
 }
 
 export function getDepartments(): Promise<string[]> {

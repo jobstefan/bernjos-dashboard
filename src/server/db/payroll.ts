@@ -23,7 +23,7 @@ export function findPeriodById(id: string) {
   return prisma.payrollPeriod.findFirst({ where: { id, deletedAt: null } });
 }
 
-/** Any non-deleted period whose date range overlaps [start, end] with same frequency. */
+/** Any non-deleted *regular* period whose date range overlaps [start, end] with same frequency. Off-cycle periods are excluded so they may freely overlap existing paid runs. */
 export function findOverlappingPeriod(
   start: Date,
   end: Date,
@@ -33,6 +33,7 @@ export function findOverlappingPeriod(
   return prisma.payrollPeriod.findFirst({
     where: {
       deletedAt: null,
+      runType: "regular",
       frequency,
       id: excludeId ? { not: excludeId } : undefined,
       periodStart: { lte: end },

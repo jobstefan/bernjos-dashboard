@@ -36,10 +36,10 @@ function Section({ heading, children }: { heading: string; children: React.React
 
 function statusColor(status: ChargeStatus): string {
   switch (status) {
-    case "pending":
-      return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400";
-    case "applied":
-      return "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-400";
+    case "pending":   return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300";
+    case "applied":   return "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300";
+    case "completed": return "border-green-200 bg-green-50 text-green-700 dark:border-green-900/50 dark:bg-green-950/40 dark:text-green-300";
+    case "cancelled": return "border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400";
   }
 }
 
@@ -85,6 +85,9 @@ export function ChargeSlip({ charge }: { charge: ChargeRow }) {
             </span>
           }
         />
+        {charge.cancelledAt && (
+          <Row label="Cancelled on" value={formatDate(charge.cancelledAt)} />
+        )}
       </Section>
 
       {charge.appliedPeriodLabel && (

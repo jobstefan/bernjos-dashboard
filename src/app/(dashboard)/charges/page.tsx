@@ -65,6 +65,7 @@ export default async function ChargesPage() {
           rows={rows}
           canDelete={role === "super_admin"}
           canRequestDeletion={role === "admin"}
+          canCancel={role === "admin" || role === "super_admin"}
         />
       )}
     </div>

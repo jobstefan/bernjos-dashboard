@@ -67,17 +67,25 @@ enum RunItemStatus {
   excluded
 }
 
+enum PayrollRunType {
+  regular
+  off_cycle
+}
+
 enum CashAdvanceStatus {
   pending
   approved
   declined
   applied
+  completed
   cancelled
 }
 
 enum ChargeStatus {
   pending
   applied
+  completed
+  cancelled
 }
 
 enum LoanStatus {
@@ -91,6 +99,7 @@ enum LoanStatus {
 enum IncentiveStatus {
   pending
   applied
+  completed
   cancelled
 }
 
@@ -194,14 +203,17 @@ model PayrollPeriod {
   periodEnd   DateTime      @map("period_end") @db.Date
   payDate     DateTime      @map("pay_date") @db.Date
   frequency   PayFrequency
+  runType     PayrollRunType @default(regular) @map("run_type")
   status      PayrollStatus @default(draft)
   createdBy   String        @map("created_by")
   approvedBy  String?       @map("approved_by")
   approvedAt  DateTime?     @map("approved_at")
   paidBy      String?       @map("paid_by")
   paidAt      DateTime?     @map("paid_at")
-  notes       String?
-  deletedAt   DateTime?     @map("deleted_at")
+  notes                String?
+  /// For off-cycle runs: the hand-picked employee profile IDs to include.
+  selectedProfileIds   String[]       @default([]) @map("selected_profile_ids")
+  deletedAt            DateTime?      @map("deleted_at")
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
@@ -236,6 +248,9 @@ model PayrollRunItem {
   /// user's own money moved into their savings account. Kept separate from
   /// `totalDeductions`: netPay = grossPay − totalDeductions − savingsContribution.
   savingsContribution Decimal       @default(0) @map("savings_contribution") @db.Decimal(12, 2)
+  /// Full savings balance released to the employee on an off-cycle (final pay)
+  /// run. An earning line: netPay includes it. 0 on regular runs.
+  savingsPayout       Decimal       @default(0) @map("savings_payout") @db.Decimal(12, 2)
   totalDeductions     Decimal       @map("total_deductions") @db.Decimal(12, 2)
   netPay              Decimal       @map("net_pay") @db.Decimal(12, 2)
   status              RunItemStatus @default(included)
@@ -351,6 +366,8 @@ model Charge {
   createdBy       String       @map("created_by")
   appliedPeriodId String?      @map("applied_period_id")
   appliedAt       DateTime?    @map("applied_at")
+  cancelledBy     String?      @map("cancelled_by")
+  cancelledAt     DateTime?    @map("cancelled_at")
   deletedAt       DateTime?    @map("deleted_at")
   /// Admin-requested deletion flag; superadmin confirms and hard-deletes.
   deletionRequestedAt DateTime? @map("deletion_requested_at")
@@ -580,6 +597,11 @@ model Loan {
   disbursedBy  String?    @map("disbursed_by")
   /// Branch whose kiosk handed the cash over (may differ from the requesting branch).
   releaseBranchId String? @map("release_branch_id")
+  pausedAt     DateTime?  @map("paused_at")
+  pausedBy     String?    @map("paused_by")
+  pauseReason  String?    @map("pause_reason")
+  resumedAt    DateTime?  @map("resumed_at")
+  resumedBy    String?    @map("resumed_by")
   deletedAt    DateTime?  @map("deleted_at")
   /// Admin-requested deletion flag; superadmin confirms and hard-deletes.
   deletionRequestedAt DateTime? @map("deletion_requested_at")

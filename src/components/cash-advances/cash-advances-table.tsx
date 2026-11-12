@@ -48,8 +48,11 @@ const STATUS_OPTIONS: [CashAdvanceStatus, string][] = [
   ["approved", "Approved"],
   ["declined", "Declined"],
   ["applied", "Applied"],
+  ["completed", "Completed"],
   ["cancelled", "Cancelled"],
 ];
+
+const HIDDEN_BY_DEFAULT = new Set<CashAdvanceStatus>(["completed", "declined", "cancelled"]);
 
 function StatusPill({ status }: { status: CashAdvanceStatus }) {
   return (
@@ -103,6 +106,7 @@ export function CashAdvancesTable({
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
     return rows.filter((r) => {
+      if (status === ALL && HIDDEN_BY_DEFAULT.has(r.status)) return false;
       if (status !== ALL && r.status !== status) return false;
       if (
         q &&
