@@ -25,9 +25,12 @@ import {
 import type { Actor } from "@/lib/types/payroll";
 import type { InventoryEntryType } from "@/generated/prisma/enums";
 import type {
+  EodSummary,
+  EodProductLine,
   KioskProduct,
   KioskSessionInfo,
   KioskState,
+  OpeningPreviewItem,
 } from "@/lib/types/inventory";
 import type {
   LogRestockSchema,
@@ -62,10 +65,15 @@ async function onHandByProduct(sessionId: string): Promise<Map<string, number>> 
 /**
  * Open today's session for a branch, or continue an existing one — attaching the
  * current operator and logging a handoff if a different operator was active
- * (§5.1). On first open, opening counts are pre-filled from the previous
- * session's closing counts to minimise re-entry.
+ * (§5.1). On first open, if `openingCounts` is supplied those are used as the
+ * opening entries (staff-verified); otherwise opening counts are auto-carried
+ * from the previous session's closing counts (legacy / transfer-triggered path).
  */
-export async function openOrContinueSession(branchId: string, actor: Actor): Promise<{ sessionId: string }> {
+export async function openOrContinueSession(
+  branchId: string,
+  actor: Actor,
+  openingCounts?: { productId: string; quantity: number }[],
+): Promise<{ sessionId: string }> {
   const branch = await findBranchById(branchId);
   if (!branch) throw new NotFoundError("Branch", branchId);
 
@@ -91,25 +99,42 @@ export async function openOrContinueSession(branchId: string, actor: Actor): Pro
     return { sessionId: existing.id };
   }
 
-  // First open of the day → create session, attach operator, prefill opening.
+  // First open of the day → create session, attach operator, insert opening entries.
   const session = await createSession(branchId, sessionDate, actor.clerkUserId);
   await attachOperator(session.id, actor.clerkUserId);
 
-  const previous = await findPreviousSession(branchId, sessionDate);
-  if (previous) {
-    const closing = await findEntriesOfType(previous.id, "closing");
-    if (closing.length > 0) {
+  if (openingCounts !== undefined) {
+    // Staff-verified path: use the counts they confirmed on the opening screen.
+    const nonZero = openingCounts.filter((c) => c.quantity !== 0);
+    if (nonZero.length > 0) {
       await insertEntries(
-        closing
-          .filter((c) => c.quantity !== 0)
-          .map((c) => ({
-            sessionId: session.id,
-            productId: c.productId,
-            type: "opening" as InventoryEntryType,
-            quantity: c.quantity,
-            enteredBy: actor.clerkUserId,
-          })),
+        nonZero.map((c) => ({
+          sessionId: session.id,
+          productId: c.productId,
+          type: "opening" as InventoryEntryType,
+          quantity: c.quantity,
+          enteredBy: actor.clerkUserId,
+        })),
       );
+    }
+  } else {
+    // Auto-carry path: copy previous session's closing counts (transfer-triggered opens, legacy).
+    const previous = await findPreviousSession(branchId, sessionDate);
+    if (previous) {
+      const closing = await findEntriesOfType(previous.id, "closing");
+      if (closing.length > 0) {
+        await insertEntries(
+          closing
+            .filter((c) => c.quantity !== 0)
+            .map((c) => ({
+              sessionId: session.id,
+              productId: c.productId,
+              type: "opening" as InventoryEntryType,
+              quantity: c.quantity,
+              enteredBy: actor.clerkUserId,
+            })),
+        );
+      }
     }
   }
 
@@ -118,7 +143,7 @@ export async function openOrContinueSession(branchId: string, actor: Actor): Pro
     action: "inventory.session.opened",
     entityType: "inventory_session",
     entityId: session.id,
-    after: session,
+    after: { ...session, openingSource: openingCounts !== undefined ? "staff-verified" : "auto-carry" },
   });
   return { sessionId: session.id };
 }
@@ -170,8 +195,8 @@ export async function logWastage(input: LogWastageSchema, actor: Actor): Promise
   });
 }
 
-/** Record closing counts and lock the session (§5.1 step 6–8). */
-export async function closeSession(input: CloseSessionSchema, actor: Actor): Promise<void> {
+/** Record closing counts, lock the session, and return the EOD summary (§5.1 step 6–8). */
+export async function closeSession(input: CloseSessionSchema, actor: Actor): Promise<EodSummary> {
   const session = await requireOpenSession(input.sessionId);
   if (input.counts.length === 0) {
     throw new BadRequestError("Enter closing counts before closing the session.");
@@ -195,6 +220,75 @@ export async function closeSession(input: CloseSessionSchema, actor: Actor): Pro
     before: session,
     after,
   });
+  return computeEodSummary(session.id);
+}
+
+/** Compute an EOD summary from the session's entry sums (called after close inserts closing entries). */
+async function computeEodSummary(sessionId: string): Promise<EodSummary> {
+  const sums = await sumEntriesBySession(sessionId);
+
+  // Collect distinct product IDs so we can look up names.
+  const productIds = [...new Set(sums.map((r) => r.productId))];
+
+  // Load product names/units for this session's products.
+  const allProducts = await findProducts();
+  const productMeta = new Map(allProducts.map((p) => [p.id, { name: p.name, unit: p.unit }]));
+
+  type Movements = {
+    opening: number; restock: number; bst_in: number;
+    wastage: number; bst_out: number; closing: number;
+  };
+  const byProduct = new Map<string, Movements>();
+
+  for (const row of sums) {
+    if (!byProduct.has(row.productId)) {
+      byProduct.set(row.productId, { opening: 0, restock: 0, bst_in: 0, wastage: 0, bst_out: 0, closing: 0 });
+    }
+    const m = byProduct.get(row.productId)!;
+    const qty = row._sum.quantity ?? 0;
+    switch (row.type) {
+      case "opening": m.opening = qty; break;
+      case "restock": m.restock = qty; break;
+      case "bst_in": m.bst_in = qty; break;
+      case "wastage": m.wastage = qty; break;
+      case "bst_out": m.bst_out = qty; break;
+      case "closing": m.closing = qty; break;
+    }
+  }
+
+  const products: EodProductLine[] = [];
+  for (const productId of productIds) {
+    const meta = productMeta.get(productId);
+    if (!meta) continue;
+    const m = byProduct.get(productId)!;
+    const computedOnHand = m.opening + m.restock + m.bst_in - m.wastage - m.bst_out;
+    products.push({
+      productId,
+      name: meta.name,
+      unit: meta.unit,
+      opening: m.opening,
+      restocks: m.restock,
+      bstIn: m.bst_in,
+      wastage: m.wastage,
+      bstOut: m.bst_out,
+      computedOnHand,
+      physicalClose: m.closing,
+      variance: computedOnHand - m.closing,
+    });
+  }
+
+  products.sort((a, b) => a.name.localeCompare(b.name));
+
+  return {
+    products,
+    totals: {
+      consumed: products.reduce((s, p) => s + Math.max(0, p.variance), 0),
+      wastage: products.reduce((s, p) => s + p.wastage, 0),
+      restocks: products.reduce((s, p) => s + p.restocks, 0),
+      variantCount: products.filter((p) => p.variance > 0).length,
+      overageCount: products.filter((p) => p.variance < 0).length,
+    },
+  };
 }
 
 export interface SyncResult {
@@ -299,11 +393,30 @@ export async function getKioskState(branchId: string): Promise<KioskState> {
     };
   }
 
+  // Proposed opening counts from the previous session's close — used by the
+  // opening verification screen when no session exists yet today.
+  let proposedOpening: OpeningPreviewItem[] = [];
+  if (!session) {
+    const previous = await findPreviousSession(branchId, sessionDate);
+    if (previous) {
+      const closing = await findEntriesOfType(previous.id, "closing");
+      const productMetaMap = new Map(products.map((p) => [p.id, { name: p.name, unit: p.unit }]));
+      proposedOpening = closing
+        .filter((c) => c.quantity > 0)
+        .map((c) => {
+          const meta = productMetaMap.get(c.productId);
+          return meta ? { productId: c.productId, name: meta.name, unit: meta.unit, quantity: c.quantity } : null;
+        })
+        .filter((x): x is OpeningPreviewItem => x !== null);
+    }
+  }
+
   return {
     branch: { id: branch.id, name: branch.name, closingTime: branch.closingTime },
     session: sessionInfo,
     products: kioskProducts,
     categories: [...categoryMap.entries()].map(([id, name]) => ({ id, name })),
     lowStockCount: kioskProducts.filter((p) => p.lowStock).length,
+    proposedOpening,
   };
 }

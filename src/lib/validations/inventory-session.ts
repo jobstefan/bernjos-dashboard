@@ -26,6 +26,12 @@ export const logWastageSchema = z.object({
   note: z.string().trim().max(300).optional().nullable(),
 });
 
+export const openSessionSchema = z.object({
+  counts: z
+    .array(z.object({ productId: z.string().min(1), quantity: nonNegativeQty }))
+    .default([]),
+});
+
 export const closeSessionSchema = z.object({
   sessionId: z.string().min(1),
   counts: z
@@ -50,6 +56,7 @@ export const syncOfflineEntriesSchema = z.object({
   entries: z.array(offlineEntrySchema).max(500),
 });
 
+export type OpenSessionSchema = z.infer<typeof openSessionSchema>;
 export type LogRestockSchema = z.infer<typeof logRestockSchema>;
 export type LogWastageSchema = z.infer<typeof logWastageSchema>;
 export type CloseSessionSchema = z.infer<typeof closeSessionSchema>;

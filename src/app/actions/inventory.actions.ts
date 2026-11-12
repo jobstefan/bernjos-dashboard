@@ -6,6 +6,7 @@ import {
   closeSessionSchema,
   logRestockSchema,
   logWastageSchema,
+  openSessionSchema,
   syncOfflineEntriesSchema,
 } from "@/lib/validations/inventory-session";
 import {
@@ -25,6 +26,7 @@ import { findBranchById } from "@/server/db/branches";
 import { toActionError } from "@/server/errors";
 import { BadRequestError } from "@/lib/errors/payroll";
 import type { ActionResult } from "@/lib/types/action";
+import type { EodSummary } from "@/lib/types/inventory";
 
 function fieldErrors(error: { flatten: () => { fieldErrors: unknown } }) {
   return {
@@ -61,12 +63,14 @@ export async function clearKioskBranchAction(): Promise<ActionResult> {
 }
 
 /** Open or continue today's session for the pinned branch. Returns the id. */
-export async function openSessionAction(): Promise<ActionResult<{ sessionId: string }>> {
+export async function openSessionAction(input?: unknown): Promise<ActionResult<{ sessionId: string }>> {
   try {
     const actor = await requireInventoryOperator();
     const branchId = await getKioskBranchId();
     if (!branchId) throw new BadRequestError("This device isn't assigned to a branch yet.");
-    const { sessionId } = await openOrContinueSession(branchId, actor);
+    const parsed = openSessionSchema.safeParse(input ?? {});
+    const counts = parsed.success ? parsed.data.counts : undefined;
+    const { sessionId } = await openOrContinueSession(branchId, actor, counts);
     revalidatePath("/kiosk");
     return { success: true, data: { sessionId } };
   } catch (error) {
@@ -100,14 +104,14 @@ export async function logWastageAction(input: unknown): Promise<ActionResult> {
   }
 }
 
-export async function closeSessionAction(input: unknown): Promise<ActionResult> {
+export async function closeSessionAction(input: unknown): Promise<ActionResult<{ summary: EodSummary }>> {
   try {
     const actor = await requireInventoryOperator();
     const parsed = closeSessionSchema.safeParse(input);
     if (!parsed.success) return fieldErrors(parsed.error);
-    await closeSession(parsed.data, actor);
+    const summary = await closeSession(parsed.data, actor);
     revalidatePath("/kiosk");
-    return { success: true, data: undefined };
+    return { success: true, data: { summary } };
   } catch (error) {
     return { success: false, ...toActionError(error) };
   }

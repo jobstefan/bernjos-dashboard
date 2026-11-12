@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ClipboardList, ArrowLeftRight, HandCoins, AlertTriangle, Play, Lock } from "lucide-react";
+import { ClipboardList, ArrowLeftRight, HandCoins, AlertTriangle, Lock, PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -11,11 +11,12 @@ import { CountingTab } from "@/components/kiosk/counting-tab";
 import { CashReleaseTab } from "@/components/kiosk/cash-release-tab";
 import { TransfersTab } from "@/components/kiosk/transfers-tab";
 import { OfflineController } from "@/components/kiosk/offline-controller";
+import { NumberStepper } from "@/components/kiosk/number-stepper";
 import {
   clearKioskBranchAction,
   openSessionAction,
 } from "@/app/actions/inventory.actions";
-import type { KioskState, ReleasableItem, TransferRow } from "@/lib/types/inventory";
+import type { KioskState, OpeningPreviewItem, ReleasableItem, TransferRow } from "@/lib/types/inventory";
 
 type Tab = "counting" | "transfers" | "release";
 
@@ -60,9 +61,9 @@ export function KioskShell({
     session?.sessionDate ?? new Date().toISOString(),
   ).toLocaleDateString("en-PH", { weekday: "short", month: "short", day: "numeric" });
 
-  function openSession() {
+  function openSession(counts: { productId: string; quantity: number }[]) {
     startTransition(async () => {
-      const res = await openSessionAction();
+      const res = await openSessionAction({ counts });
       if (res.success) {
         toast.success("Session ready.");
         router.refresh();
@@ -151,8 +152,22 @@ export function KioskShell({
               </div>
               <CountingTab sessionId={session.id} state={state} />
             </div>
+          ) : session?.closed ? (
+            <div className="mx-auto flex max-w-md flex-col items-center justify-center py-20 text-center">
+              <div className="flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+                <Lock className="size-7" />
+              </div>
+              <h2 className="mt-5 text-xl font-bold">Today's session is closed</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                The closing count is in. An admin can still make corrections.
+              </p>
+            </div>
           ) : (
-            <SessionPrompt closed={session?.closed ?? false} pending={pending} onOpen={openSession} />
+            <OpeningVerificationScreen
+              proposedOpening={state.proposedOpening}
+              pending={pending}
+              onStart={openSession}
+            />
           )
         ) : null}
 
@@ -170,33 +185,64 @@ export function KioskShell({
   );
 }
 
-function SessionPrompt({
-  closed,
+function OpeningVerificationScreen({
+  proposedOpening,
   pending,
-  onOpen,
+  onStart,
 }: {
-  closed: boolean;
+  proposedOpening: OpeningPreviewItem[];
   pending: boolean;
-  onOpen: () => void;
+  onStart: (counts: { productId: string; quantity: number }[]) => void;
 }) {
+  const [counts, setCounts] = React.useState<Record<string, number>>(
+    () => Object.fromEntries(proposedOpening.map((p) => [p.productId, p.quantity])),
+  );
+
+  const hasProposed = proposedOpening.length > 0;
+
+  function submit() {
+    onStart(
+      hasProposed
+        ? proposedOpening.map((p) => ({ productId: p.productId, quantity: counts[p.productId] ?? p.quantity }))
+        : [],
+    );
+  }
+
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center justify-center py-20 text-center">
-      <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-        <Play className="size-7" />
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <PackageCheck className="size-4 shrink-0 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">
+          {hasProposed
+            ? "Verify your opening stock. Adjust anything that changed overnight, then start the session."
+            : "No previous session found — opening counts start at zero."}
+        </p>
       </div>
-      <h2 className="mt-5 text-xl font-bold">
-        {closed ? "Today's session is closed" : "Start today's session"}
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {closed
-          ? "The closing count is in. An admin can still make corrections."
-          : "Opening counts carry over from yesterday's close. You can restock and log wastage once it's open."}
-      </p>
-      {!closed ? (
-        <Button className="mt-6 h-12 px-8 text-base" onClick={onOpen} disabled={pending}>
-          {pending ? "Opening…" : "Open session"}
-        </Button>
+
+      {hasProposed ? (
+        <div className="space-y-2">
+          {proposedOpening.map((p) => (
+            <div
+              key={p.productId}
+              className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-medium">{p.name}</div>
+                <div className="text-xs text-muted-foreground">from yesterday's close · {p.unit}</div>
+              </div>
+              <NumberStepper
+                value={counts[p.productId] ?? p.quantity}
+                onChange={(n) => setCounts((c) => ({ ...c, [p.productId]: n }))}
+                min={0}
+              />
+            </div>
+          ))}
+        </div>
       ) : null}
+
+      <Button className="h-14 w-full text-base" onClick={submit} disabled={pending}>
+        {pending ? "Opening…" : "Start today's session"}
+      </Button>
     </div>
   );
 }

@@ -49,6 +49,14 @@ export interface KioskSessionInfo {
   currentOperatorId: string | null;
 }
 
+/** Proposed opening count for one product, carried over from yesterday's close. */
+export interface OpeningPreviewItem {
+  productId: string;
+  name: string;
+  unit: string;
+  quantity: number;
+}
+
 /** Everything the kiosk counting tab needs for a branch on the current day. */
 export interface KioskState {
   branch: { id: string; name: string; closingTime: string | null };
@@ -57,6 +65,41 @@ export interface KioskState {
   /** Category names present in the catalog, for the filter chips. */
   categories: { id: string; name: string }[];
   lowStockCount: number;
+  /** Previous session's non-zero closing counts, shown on the opening verification screen. Empty when no prior session exists. */
+  proposedOpening: OpeningPreviewItem[];
+}
+
+// ── EOD summary (shown after session close) ──────────────────────────────────
+
+export interface EodProductLine {
+  productId: string;
+  name: string;
+  unit: string;
+  opening: number;
+  restocks: number;
+  bstIn: number;
+  wastage: number;
+  bstOut: number;
+  /** opening + restocks + bstIn − wastage − bstOut */
+  computedOnHand: number;
+  /** Physical count entered at close */
+  physicalClose: number;
+  /** computedOnHand − physicalClose; positive = shortage, negative = overage */
+  variance: number;
+}
+
+export interface EodSummary {
+  products: EodProductLine[];
+  totals: {
+    /** Total sold/consumed = Σ variance where positive */
+    consumed: number;
+    wastage: number;
+    restocks: number;
+    /** Products with variance > 0 (shortage) */
+    variantCount: number;
+    /** Products with variance < 0 (overage) */
+    overageCount: number;
+  };
 }
 
 /** A cash advance or loan awaiting branch release, shown in the kiosk (§5.8). */
