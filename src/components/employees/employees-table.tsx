@@ -227,8 +227,10 @@ export function EmployeesTable({
             placeholder: "Status",
             options: [
               ["active_inactive", "Active & Inactive"],
-              ["active", "Active only"],
-              ["inactive", "Inactive only"],
+              ["active", "Active"],
+              ["inactive", "Inactive"],
+              ["resigned", "Resigned"],
+              ["terminated", "Terminated"],
             ],
           },
         ]}
