@@ -165,7 +165,7 @@ export function ProductsTable({
       <DataTable
         columns={columns}
         data={filtered}
-        initialSorting={[{ id: "name", desc: false }]}
+        initialSorting={[{ id: "type", desc: false }, { id: "categoryName", desc: false }]}
         renderCard={(row) => (
           <DataCard
             title={row.name}
