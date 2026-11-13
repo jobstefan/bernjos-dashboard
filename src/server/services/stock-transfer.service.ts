@@ -7,6 +7,7 @@ import {
   findTransferById,
   findTransfersForBranch,
   insertTransfer,
+  replaceTransferRequest,
   updateTransfer,
   updateTransferLine,
 } from "@/server/db/stock-transfer";
@@ -24,6 +25,7 @@ import type { Actor } from "@/lib/types/payroll";
 import type { InventoryEntryType } from "@/generated/prisma/enums";
 import type { KioskTransferBadges, TransferRow } from "@/lib/types/inventory";
 import type {
+  EditTransferSchema,
   PrepareTransferSchema,
   ReceiveTransferSchema,
   RequestTransferSchema,
@@ -114,6 +116,37 @@ export async function requestTransfer(
     after: transfer,
   });
   return { id: transfer.id };
+}
+
+/**
+ * The requesting (dest) branch edits its own still-pending request slip —
+ * swap the source branch and/or the requested line items. Only allowed while
+ * the slip is "requested" (no inventory posted yet). §9.3 step 1.
+ */
+export async function editRequestedTransfer(
+  input: EditTransferSchema,
+  destBranchId: string,
+  actor: Actor,
+): Promise<void> {
+  const before = await loadInState(input.transferId, "requested");
+  if (before.destBranchId !== destBranchId) {
+    throw new BadRequestError("You can only edit your own branch's request slip.");
+  }
+  if (input.sourceBranchId === destBranchId) {
+    throw new BadRequestError("Pick a different branch to request stock from.");
+  }
+  if (input.lines.length === 0) {
+    throw new BadRequestError("Add at least one product to the request.");
+  }
+  const after = await replaceTransferRequest(input.transferId, input.sourceBranchId, input.lines);
+  await auditLog({
+    actor,
+    action: "bst.edited",
+    entityType: "stock_transfer",
+    entityId: input.transferId,
+    before,
+    after,
+  });
 }
 
 async function loadInState(id: string, expected: TransferWithRelations["status"]) {

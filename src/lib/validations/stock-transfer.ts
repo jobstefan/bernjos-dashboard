@@ -9,6 +9,14 @@ export const requestTransferSchema = z.object({
     .min(1, "Add at least one product."),
 });
 
+export const editTransferSchema = z.object({
+  transferId: z.string().min(1),
+  sourceBranchId: z.string().min(1, "Pick a source branch."),
+  lines: z
+    .array(z.object({ productId: z.string().min(1), requestedQty: qty.positive("Must be > 0.") }))
+    .min(1, "Add at least one product."),
+});
+
 export const prepareTransferSchema = z.object({
   transferId: z.string().min(1),
   lines: z.array(z.object({ lineId: z.string().min(1), preparedQty: qty.min(0, "Can't be negative.") })),
@@ -28,6 +36,7 @@ export const resolveDiscrepancySchema = z.object({
 });
 
 export type RequestTransferSchema = z.infer<typeof requestTransferSchema>;
+export type EditTransferSchema = z.infer<typeof editTransferSchema>;
 export type PrepareTransferSchema = z.infer<typeof prepareTransferSchema>;
 export type ReceiveTransferSchema = z.infer<typeof receiveTransferSchema>;
 export type ResolveDiscrepancySchema = z.infer<typeof resolveDiscrepancySchema>;

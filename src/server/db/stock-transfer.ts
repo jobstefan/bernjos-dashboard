@@ -47,6 +47,25 @@ export function insertTransfer(
   });
 }
 
+/** Replace a still-pending request's source branch and line items in one update. */
+export function replaceTransferRequest(
+  id: string,
+  sourceBranchId: string,
+  lines: { productId: string; requestedQty: number }[],
+) {
+  return prisma.stockTransfer.update({
+    where: { id },
+    data: {
+      sourceBranch: { connect: { id: sourceBranchId } },
+      lines: {
+        deleteMany: {},
+        create: lines.map((l) => ({ productId: l.productId, requestedQty: l.requestedQty })),
+      },
+    },
+    include: withRelations,
+  });
+}
+
 export function updateTransfer(id: string, data: Prisma.StockTransferUpdateInput) {
   return prisma.stockTransfer.update({ where: { id }, data, include: withRelations });
 }

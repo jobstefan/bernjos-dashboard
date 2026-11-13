@@ -8,12 +8,14 @@ import {
   approveTransfer,
   cancelTransfer,
   declineTransfer,
+  editRequestedTransfer,
   prepareTransfer,
   receiveTransfer,
   requestTransfer,
   resolveDiscrepancy,
 } from "@/server/services/stock-transfer.service";
 import {
+  editTransferSchema,
   prepareTransferSchema,
   receiveTransferSchema,
   requestTransferSchema,
@@ -53,6 +55,20 @@ export async function requestTransferAction(input: unknown): Promise<ActionResul
     const result = await requestTransfer(branchId, parsed.data, actor);
     revalidate();
     return { success: true, data: result };
+  } catch (error) {
+    return { success: false, ...toActionError(error) };
+  }
+}
+
+export async function editTransferAction(input: unknown): Promise<ActionResult> {
+  try {
+    const actor = await requireInventoryOperator();
+    const branchId = await requireKioskBranch();
+    const parsed = editTransferSchema.safeParse(input);
+    if (!parsed.success) return fieldErrors(parsed.error);
+    await editRequestedTransfer(parsed.data, branchId, actor);
+    revalidate();
+    return { success: true, data: undefined };
   } catch (error) {
     return { success: false, ...toActionError(error) };
   }

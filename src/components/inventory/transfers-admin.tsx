@@ -22,6 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DetailDrawer } from "@/components/ui/detail-drawer";
+import { DataToolbar } from "@/components/ui/data-toolbar";
+import { SummaryCard } from "@/components/payroll/summary-card";
 import { TransferSlip } from "@/components/inventory/transfer-slip";
 import { toneClass } from "@/lib/utils/tone";
 import {
@@ -59,6 +61,15 @@ const RESOLUTIONS: { value: BstDiscrepancy; label: string }[] = [
   { value: "variance_note", label: "Record as a variance note" },
 ];
 
+const STATUS_FILTER_OPTIONS: [BstStatus, string][] = [
+  ["requested", "Requested"],
+  ["approved", "Approved"],
+  ["prepared", "Prepared"],
+  ["received", "Received"],
+  ["declined", "Declined"],
+  ["cancelled", "Cancelled"],
+];
+
 export function TransfersAdmin({
   transfers,
   canResolve,
@@ -70,6 +81,35 @@ export function TransfersAdmin({
   const [pending, startTransition] = React.useTransition();
   const [selected, setSelected] = React.useState<TransferRow | null>(null);
   const [resolving, setResolving] = React.useState<TransferRow | null>(null);
+  const [search, setSearch] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState("");
+
+  const counts = React.useMemo(() => {
+    let requested = 0;
+    let approved = 0;
+    let prepared = 0;
+    let discrepancies = 0;
+    for (const t of transfers) {
+      if (t.status === "requested") requested++;
+      else if (t.status === "approved") approved++;
+      else if (t.status === "prepared") prepared++;
+      if (t.hasUnresolvedDiscrepancy) discrepancies++;
+    }
+    return { requested, approved, prepared, discrepancies };
+  }, [transfers]);
+
+  const filtered = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const isStatus = STATUS_FILTER_OPTIONS.some(([v]) => v === statusFilter);
+    return transfers.filter((t) => {
+      if (isStatus && t.status !== statusFilter) return false;
+      if (q) {
+        const hay = `${t.slipNumber ?? ""} ${t.sourceBranchName} ${t.destBranchName}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [transfers, search, statusFilter]);
 
   function act(fn: () => Promise<{ success: boolean; error?: string }>, ok: string) {
     startTransition(async () => {
@@ -84,66 +124,96 @@ export function TransfersAdmin({
     });
   }
 
-  if (transfers.length === 0) {
-    return (
-      <p className="rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
-        No transfer slips yet.
-      </p>
-    );
-  }
-
   return (
     <>
-      <div className="space-y-3">
-        {transfers.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setSelected(t)}
-            className="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-muted/50"
-          >
-            <div className="flex flex-wrap items-center gap-3">
-              <FileText className="size-4 shrink-0 text-muted-foreground" />
-              {t.slipNumber ? (
-                <span className="font-mono text-sm font-medium">{t.slipNumber}</span>
-              ) : null}
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                {t.sourceBranchName}
-                <ArrowRight className="size-3.5" />
-                {t.destBranchName}
-              </div>
-              <span
-                className={
-                  "inline-flex rounded-full border px-2 py-0.5 text-xs font-medium " +
-                  toneClass(bstStatusTone(t.status))
-                }
-              >
-                {BST_STATUS_LABEL[t.status]}
-              </span>
-              {t.hasUnresolvedDiscrepancy ? (
-                <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
-                  <AlertTriangle className="size-3" /> discrepancy
-                </span>
-              ) : null}
-            </div>
+      <div className="space-y-6">
+        {/* Summary tiles */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <SummaryCard title="Awaiting approval" value={String(counts.requested)} hint="New request slips" />
+          <SummaryCard title="In preparation" value={String(counts.approved)} hint="Approved, being packed" />
+          <SummaryCard title="Awaiting receipt" value={String(counts.prepared)} hint="Handed off, in transit" />
+          <SummaryCard title="Open discrepancies" value={String(counts.discrepancies)} hint="Need resolution" />
+        </div>
 
-            <div className="mt-3 grid gap-1 border-t border-border pt-3 text-sm">
-              {t.lines.map((l) => {
-                const mismatch = l.preparedQty !== null && l.receivedQty !== l.preparedQty;
-                return (
-                  <div key={l.id} className="flex items-center gap-3 text-muted-foreground">
-                    <span className="flex-1">{l.productName}</span>
-                    <span>req {l.requestedQty}</span>
-                    <span>prep {l.preparedQty ?? "—"}</span>
-                    <span className={mismatch ? "font-medium text-destructive" : ""}>
-                      recv {l.receivedQty ?? "—"}
+        {/* Toolbar */}
+        <DataToolbar
+          search={{ value: search, onChange: setSearch, placeholder: "Search slip # or branch…" }}
+          filters={[
+            {
+              value: statusFilter,
+              onChange: (v) => setStatusFilter(v ?? ""),
+              placeholder: "Status",
+              options: STATUS_FILTER_OPTIONS,
+            },
+          ]}
+        />
+
+        {/* Slip list */}
+        {filtered.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
+            {transfers.length === 0 ? "No transfer slips yet." : "No slips match your filters."}
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map((t) => {
+              const needsAttention = t.status === "requested" || t.hasUnresolvedDiscrepancy;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setSelected(t)}
+                  className={
+                    "w-full rounded-xl border bg-card p-4 text-left transition-colors hover:bg-muted/50 " +
+                    (needsAttention
+                      ? "border-amber-300 dark:border-amber-800/60"
+                      : "border-border")
+                  }
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <FileText className="size-4 shrink-0 text-muted-foreground" />
+                    {t.slipNumber ? (
+                      <span className="font-mono text-sm font-medium">{t.slipNumber}</span>
+                    ) : null}
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      {t.sourceBranchName}
+                      <ArrowRight className="size-3.5" />
+                      {t.destBranchName}
+                    </div>
+                    <span
+                      className={
+                        "ml-auto inline-flex rounded-full border px-2 py-0.5 text-xs font-medium " +
+                        toneClass(bstStatusTone(t.status))
+                      }
+                    >
+                      {BST_STATUS_LABEL[t.status]}
                     </span>
+                    {t.hasUnresolvedDiscrepancy ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+                        <AlertTriangle className="size-3" /> discrepancy
+                      </span>
+                    ) : null}
                   </div>
-                );
-              })}
-            </div>
-          </button>
-        ))}
+
+                  <div className="mt-3 grid gap-1 border-t border-border pt-3 text-sm">
+                    {t.lines.map((l) => {
+                      const mismatch = l.preparedQty !== null && l.receivedQty !== l.preparedQty;
+                      return (
+                        <div key={l.id} className="flex items-center gap-3 text-muted-foreground">
+                          <span className="flex-1 truncate">{l.productName}</span>
+                          <span className="font-mono text-xs">req {l.requestedQty}</span>
+                          <span className="font-mono text-xs">prep {l.preparedQty ?? "—"}</span>
+                          <span className={"font-mono text-xs " + (mismatch ? "font-semibold text-destructive" : "")}>
+                            recv {l.receivedQty ?? "—"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Slip detail drawer */}

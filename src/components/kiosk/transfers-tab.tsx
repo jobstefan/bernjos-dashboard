@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowRight, FileText, Plus, X } from "lucide-react";
+import { ArrowLeft, FileText, Pencil, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,6 +27,7 @@ import { TransferSlip } from "@/components/inventory/transfer-slip";
 import { toneClass } from "@/lib/utils/tone";
 import {
   cancelTransferAction,
+  editTransferAction,
   prepareTransferAction,
   receiveTransferAction,
   requestTransferAction,
@@ -68,7 +69,8 @@ export function TransfersTab({
 }) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
-  const [requesting, setRequesting] = React.useState(false);
+  const [requestOpen, setRequestOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState<TransferRow | null>(null);
   const [selected, setSelected] = React.useState<TransferRow | null>(null);
   const [fulfil, setFulfil] = React.useState<{ transfer: TransferRow; mode: "prepare" | "receive" } | null>(null);
 
@@ -80,7 +82,7 @@ export function TransfersTab({
     startTransition(async () => {
       const res = await cancelTransferAction(id);
       if (res.success) {
-        toast.success("Request cancelled.");
+        toast.success("Request slip cancelled.");
         setSelected(null);
         router.refresh();
       } else toast.error(res.error);
@@ -95,10 +97,19 @@ export function TransfersTab({
       ? "receive"
       : null);
 
+  const canEditSelected =
+    selected !== null && selected.status === "requested" && selected.destBranchId === branchId;
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex justify-end">
-        <Button className="h-11" onClick={() => setRequesting(true)}>
+        <Button
+          className="h-11"
+          onClick={() => {
+            setEditing(null);
+            setRequestOpen(true);
+          }}
+        >
           <Plus className="size-4" /> Issue request slip
         </Button>
       </div>
@@ -127,9 +138,7 @@ export function TransfersTab({
         onOpenChange={(o) => !o && setSelected(null)}
         title={selected?.slipNumber ?? "Transfer slip"}
         description={
-          selected
-            ? `${selected.sourceBranchName} → ${selected.destBranchName}`
-            : undefined
+          selected ? `${selected.sourceBranchName} → ${selected.destBranchName}` : undefined
         }
         footer={
           selected ? (
@@ -157,6 +166,20 @@ export function TransfersTab({
                   Receive & verify
                 </Button>
               ) : null}
+              {canEditSelected ? (
+                <Button
+                  variant="outline"
+                  className="h-11 w-full"
+                  disabled={pending}
+                  onClick={() => {
+                    setEditing(selected);
+                    setRequestOpen(true);
+                    setSelected(null);
+                  }}
+                >
+                  <Pencil className="size-4" /> Edit slip
+                </Button>
+              ) : null}
               {selected.status === "requested" ? (
                 <Button
                   variant="ghost"
@@ -175,15 +198,16 @@ export function TransfersTab({
       </DetailDrawer>
 
       <RequestDialog
-        open={requesting}
-        onOpenChange={setRequesting}
+        open={requestOpen}
+        onOpenChange={(o) => {
+          setRequestOpen(o);
+          if (!o) setEditing(null);
+        }}
         branches={branches}
         products={products}
+        editing={editing}
       />
-      <FulfilDialog
-        fulfil={fulfil}
-        onOpenChange={(o) => !o && setFulfil(null)}
-      />
+      <FulfilDialog fulfil={fulfil} onOpenChange={(o) => !o && setFulfil(null)} />
     </div>
   );
 }
@@ -259,32 +283,46 @@ function SlipCard({
   );
 }
 
-// ── Request dialog ──────────────────────────────────────────────────────────
+// ── Request / edit dialog ────────────────────────────────────────────────────
 
 function RequestDialog({
   open,
   onOpenChange,
   branches,
   products,
+  editing,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   branches: { id: string; name: string }[];
   products: KioskProduct[];
+  editing: TransferRow | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const [sourceBranchId, setSourceBranchId] = React.useState("");
   const [lines, setLines] = React.useState<{ productId: string; qty: string }[]>([]);
   const [addProductId, setAddProductId] = React.useState("");
+  const isEdit = editing !== null;
+
+  // Fallback name lookup for products referenced by an edited slip.
+  const editNames = React.useMemo(
+    () => new Map((editing?.lines ?? []).map((l) => [l.productId, l.productName])),
+    [editing],
+  );
 
   React.useEffect(() => {
     if (open) {
-      setSourceBranchId("");
-      setLines([]);
+      if (editing) {
+        setSourceBranchId(editing.sourceBranchId);
+        setLines(editing.lines.map((l) => ({ productId: l.productId, qty: String(l.requestedQty) })));
+      } else {
+        setSourceBranchId("");
+        setLines([]);
+      }
       setAddProductId("");
     }
-  }, [open]);
+  }, [open, editing]);
 
   function addLine() {
     if (!addProductId || lines.some((l) => l.productId === addProductId)) return;
@@ -294,27 +332,33 @@ function RequestDialog({
 
   function submit() {
     startTransition(async () => {
-      const res = await requestTransferAction({
-        sourceBranchId,
-        lines: lines.map((l) => ({ productId: l.productId, requestedQty: Number(l.qty) })),
-      });
+      const payloadLines = lines.map((l) => ({ productId: l.productId, requestedQty: Number(l.qty) }));
+      const res = editing
+        ? await editTransferAction({ transferId: editing.id, sourceBranchId, lines: payloadLines })
+        : await requestTransferAction({ sourceBranchId, lines: payloadLines });
       if (res.success) {
-        toast.success("Request slip issued.");
+        toast.success(editing ? "Request slip updated." : "Request slip issued.");
         onOpenChange(false);
         router.refresh();
       } else toast.error(res.error);
     });
   }
 
-  const productName = (id: string) => products.find((p) => p.id === id)?.name ?? id;
+  const productName = (id: string) =>
+    products.find((p) => p.id === id)?.name ?? editNames.get(id) ?? id;
   const available = products.filter((p) => !lines.some((l) => l.productId === p.id));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Issue request slip</DialogTitle>
-          <DialogDescription>Ask another branch to send you products.</DialogDescription>
+          <DialogTitle>{isEdit ? "Edit request slip" : "Issue request slip"}</DialogTitle>
+          <DialogDescription>
+            {isEdit && editing?.slipNumber ? (
+              <span className="font-mono">{editing.slipNumber} · </span>
+            ) : null}
+            Ask another branch to send you products.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-2">
@@ -380,7 +424,7 @@ function RequestDialog({
             disabled={pending || !sourceBranchId || lines.length === 0}
             onClick={submit}
           >
-            {pending ? "Issuing…" : "Issue slip"}
+            {pending ? "Saving…" : isEdit ? "Save changes" : "Issue slip"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -388,7 +432,7 @@ function RequestDialog({
   );
 }
 
-// ── Prepare / receive dialog (per-line quantities) ──────────────────────────
+// ── Prepare / receive dialog (enter → review → confirm) ──────────────────────
 
 function FulfilDialog({
   fulfil,
@@ -400,6 +444,7 @@ function FulfilDialog({
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const [qty, setQty] = React.useState<Record<string, string>>({});
+  const [step, setStep] = React.useState<"edit" | "review">("edit");
 
   React.useEffect(() => {
     if (fulfil) {
@@ -407,6 +452,7 @@ function FulfilDialog({
         ? Object.fromEntries(fulfil.transfer.lines.map((l) => [l.id, String(l.requestedQty)]))
         : Object.fromEntries(fulfil.transfer.lines.map((l) => [l.id, String(l.preparedQty ?? 0)]));
       setQty(seed);
+      setStep("edit");
     }
   }, [fulfil]);
 
@@ -431,52 +477,103 @@ function FulfilDialog({
     });
   }
 
+  const title =
+    step === "review"
+      ? "Double-check the counts"
+      : mode === "prepare"
+      ? "Prepare transfer slip"
+      : "Receive & verify slip";
+
   return (
     <Dialog open onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {mode === "prepare" ? "Prepare transfer slip" : "Receive & verify slip"}
-          </DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            {transfer.slipNumber ? (
-              <span className="font-mono">{transfer.slipNumber} · </span>
-            ) : null}
-            {mode === "prepare"
+            {transfer.slipNumber ? <span className="font-mono">{transfer.slipNumber} · </span> : null}
+            {step === "review"
+              ? "Confirm every line is correct before posting. You can go back to fix a count."
+              : mode === "prepare"
               ? `Enter what you're actually handing to ${transfer.destBranchName}.`
               : `Recount what actually arrived from ${transfer.sourceBranchName}.`}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-[50vh] space-y-1 overflow-y-auto py-2">
-          {transfer.lines.map((l) => (
-            <div key={l.id} className="flex items-center gap-3 rounded-lg px-2 py-2">
-              <div className="min-w-0">
-                <div className="truncate text-sm font-medium">{l.productName}</div>
-                <div className="text-xs text-muted-foreground">
-                  {mode === "prepare"
-                    ? `requested ${l.requestedQty} ${l.unit}`
-                    : `prepared ${l.preparedQty ?? 0} ${l.unit}`}
+        {step === "edit" ? (
+          <div className="max-h-[50vh] space-y-1 overflow-y-auto py-2">
+            {transfer.lines.map((l) => (
+              <div key={l.id} className="flex items-center gap-3 rounded-lg px-2 py-2">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">{l.productName}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {mode === "prepare"
+                      ? `requested ${l.requestedQty} ${l.unit}`
+                      : `prepared ${l.preparedQty ?? 0} ${l.unit}`}
+                  </div>
                 </div>
+                <NumberStepper
+                  className="ml-auto"
+                  value={Number(qty[l.id] ?? 0)}
+                  onChange={(n) => setQty((q) => ({ ...q, [l.id]: String(n) }))}
+                  min={0}
+                />
               </div>
-              <NumberStepper
-                className="ml-auto"
-                value={Number(qty[l.id] ?? 0)}
-                onChange={(n) => setQty((q) => ({ ...q, [l.id]: String(n) }))}
-                min={0}
-              />
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="max-h-[50vh] space-y-1 overflow-y-auto py-2">
+            {transfer.lines.map((l) => {
+              const entered = Number(qty[l.id] ?? 0);
+              const baseline = mode === "prepare" ? l.requestedQty : (l.preparedQty ?? 0);
+              const diff = entered - baseline;
+              return (
+                <div key={l.id} className="flex items-center gap-3 rounded-lg px-2 py-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{l.productName}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {mode === "prepare" ? "requested" : "prepared"} {baseline} {l.unit}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-mono text-base font-semibold">
+                      {entered} <span className="text-xs font-normal text-muted-foreground">{l.unit}</span>
+                    </div>
+                    {diff !== 0 ? (
+                      <div className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                        {diff > 0 ? "+" : ""}{diff} vs {mode === "prepare" ? "request" : "prepared"}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
-        <DialogFooter>
-          <Button className="h-12 w-full text-base" disabled={pending} onClick={submit}>
-            {pending
-              ? "Saving…"
-              : mode === "prepare"
-              ? "Prepare & hand off"
-              : "Confirm received"}
-          </Button>
+        <DialogFooter className="gap-2 sm:flex-col sm:gap-2">
+          {step === "edit" ? (
+            <Button className="h-12 w-full text-base" onClick={() => setStep("review")}>
+              Review counts
+            </Button>
+          ) : (
+            <>
+              <Button className="h-12 w-full text-base" disabled={pending} onClick={submit}>
+                {pending
+                  ? "Posting…"
+                  : mode === "prepare"
+                  ? "Confirm & hand off"
+                  : "Confirm received"}
+              </Button>
+              <Button
+                variant="ghost"
+                className="h-11 w-full"
+                disabled={pending}
+                onClick={() => setStep("edit")}
+              >
+                <ArrowLeft className="size-4" /> Back to edit
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
