@@ -3,8 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowRight, AlertTriangle } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ArrowRight, FileText, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,6 +21,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DetailDrawer } from "@/components/ui/detail-drawer";
+import { TransferSlip } from "@/components/inventory/transfer-slip";
+import { toneClass } from "@/lib/utils/tone";
 import {
   approveTransferAction,
   declineTransferAction,
@@ -29,14 +31,26 @@ import {
 } from "@/app/actions/stock-transfer.actions";
 import type { BstStatus, BstDiscrepancy } from "@/generated/prisma/enums";
 import type { TransferRow } from "@/lib/types/inventory";
+import type { Tone } from "@/lib/utils/tone";
 
-const STATUS_VARIANT: Record<BstStatus, "default" | "secondary" | "outline" | "destructive"> = {
-  requested: "outline",
-  approved: "default",
-  prepared: "secondary",
-  received: "secondary",
-  declined: "destructive",
-  cancelled: "outline",
+function bstStatusTone(status: BstStatus): Tone {
+  switch (status) {
+    case "requested": return "neutral";
+    case "approved":  return "info";
+    case "prepared":  return "warning";
+    case "received":  return "success";
+    case "declined":  return "danger";
+    case "cancelled": return "neutral";
+  }
+}
+
+const BST_STATUS_LABEL: Record<BstStatus, string> = {
+  requested: "Requested",
+  approved:  "Approved",
+  prepared:  "Prepared",
+  received:  "Received",
+  declined:  "Declined",
+  cancelled: "Cancelled",
 };
 
 const RESOLUTIONS: { value: BstDiscrepancy; label: string }[] = [
@@ -54,6 +68,7 @@ export function TransfersAdmin({
 }) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
+  const [selected, setSelected] = React.useState<TransferRow | null>(null);
   const [resolving, setResolving] = React.useState<TransferRow | null>(null);
 
   function act(fn: () => Promise<{ success: boolean; error?: string }>, ok: string) {
@@ -61,6 +76,7 @@ export function TransfersAdmin({
       const res = await fn();
       if (res.success) {
         toast.success(ok);
+        setSelected(null);
         router.refresh();
       } else {
         toast.error(res.error ?? "Something went wrong.");
@@ -71,82 +87,122 @@ export function TransfersAdmin({
   if (transfers.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
-        No stock transfers yet.
+        No transfer slips yet.
       </p>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {transfers.map((t) => (
-        <div key={t.id} className="rounded-xl border border-border bg-card p-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 font-medium">
-              {t.sourceBranchName}
-              <ArrowRight className="size-4 text-muted-foreground" />
-              {t.destBranchName}
-            </div>
-            <Badge variant={STATUS_VARIANT[t.status]}>{t.status}</Badge>
-            {t.hasUnresolvedDiscrepancy ? (
-              <Badge variant="destructive" className="gap-1">
-                <AlertTriangle className="size-3.5" /> discrepancy
-              </Badge>
-            ) : null}
-            {t.discrepancyResolution ? (
-              <span className="text-xs text-muted-foreground">
-                resolved: {t.discrepancyResolution.replace("_", " ")}
+    <>
+      <div className="space-y-3">
+        {transfers.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setSelected(t)}
+            className="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-muted/50"
+          >
+            <div className="flex flex-wrap items-center gap-3">
+              <FileText className="size-4 shrink-0 text-muted-foreground" />
+              {t.slipNumber ? (
+                <span className="font-mono text-sm font-medium">{t.slipNumber}</span>
+              ) : null}
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                {t.sourceBranchName}
+                <ArrowRight className="size-3.5" />
+                {t.destBranchName}
+              </div>
+              <span
+                className={
+                  "inline-flex rounded-full border px-2 py-0.5 text-xs font-medium " +
+                  toneClass(bstStatusTone(t.status))
+                }
+              >
+                {BST_STATUS_LABEL[t.status]}
               </span>
-            ) : null}
+              {t.hasUnresolvedDiscrepancy ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+                  <AlertTriangle className="size-3" /> discrepancy
+                </span>
+              ) : null}
+            </div>
 
-            <div className="ml-auto flex items-center gap-2">
-              {t.status === "requested" ? (
-                <>
+            <div className="mt-3 grid gap-1 border-t border-border pt-3 text-sm">
+              {t.lines.map((l) => {
+                const mismatch = l.preparedQty !== null && l.receivedQty !== l.preparedQty;
+                return (
+                  <div key={l.id} className="flex items-center gap-3 text-muted-foreground">
+                    <span className="flex-1">{l.productName}</span>
+                    <span>req {l.requestedQty}</span>
+                    <span>prep {l.preparedQty ?? "—"}</span>
+                    <span className={mismatch ? "font-medium text-destructive" : ""}>
+                      recv {l.receivedQty ?? "—"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Slip detail drawer */}
+      <DetailDrawer
+        open={selected !== null}
+        onOpenChange={(o) => !o && setSelected(null)}
+        title={selected?.slipNumber ?? "Transfer slip"}
+        description={
+          selected
+            ? `${selected.sourceBranchName} → ${selected.destBranchName}`
+            : undefined
+        }
+        footer={
+          selected ? (
+            <div className="flex flex-col gap-2">
+              {selected.status === "requested" ? (
+                <div className="flex gap-2">
                   <Button
-                    size="sm"
+                    className="h-11 flex-1"
                     disabled={pending}
-                    onClick={() => act(() => approveTransferAction(t.id), "Approved.")}
+                    onClick={() =>
+                      act(() => approveTransferAction(selected.id), "Transfer slip approved.")
+                    }
                   >
                     Approve
                   </Button>
                   <Button
-                    size="sm"
                     variant="outline"
-                    className="text-destructive"
+                    className="h-11 flex-1 text-destructive"
                     disabled={pending}
-                    onClick={() => act(() => declineTransferAction(t.id), "Declined.")}
+                    onClick={() =>
+                      act(() => declineTransferAction(selected.id), "Transfer slip declined.")
+                    }
                   >
                     Decline
                   </Button>
-                </>
+                </div>
               ) : null}
-              {canResolve && t.hasUnresolvedDiscrepancy ? (
-                <Button size="sm" variant="outline" onClick={() => setResolving(t)}>
-                  Resolve
+              {canResolve && selected.hasUnresolvedDiscrepancy ? (
+                <Button
+                  variant="outline"
+                  className="h-11 w-full"
+                  onClick={() => {
+                    setResolving(selected);
+                    setSelected(null);
+                  }}
+                >
+                  Resolve discrepancy
                 </Button>
               ) : null}
             </div>
-          </div>
-
-          <div className="mt-3 grid gap-1 border-t border-border pt-3 text-sm">
-            {t.lines.map((l) => {
-              const mismatch = l.preparedQty !== null && l.receivedQty !== l.preparedQty;
-              return (
-                <div key={l.id} className="flex items-center gap-3 text-muted-foreground">
-                  <span className="flex-1">{l.productName}</span>
-                  <span>req {l.requestedQty}</span>
-                  <span>prep {l.preparedQty ?? "—"}</span>
-                  <span className={mismatch ? "font-medium text-destructive" : ""}>
-                    recv {l.receivedQty ?? "—"}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+          ) : undefined
+        }
+      >
+        {selected ? <TransferSlip transfer={selected} showPrint /> : null}
+      </DetailDrawer>
 
       <ResolveDialog transfer={resolving} onOpenChange={(o) => !o && setResolving(null)} />
-    </div>
+    </>
   );
 }
 
@@ -190,6 +246,9 @@ function ResolveDialog({
         <DialogHeader>
           <DialogTitle>Resolve discrepancy</DialogTitle>
           <DialogDescription>
+            {transfer.slipNumber ? (
+              <span className="font-mono">{transfer.slipNumber} · </span>
+            ) : null}
             Decide how to book the difference between prepared and received quantities.
           </DialogDescription>
         </DialogHeader>

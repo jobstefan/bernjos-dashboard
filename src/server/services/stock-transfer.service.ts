@@ -18,6 +18,8 @@ import {
   InvalidStateTransitionError,
   NotFoundError,
 } from "@/lib/errors/payroll";
+import { nextStockTransferSlipNumber } from "@/server/db/slip-number";
+import { prisma } from "@/lib/db";
 import type { Actor } from "@/lib/types/payroll";
 import type { InventoryEntryType } from "@/generated/prisma/enums";
 import type { KioskTransferBadges, TransferRow } from "@/lib/types/inventory";
@@ -43,12 +45,16 @@ function toRow(t: TransferWithRelations): TransferRow {
   const mismatch = lines.some((l) => l.preparedQty !== null && l.receivedQty !== l.preparedQty);
   return {
     id: t.id,
+    slipNumber: t.slipNumber,
     status: t.status,
     sourceBranchId: t.sourceBranchId,
     sourceBranchName: t.sourceBranch.name,
+    sourceBranchCode: t.sourceBranch.code,
     destBranchId: t.destBranchId,
     destBranchName: t.destBranch.name,
+    destBranchCode: t.destBranch.code,
     requestedAt: t.requestedAt.toISOString(),
+    approvedAt: t.approvedAt?.toISOString() ?? null,
     preparedAt: t.preparedAt?.toISOString() ?? null,
     receivedAt: t.receivedAt?.toISOString() ?? null,
     decisionNote: t.decisionNote,
@@ -97,7 +103,9 @@ export async function requestTransfer(
   if (input.lines.length === 0) {
     throw new BadRequestError("Add at least one product to the request.");
   }
-  const transfer = await insertTransfer(input.sourceBranchId, destBranchId, actor.clerkUserId, input.lines);
+  const destBranch = await prisma.branch.findUnique({ where: { id: destBranchId }, select: { code: true } });
+  const slipNumber = await nextStockTransferSlipNumber(destBranch?.code ?? null);
+  const transfer = await insertTransfer(input.sourceBranchId, destBranchId, actor.clerkUserId, slipNumber, input.lines);
   await auditLog({
     actor,
     action: "bst.requested",

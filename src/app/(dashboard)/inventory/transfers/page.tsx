@@ -14,9 +14,9 @@ export default async function TransfersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Stock Transfers</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Transfer Slips</h1>
         <p className="text-sm text-muted-foreground">
-          Approve branch requests and resolve prepared-vs-received discrepancies.
+          Review and approve branch transfer slips; resolve prepared-vs-received discrepancies.
         </p>
       </div>
 

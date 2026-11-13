@@ -3,8 +3,8 @@ import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 
 const withRelations = {
-  sourceBranch: { select: { id: true, name: true } },
-  destBranch: { select: { id: true, name: true } },
+  sourceBranch: { select: { id: true, name: true, code: true } },
+  destBranch: { select: { id: true, name: true, code: true } },
   lines: {
     include: { product: { select: { name: true, unit: true } } },
     orderBy: { product: { name: "asc" as const } },
@@ -32,6 +32,7 @@ export function insertTransfer(
   sourceBranchId: string,
   destBranchId: string,
   requestedBy: string,
+  slipNumber: string,
   lines: { productId: string; requestedQty: number }[],
 ) {
   return prisma.stockTransfer.create({
@@ -39,6 +40,7 @@ export function insertTransfer(
       sourceBranchId,
       destBranchId,
       requestedBy,
+      slipNumber,
       lines: { create: lines.map((l) => ({ productId: l.productId, requestedQty: l.requestedQty })) },
     },
     include: withRelations,

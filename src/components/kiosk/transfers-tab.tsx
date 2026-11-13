@@ -3,9 +3,8 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeftRight, Plus, X } from "lucide-react";
+import { ArrowRight, FileText, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +22,9 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { NumberStepper } from "@/components/kiosk/number-stepper";
+import { DetailDrawer } from "@/components/ui/detail-drawer";
+import { TransferSlip } from "@/components/inventory/transfer-slip";
+import { toneClass } from "@/lib/utils/tone";
 import {
   cancelTransferAction,
   prepareTransferAction,
@@ -30,13 +32,26 @@ import {
   requestTransferAction,
 } from "@/app/actions/stock-transfer.actions";
 import type { KioskProduct, TransferRow } from "@/lib/types/inventory";
+import type { BstStatus } from "@/generated/prisma/enums";
+import type { Tone } from "@/lib/utils/tone";
 
-const STATUS_LABEL: Record<string, string> = {
+function bstStatusTone(status: BstStatus): Tone {
+  switch (status) {
+    case "requested": return "neutral";
+    case "approved":  return "info";
+    case "prepared":  return "warning";
+    case "received":  return "success";
+    case "declined":  return "danger";
+    case "cancelled": return "neutral";
+  }
+}
+
+const BST_STATUS_LABEL: Record<BstStatus, string> = {
   requested: "Requested",
-  approved: "Approved",
-  prepared: "Prepared",
-  received: "Received",
-  declined: "Declined",
+  approved:  "Approved",
+  prepared:  "Prepared",
+  received:  "Received",
+  declined:  "Declined",
   cancelled: "Cancelled",
 };
 
@@ -54,6 +69,7 @@ export function TransfersTab({
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const [requesting, setRequesting] = React.useState(false);
+  const [selected, setSelected] = React.useState<TransferRow | null>(null);
   const [fulfil, setFulfil] = React.useState<{ transfer: TransferRow; mode: "prepare" | "receive" } | null>(null);
 
   const toPrepare = transfers.filter((t) => t.status === "approved" && t.sourceBranchId === branchId);
@@ -65,51 +81,98 @@ export function TransfersTab({
       const res = await cancelTransferAction(id);
       if (res.success) {
         toast.success("Request cancelled.");
+        setSelected(null);
         router.refresh();
       } else toast.error(res.error);
     });
   }
 
+  const selectedMode =
+    selected &&
+    (selected.status === "approved" && selected.sourceBranchId === branchId
+      ? "prepare"
+      : selected.status === "prepared" && selected.destBranchId === branchId
+      ? "receive"
+      : null);
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex justify-end">
         <Button className="h-11" onClick={() => setRequesting(true)}>
-          <Plus className="size-4" /> Request stock
+          <Plus className="size-4" /> Issue request slip
         </Button>
       </div>
 
-      <Section title={`To prepare & hand off (${toPrepare.length})`} empty="No approved requests waiting on your branch.">
+      <Section title={`To prepare & hand off (${toPrepare.length})`} empty="No approved slips waiting on your branch.">
         {toPrepare.map((t) => (
-          <TransferCard key={t.id} transfer={t} subtitle={`For ${t.destBranchName}`}>
-            <Button size="sm" disabled={pending} onClick={() => setFulfil({ transfer: t, mode: "prepare" })}>
-              Prepare
-            </Button>
-          </TransferCard>
+          <SlipCard key={t.id} transfer={t} subtitle={`For ${t.destBranchName}`} onClick={() => setSelected(t)} />
         ))}
       </Section>
 
-      <Section title={`To receive & recount (${toReceive.length})`} empty="Nothing prepared and heading your way.">
+      <Section title={`To receive & verify (${toReceive.length})`} empty="Nothing prepared and heading your way.">
         {toReceive.map((t) => (
-          <TransferCard key={t.id} transfer={t} subtitle={`From ${t.sourceBranchName}`}>
-            <Button size="sm" disabled={pending} onClick={() => setFulfil({ transfer: t, mode: "receive" })}>
-              Receive
-            </Button>
-          </TransferCard>
+          <SlipCard key={t.id} transfer={t} subtitle={`From ${t.sourceBranchName}`} onClick={() => setSelected(t)} />
         ))}
       </Section>
 
-      <Section title={`My requests (${myRequests.length})`} empty="You haven't requested any stock yet.">
+      <Section title={`My request slips (${myRequests.length})`} empty="You haven't issued any request slips yet.">
         {myRequests.map((t) => (
-          <TransferCard key={t.id} transfer={t} subtitle={`From ${t.sourceBranchName}`}>
-            <Badge variant="secondary">{STATUS_LABEL[t.status]}</Badge>
-            {t.status === "requested" ? (
-              <Button size="sm" variant="ghost" className="text-destructive" disabled={pending} onClick={() => cancel(t.id)}>
-                Cancel
-              </Button>
-            ) : null}
-          </TransferCard>
+          <SlipCard key={t.id} transfer={t} subtitle={`From ${t.sourceBranchName}`} onClick={() => setSelected(t)} />
         ))}
       </Section>
+
+      {/* Slip detail drawer */}
+      <DetailDrawer
+        open={selected !== null}
+        onOpenChange={(o) => !o && setSelected(null)}
+        title={selected?.slipNumber ?? "Transfer slip"}
+        description={
+          selected
+            ? `${selected.sourceBranchName} → ${selected.destBranchName}`
+            : undefined
+        }
+        footer={
+          selected ? (
+            <div className="flex flex-col gap-2">
+              {selectedMode === "prepare" ? (
+                <Button
+                  className="h-11 w-full"
+                  disabled={pending}
+                  onClick={() => {
+                    setFulfil({ transfer: selected, mode: "prepare" });
+                    setSelected(null);
+                  }}
+                >
+                  Prepare & hand off
+                </Button>
+              ) : selectedMode === "receive" ? (
+                <Button
+                  className="h-11 w-full"
+                  disabled={pending}
+                  onClick={() => {
+                    setFulfil({ transfer: selected, mode: "receive" });
+                    setSelected(null);
+                  }}
+                >
+                  Receive & verify
+                </Button>
+              ) : null}
+              {selected.status === "requested" ? (
+                <Button
+                  variant="ghost"
+                  className="h-11 w-full text-destructive"
+                  disabled={pending}
+                  onClick={() => cancel(selected.id)}
+                >
+                  Cancel slip
+                </Button>
+              ) : null}
+            </div>
+          ) : undefined
+        }
+      >
+        {selected ? <TransferSlip transfer={selected} showPrint /> : null}
+      </DetailDrawer>
 
       <RequestDialog
         open={requesting}
@@ -141,27 +204,49 @@ function Section({ title, empty, children }: { title: string; empty: string; chi
   );
 }
 
-function TransferCard({
+function SlipCard({
   transfer,
   subtitle,
-  children,
+  onClick,
 }: {
   transfer: TransferRow;
   subtitle: string;
-  children: React.ReactNode;
+  onClick: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-3">
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full rounded-xl border border-border bg-card p-3 text-left transition-colors hover:bg-muted/50"
+    >
       <div className="flex items-center gap-3">
-        <ArrowLeftRight className="size-4 text-muted-foreground" />
-        <div className="min-w-0">
-          <div className="truncate text-sm font-medium">{subtitle}</div>
-          <div className="text-xs text-muted-foreground">
-            {transfer.lines.length} item{transfer.lines.length === 1 ? "" : "s"}
-            {transfer.hasUnresolvedDiscrepancy ? " · discrepancy" : ""}
+        <FileText className="size-4 shrink-0 text-muted-foreground" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            {transfer.slipNumber ? (
+              <span className="font-mono text-xs font-medium text-muted-foreground">
+                {transfer.slipNumber}
+              </span>
+            ) : null}
+            <span className="truncate text-sm font-medium">{subtitle}</span>
+          </div>
+          <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+            <span>
+              {transfer.lines.length} item{transfer.lines.length === 1 ? "" : "s"}
+            </span>
+            {transfer.hasUnresolvedDiscrepancy ? (
+              <span className="text-destructive">· discrepancy</span>
+            ) : null}
           </div>
         </div>
-        <div className="ml-auto flex items-center gap-2">{children}</div>
+        <span
+          className={
+            "inline-flex shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium " +
+            toneClass(bstStatusTone(transfer.status))
+          }
+        >
+          {BST_STATUS_LABEL[transfer.status]}
+        </span>
       </div>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 pl-7 text-xs text-muted-foreground">
         {transfer.lines.map((l) => (
@@ -170,7 +255,7 @@ function TransferCard({
           </span>
         ))}
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -214,7 +299,7 @@ function RequestDialog({
         lines: lines.map((l) => ({ productId: l.productId, requestedQty: Number(l.qty) })),
       });
       if (res.success) {
-        toast.success("Request submitted.");
+        toast.success("Request slip issued.");
         onOpenChange(false);
         router.refresh();
       } else toast.error(res.error);
@@ -228,7 +313,7 @@ function RequestDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Request stock</DialogTitle>
+          <DialogTitle>Issue request slip</DialogTitle>
           <DialogDescription>Ask another branch to send you products.</DialogDescription>
         </DialogHeader>
 
@@ -295,7 +380,7 @@ function RequestDialog({
             disabled={pending || !sourceBranchId || lines.length === 0}
             onClick={submit}
           >
-            {pending ? "Submitting…" : "Submit request"}
+            {pending ? "Issuing…" : "Issue slip"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -339,7 +424,7 @@ function FulfilDialog({
           ? await prepareTransferAction({ transferId: transfer.id, lines })
           : await receiveTransferAction({ transferId: transfer.id, lines });
       if (res.success) {
-        toast.success(mode === "prepare" ? "Prepared and handed off." : "Received.");
+        toast.success(mode === "prepare" ? "Slip prepared and handed off." : "Slip received & verified.");
         onOpenChange(false);
         router.refresh();
       } else toast.error(res.error);
@@ -350,8 +435,13 @@ function FulfilDialog({
     <Dialog open onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{mode === "prepare" ? "Prepare transfer" : "Receive transfer"}</DialogTitle>
+          <DialogTitle>
+            {mode === "prepare" ? "Prepare transfer slip" : "Receive & verify slip"}
+          </DialogTitle>
           <DialogDescription>
+            {transfer.slipNumber ? (
+              <span className="font-mono">{transfer.slipNumber} · </span>
+            ) : null}
             {mode === "prepare"
               ? `Enter what you're actually handing to ${transfer.destBranchName}.`
               : `Recount what actually arrived from ${transfer.sourceBranchName}.`}
@@ -381,7 +471,11 @@ function FulfilDialog({
 
         <DialogFooter>
           <Button className="h-12 w-full text-base" disabled={pending} onClick={submit}>
-            {pending ? "Saving…" : mode === "prepare" ? "Prepare & hand off" : "Confirm received"}
+            {pending
+              ? "Saving…"
+              : mode === "prepare"
+              ? "Prepare & hand off"
+              : "Confirm received"}
           </Button>
         </DialogFooter>
       </DialogContent>

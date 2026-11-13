@@ -209,12 +209,16 @@ export interface TransferLineRow {
 
 export interface TransferRow {
   id: string;
+  slipNumber: string | null;
   status: BstStatus;
   sourceBranchId: string;
   sourceBranchName: string;
+  sourceBranchCode: string | null;
   destBranchId: string;
   destBranchName: string;
+  destBranchCode: string | null;
   requestedAt: string;
+  approvedAt: string | null;
   preparedAt: string | null;
   receivedAt: string | null;
   decisionNote: string | null;

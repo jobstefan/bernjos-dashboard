@@ -197,3 +197,19 @@
     font-size: max(16px, 1em);
   }
 }
+
+/* Transfer slip print styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-slip,
+  .print-slip * {
+    visibility: visible;
+  }
+  .print-slip {
+    position: absolute;
+    inset: 0;
+    padding: 2rem;
+  }
+}

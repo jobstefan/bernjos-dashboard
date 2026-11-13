@@ -972,6 +972,7 @@ model InventoryEntry {
 /// (or declined/cancelled at approval). No separate in-transit status.
 model StockTransfer {
   id             String          @id @default(cuid())
+  slipNumber     String?         @unique @map("slip_number")
   sourceBranchId String          @map("source_branch_id")
   destBranchId   String          @map("dest_branch_id")
   status         BstStatus       @default(requested)
