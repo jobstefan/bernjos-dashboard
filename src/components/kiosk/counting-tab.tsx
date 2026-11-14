@@ -3,8 +3,9 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -35,6 +36,7 @@ export function CountingTab({
   const [pending, startTransition] = React.useTransition();
   const [productType, setProductType] = React.useState<"sale" | "production">("sale");
   const [categoryId, setCategoryId] = React.useState<string>("all");
+  const [search, setSearch] = React.useState("");
   const [wasteFor, setWasteFor] = React.useState<KioskProduct | null>(null);
   const [customFor, setCustomFor] = React.useState<KioskProduct | null>(null);
   const [customQty, setCustomQty] = React.useState(1);
@@ -62,13 +64,15 @@ export function CountingTab({
     return state.categories.filter((c) => ids.has(c.id));
   }, [state.products, state.categories, productType]);
 
-  const visible = React.useMemo(
-    () =>
-      state.products.filter(
-        (p) => p.type === productType && (categoryId === "all" || p.categoryId === categoryId),
-      ),
-    [state.products, productType, categoryId],
-  );
+  const visible = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return state.products.filter(
+      (p) =>
+        p.type === productType &&
+        (categoryId === "all" || p.categoryId === categoryId) &&
+        (q === "" || p.name.toLowerCase().includes(q)),
+    );
+  }, [state.products, productType, categoryId, search]);
 
   function restock(product: KioskProduct, quantity: number) {
     startTransition(async () => {
@@ -91,6 +95,7 @@ export function CountingTab({
   function switchType(next: "sale" | "production") {
     setProductType(next);
     setCategoryId("all");
+    setSearch("");
   }
 
   return (
@@ -109,6 +114,26 @@ export function CountingTab({
         ))}
       </div>
 
+      {/* Search bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="h-12 pl-9 pr-9 text-base"
+          placeholder="Search products…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="size-4" />
+          </button>
+        )}
+      </div>
+
       {/* Category filter chips */}
       <div className="flex flex-wrap gap-2">
         <Chip active={categoryId === "all"} onClick={() => setCategoryId("all")}>
@@ -124,7 +149,9 @@ export function CountingTab({
       {/* Product grid */}
       {visible.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
-          No {productType === "sale" ? "sale" : "production"} items in this category.
+          {search.trim()
+            ? `No results for "${search.trim()}".`
+            : `No ${productType === "sale" ? "sale" : "production"} items in this category.`}
         </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
