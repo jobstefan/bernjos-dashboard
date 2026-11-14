@@ -90,7 +90,7 @@ export function PeriodsTable({ rows }: { rows: PeriodRow[] }) {
       columns={columns}
       data={rows}
       onRowClick={(row) => router.push(`/payroll/${row.id}`)}
-      initialSorting={[{ id: "periodLabel", desc: true }]}
+      initialSorting={[{ id: "payDate", desc: true }]}
       renderCard={(row) => (
         <DataCard
           title={row.periodLabel}
